@@ -1,0 +1,11 @@
+{
+  "pearson_correlation": 0.9643777012825012,
+  "spearman_correlation": 0.4998739873987398,
+  "rmse": 1.580861052070861,
+  "r2_score": -1.9352107048034668,
+  "spatial_correlation": 0.15638183911542064,
+  "marker_localization": 0.5412031100751258,
+  "morans_i_true": 0.04003580995352623,
+  "morans_i_recon": 0.19391865407934553,
+  "morans_i_preservation": 0.1538828441258193
+}

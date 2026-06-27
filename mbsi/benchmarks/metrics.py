@@ -1,0 +1,526 @@
+"""
+Metrics for benchmarking reconstruction quality.
+
+Computes various metrics to compare reconstructed expression
+against ground truth single-cell data.
+"""
+
+from typing import Dict, Any, Optional
+
+import anndata as ad
+import numpy as np
+from scipy.stats import pearsonr, spearmanr
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.neighbors import NearestNeighbors
+
+
+def align_reconstruction_to_truth(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+    genes: list
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Aggregate reconstructed cells onto true-cell locations via nearest-neighbor assignment.
+
+    Returns expression matrices with shape (n_true_cells, n_genes) for both datasets.
+    """
+    true_coords = true_adata.obsm['spatial']
+    recon_coords = recon_adata.obsm['spatial']
+
+    true_expr = true_adata[:, genes].X
+    recon_expr = recon_adata[:, genes].X
+    if hasattr(true_expr, 'toarray'):
+        true_expr = true_expr.toarray()
+    if hasattr(recon_expr, 'toarray'):
+        recon_expr = recon_expr.toarray()
+
+    if true_adata.n_obs == recon_adata.n_obs:
+        return true_expr, recon_expr
+
+    k = min(5, recon_adata.n_obs)
+    tree = NearestNeighbors(n_neighbors=k).fit(recon_coords)
+    _, indices = tree.kneighbors(true_coords)
+
+    aligned_recon = np.zeros((true_adata.n_obs, len(genes)), dtype=np.float64)
+    for i in range(true_adata.n_obs):
+        aligned_recon[i] = recon_expr[indices[i]].mean(axis=0)
+
+    return true_expr, aligned_recon
+
+
+def compute_all_metrics(
+    true_adata: ad.AnnData,
+    reconstructed_adata: ad.AnnData,
+    pseudo_spot_adata: Optional[ad.AnnData] = None
+) -> Dict[str, Any]:
+    """
+    Compute all benchmark metrics.
+    
+    Parameters
+    ----------
+    true_adata : AnnData
+        Ground truth single-cell data
+    reconstructed_adata : AnnData
+        Reconstructed single-cell data
+    pseudo_spot_adata : AnnData, optional
+        Pseudo-Visium spot data for additional metrics
+        
+    Returns
+    -------
+    metrics : dict
+        Dictionary with all computed metrics
+    """
+    metrics = {}
+    
+    # Align genes
+    common_genes = list(
+        set(true_adata.var_names) & set(reconstructed_adata.var_names)
+    )
+    
+    if len(common_genes) == 0:
+        return {"error": "No common genes found"}
+    
+    true_subset = true_adata[:, common_genes].copy()
+    recon_subset = reconstructed_adata[:, common_genes].copy()
+    
+    # Get expression matrices
+    X_true = true_subset.X
+    X_recon = recon_subset.X
+    
+    if hasattr(X_true, 'toarray'):
+        X_true = X_true.toarray()
+    if hasattr(X_recon, 'toarray'):
+        X_recon = X_recon.toarray()
+    
+    # Correlation metrics
+    metrics['pearson_correlation'] = compute_correlation(X_true, X_recon, method='pearson')
+    metrics['spearman_correlation'] = compute_correlation(X_true, X_recon, method='spearman')
+    
+    # Error metrics
+    metrics['rmse'] = compute_rmse(X_true, X_recon)
+    metrics['r2_score'] = compute_r2(X_true, X_recon)
+    
+    # Spatial metrics — align recon cells to true locations when counts differ
+    if 'spatial' in true_adata.obsm and 'spatial' in reconstructed_adata.obsm:
+        true_spatial, recon_spatial = align_reconstruction_to_truth(
+            true_subset, recon_subset, common_genes
+        )
+        metrics['spatial_correlation'] = compute_spatial_correlation_aligned(
+            true_spatial, recon_spatial,
+            true_adata.obsm['spatial'],
+            common_genes
+        )
+        metrics['marker_localization'] = compute_marker_localization_aligned(
+            true_spatial, recon_spatial
+        )
+    
+    # Boundary leakage
+    if 'label' in true_adata.obs and 'label' in reconstructed_adata.obs:
+        metrics['boundary_leakage'] = compute_boundary_leakage(
+            true_adata, reconstructed_adata
+        )
+    
+    # Moran's I — computed per dataset; preservation compares scalar values
+    if 'spatial' in true_adata.obsm and 'spatial' in reconstructed_adata.obsm:
+        metrics['morans_i_true'] = compute_morans_i(true_subset)
+        _, aligned_expr = align_reconstruction_to_truth(
+            true_subset, recon_subset, common_genes
+        )
+        aligned_for_morans = ad.AnnData(
+            X=aligned_expr,
+            obsm={'spatial': true_adata.obsm['spatial'].copy()}
+        )
+        metrics['morans_i_recon'] = compute_morans_i(aligned_for_morans)
+        metrics['morans_i_preservation'] = abs(
+            metrics['morans_i_true'] - metrics['morans_i_recon']
+        )
+    else:
+        metrics['morans_i_true'] = None
+        metrics['morans_i_recon'] = None
+        metrics['morans_i_preservation'] = None
+    
+    # Cell type classification
+    if 'cell_type' in true_adata.obs:
+        metrics['cell_type_accuracy'] = compute_cell_type_accuracy(
+            true_adata, reconstructed_adata
+        )
+    
+    # Spot-level metrics if pseudo-Visium available
+    if pseudo_spot_adata is not None:
+        from mbsi.benchmarks.pseudo_visium import aggregate_cells_to_spots
+        recon_spots = aggregate_cells_to_spots(
+            reconstructed_adata,
+            pseudo_spot_adata.obsm['spatial']
+        )
+        
+        spot_common_genes = list(
+            set(pseudo_spot_adata.var_names) & set(reconstructed_adata.var_names)
+        )
+        
+        if len(spot_common_genes) > 0:
+            X_pseudo = pseudo_spot_adata[:, spot_common_genes].X
+            gene_idx = [list(reconstructed_adata.var_names).index(g) for g in spot_common_genes]
+            X_recon_spots = recon_spots[:, gene_idx]
+            
+            if hasattr(X_pseudo, 'toarray'):
+                X_pseudo = X_pseudo.toarray()
+            if hasattr(X_recon_spots, 'toarray'):
+                X_recon_spots = X_recon_spots.toarray()
+            
+            metrics['spot_pearson'] = compute_correlation(X_pseudo, X_recon_spots, 'pearson')
+            metrics['spot_rmse'] = compute_rmse(X_pseudo, X_recon_spots)
+    
+    return metrics
+
+
+def compute_correlation(
+    X_true: np.ndarray,
+    X_recon: np.ndarray,
+    method: str = 'pearson'
+) -> float:
+    """
+    Compute correlation between true and reconstructed expression.
+    
+    Parameters
+    ----------
+    X_true : ndarray
+        True expression
+    X_recon : ndarray
+        Reconstructed expression
+    method : str
+        'pearson' or 'spearman'
+        
+    Returns
+    -------
+    correlation : float
+        Mean correlation across genes
+    """
+    # Handle different sizes by using aggregate statistics
+    if X_true.shape[0] != X_recon.shape[0]:
+        # Use mean expression per gene for comparison
+        true_mean = X_true.mean(axis=0)
+        recon_mean = X_recon.mean(axis=0)
+        
+        if method == 'pearson':
+            corr, _ = pearsonr(true_mean, recon_mean)
+        else:
+            corr, _ = spearmanr(true_mean, recon_mean)
+        
+        return float(corr) if not np.isnan(corr) else 0.0
+    
+    # Same size - compute per-gene correlation
+    n_genes = X_true.shape[1]
+    correlations = []
+    
+    for g in range(n_genes):
+        true_gene = X_true[:, g]
+        recon_gene = X_recon[:, g]
+        
+        # Remove zeros
+        mask = (true_gene > 0) | (recon_gene > 0)
+        if mask.sum() > 1:
+            if method == 'pearson':
+                corr, _ = pearsonr(true_gene[mask], recon_gene[mask])
+            else:
+                corr, _ = spearmanr(true_gene[mask], recon_gene[mask])
+            
+            if not np.isnan(corr):
+                correlations.append(corr)
+    
+    if len(correlations) > 0:
+        return float(np.mean(correlations))
+    else:
+        return 0.0
+
+
+def compute_rmse(
+    X_true: np.ndarray,
+    X_recon: np.ndarray
+) -> float:
+    """Compute root mean squared error."""
+    # Handle different sizes by comparing mean expression
+    if X_true.shape != X_recon.shape:
+        true_mean = X_true.mean(axis=0)
+        recon_mean = X_recon.mean(axis=0)
+        return float(np.sqrt(mean_squared_error(true_mean, recon_mean)))
+    return float(np.sqrt(mean_squared_error(X_true.flatten(), X_recon.flatten())))
+
+
+def compute_r2(
+    X_true: np.ndarray,
+    X_recon: np.ndarray
+) -> float:
+    """Compute R² score."""
+    # Handle different sizes by comparing mean expression
+    if X_true.shape != X_recon.shape:
+        true_mean = X_true.mean(axis=0)
+        recon_mean = X_recon.mean(axis=0)
+        return float(r2_score(true_mean, recon_mean))
+    return float(r2_score(X_true.flatten(), X_recon.flatten()))
+
+
+def compute_spatial_correlation(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+    genes: list
+) -> float:
+    """
+    Compute spatial correlation of expression patterns.
+    
+    Parameters
+    ----------
+    true_adata : AnnData
+        True data with spatial coordinates
+    recon_adata : AnnData
+        Reconstructed data with spatial coordinates
+    genes : list
+        List of genes to analyze
+        
+    Returns
+    -------
+    correlation : float
+        Mean spatial correlation
+    """
+    true_coords = true_adata.obsm['spatial']
+    recon_coords = recon_adata.obsm['spatial']
+    
+    correlations = []
+    
+    for gene in genes:
+        if gene in true_adata.var_names and gene in recon_adata.var_names:
+            true_expr = true_adata[:, gene].X
+            recon_expr = recon_adata[:, gene].X
+            
+            if hasattr(true_expr, 'toarray'):
+                true_expr = true_expr.toarray().flatten()
+            if hasattr(recon_expr, 'toarray'):
+                recon_expr = recon_expr.toarray().flatten()
+            
+            # Compute spatial correlation using nearest neighbors
+            corr = compute_spatial_autocorr(true_coords, true_expr, recon_coords, recon_expr)
+            correlations.append(corr)
+    
+    return float(np.mean(correlations)) if correlations else 0.0
+
+
+def compute_spatial_correlation_aligned(
+    true_expr: np.ndarray,
+    recon_expr: np.ndarray,
+    coords: np.ndarray,
+    genes: list
+) -> float:
+    """Spatial correlation on aligned expression matrices sharing coordinates."""
+    correlations = []
+    for gene_idx in range(min(len(genes), true_expr.shape[1])):
+        corr = compute_spatial_autocorr(
+            coords, true_expr[:, gene_idx],
+            coords, recon_expr[:, gene_idx]
+        )
+        correlations.append(corr)
+    return float(np.mean(correlations)) if correlations else 0.0
+
+
+def compute_marker_localization_aligned(
+    true_expr: np.ndarray,
+    recon_expr: np.ndarray,
+    top_n: int = 5
+) -> float:
+    """Marker localization score on aligned expression matrices."""
+    gene_vars = np.var(true_expr, axis=0)
+    top_indices = np.argsort(gene_vars)[-top_n:][::-1]
+    scores = []
+    for idx in top_indices:
+        corr, _ = pearsonr(true_expr[:, idx], recon_expr[:, idx])
+        if not np.isnan(corr):
+            scores.append(abs(corr))
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def compute_spatial_autocorr(
+    coords1: np.ndarray,
+    expr1: np.ndarray,
+    coords2: np.ndarray,
+    expr2: np.ndarray
+) -> float:
+    """Compute spatial autocorrelation correlation."""
+    # Build KDTree for nearest neighbors
+    tree1 = NearestNeighbors(n_neighbors=5).fit(coords1)
+    tree2 = NearestNeighbors(n_neighbors=5).fit(coords2)
+    
+    # Get neighbor similarities
+    _, indices1 = tree1.kneighbors(coords1)
+    _, indices2 = tree2.kneighbors(coords2)
+    
+    # Compute mean expression of neighbors
+    neighbor_expr1 = np.array([expr1[indices].mean() for indices in indices1])
+    neighbor_expr2 = np.array([expr2[indices].mean() for indices in indices2])
+    
+    # Correlation of neighbor patterns
+    corr, _ = pearsonr(neighbor_expr1, neighbor_expr2)
+    
+    return float(corr) if not np.isnan(corr) else 0.0
+
+
+def compute_marker_localization(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+    genes: list,
+    top_n: int = 10
+) -> float:
+    """
+    Compute marker gene localization score.
+    
+    Measures how well marker genes are localized to correct regions.
+    """
+    # Identify marker genes using variance-based selection
+    X = true_adata.X.toarray() if hasattr(true_adata.X, 'toarray') else true_adata.X
+    gene_vars = np.var(X, axis=0)
+    top_gene_indices = np.argsort(gene_vars)[-top_n:][::-1]
+    marker_genes = [true_adata.var_names[i] for i in top_gene_indices]
+    
+    if len(marker_genes) == 0:
+        return 0.0
+    
+    # Compute localization score
+    scores = []
+    for gene in marker_genes[:5]:
+        if gene in recon_adata.var_names:
+            true_expr = true_adata[:, gene].X
+            recon_expr = recon_adata[:, gene].X
+            
+            if hasattr(true_expr, 'toarray'):
+                true_expr = true_expr.toarray().flatten()
+            if hasattr(recon_expr, 'toarray'):
+                recon_expr = recon_expr.toarray().flatten()
+            
+            # Correlation as localization score
+            corr, _ = pearsonr(true_expr, recon_expr)
+            if not np.isnan(corr):
+                scores.append(abs(corr))
+    
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def compute_boundary_leakage(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData
+) -> float:
+    """
+    Compute boundary leakage score.
+    
+    Measures expression leakage across compartment boundaries.
+    """
+    true_labels = true_adata.obs['label'].values
+    recon_labels = recon_adata.obs['label'].values
+    
+    # Simple metric: fraction of cells with mismatched labels
+    # (assuming labels should be preserved)
+    if len(true_labels) != len(recon_labels):
+        return 0.0
+    
+    mismatch = (true_labels != recon_labels).sum()
+    leakage = mismatch / len(true_labels)
+    
+    return float(leakage)
+
+
+def compute_morans_i(
+    adata: ad.AnnData
+) -> float:
+    """
+    Compute Moran's I spatial autocorrelation.
+    
+    Simple implementation using nearest neighbors.
+    """
+    coords = adata.obsm['spatial']
+    X = adata.X
+    
+    if hasattr(X, 'toarray'):
+        X = X.toarray()
+    
+    # Use first gene as example
+    expr = X[:, 0]
+    
+    # Build spatial weights
+    tree = NearestNeighbors(n_neighbors=5).fit(coords)
+    distances, indices = tree.kneighbors(coords)
+    
+    # Compute Moran's I
+    n = len(expr)
+    mean_expr = expr.mean()
+    
+    numerator = 0.0
+    denominator = 0.0
+    
+    for i in range(n):
+        for j_idx, j in enumerate(indices[i]):
+            if i != j:
+                weight = 1.0 / (distances[i, j_idx] + 1e-10)
+                numerator += weight * (expr[i] - mean_expr) * (expr[j] - mean_expr)
+        
+        denominator += (expr[i] - mean_expr)**2
+    
+    # Sum of weights
+    W = distances.shape[0] * distances.shape[1]
+    
+    morans_i = (n / W) * (numerator / (denominator + 1e-10))
+    
+    return float(morans_i)
+
+
+def compute_cell_type_accuracy(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData
+) -> float:
+    """
+    Compute cell type classification accuracy.
+    
+    Matches cells by spatial proximity and compares labels.
+    """
+    if 'cell_type' not in true_adata.obs:
+        return 0.0
+    
+    true_coords = true_adata.obsm['spatial']
+    recon_coords = recon_adata.obsm['spatial']
+    
+    # Find nearest matches
+    tree = NearestNeighbors(n_neighbors=1).fit(true_coords)
+    _, indices = tree.kneighbors(recon_coords)
+    
+    # Compare labels
+    true_labels = true_adata.obs['cell_type'].values
+    recon_labels = recon_adata.obs.get('cell_type', ['unknown'] * len(recon_adata))
+    
+    correct = 0
+    total = len(recon_labels)
+    
+    for i, true_idx in enumerate(indices.flatten()):
+        if recon_labels[i] == true_labels[true_idx]:
+            correct += 1
+    
+    return float(correct / total) if total > 0 else 0.0
+
+
+def benchmark_reconstruction(
+    true_adata: ad.AnnData,
+    pseudo_spot_adata: ad.AnnData,
+    reconstructed_adata: ad.AnnData
+) -> Dict[str, Any]:
+    """
+    Main benchmarking function.
+    
+    Parameters
+    ----------
+    true_adata : AnnData
+        Ground truth single-cell data
+    pseudo_spot_adata : AnnData
+        Pseudo-Visium spot data
+    reconstructed_adata : AnnData
+        Reconstructed single-cell data
+        
+    Returns
+    -------
+    metrics : dict
+        All benchmark metrics
+    """
+    return compute_all_metrics(true_adata, reconstructed_adata, pseudo_spot_adata)

@@ -1,0 +1,299 @@
+/* MBSI Studio — Dark Scientific Dashboard Theme */
+
+:root {
+    --bg-primary: #07111f;
+    --bg-panel: #0d1828;
+    --border: #22314a;
+    --text-primary: #f4f7fb;
+    --text-muted: #9aa7b8;
+    --accent-blue: #4f7cff;
+    --accent-green: #39d98a;
+    --accent-orange: #ffb020;
+    --accent-red: #ff5c7a;
+    --accent-purple: #9b6cff;
+}
+
+.stApp {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.block-container {
+    padding-top: 1rem;
+    max-width: 100%;
+}
+
+/* Hide default Streamlit header/footer clutter */
+header[data-testid="stHeader"] {
+    background: transparent;
+}
+
+/* Sidebar */
+div[data-testid="stSidebar"] {
+    background-color: var(--bg-panel);
+    border-right: 1px solid var(--border);
+}
+
+div[data-testid="stSidebar"] .stMarkdown,
+div[data-testid="stSidebar"] label,
+div[data-testid="stSidebar"] p {
+    color: var(--text-primary);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+    color: var(--text-primary) !important;
+}
+
+.stCaption, .stMarkdown small {
+    color: var(--text-muted) !important;
+}
+
+/* Panels */
+.mbsi-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+}
+
+.mbsi-panel-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+}
+
+.mbsi-panel-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+/* Top navigation */
+.mbsi-topnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+}
+
+.mbsi-nav-item {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.mbsi-nav-item:hover {
+    color: var(--text-primary);
+    background: rgba(79, 124, 255, 0.12);
+    border-color: var(--border);
+}
+
+.mbsi-nav-item.active {
+    color: var(--text-primary);
+    background: rgba(79, 124, 255, 0.22);
+    border-color: var(--accent-blue);
+}
+
+/* Metric cards */
+.mbsi-metric-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 90px;
+}
+
+.mbsi-metric-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.mbsi-metric-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 4px;
+}
+
+.mbsi-metric-delta {
+    font-size: 0.78rem;
+    color: var(--accent-green);
+}
+
+/* Status bar */
+.mbsi-statusbar {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.mbsi-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.mbsi-status-dot.online { background: var(--accent-green); }
+.mbsi-status-dot.offline { background: var(--accent-red); }
+.mbsi-status-dot.partial { background: var(--accent-orange); }
+
+/* Accent borders */
+.mbsi-accent-blue { border-left: 3px solid var(--accent-blue); }
+.mbsi-accent-green { border-left: 3px solid var(--accent-green); }
+.mbsi-accent-orange { border-left: 3px solid var(--accent-orange); }
+.mbsi-accent-red { border-left: 3px solid var(--accent-red); }
+.mbsi-accent-purple { border-left: 3px solid var(--accent-purple); }
+
+/* Streamlit widgets */
+.stSelectbox > div > div,
+.stMultiSelect > div > div,
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input {
+    background-color: var(--bg-panel) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+    border-radius: 6px;
+}
+
+.stButton > button {
+    border-radius: 6px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: rgba(79, 124, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.stButton > button[kind="primary"] {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+}
+
+.stDownloadButton > button {
+    background: rgba(57, 217, 138, 0.15);
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    border-radius: 6px;
+}
+
+div[data-testid="stMetric"] {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+div[data-testid="stMetric"] label {
+    color: var(--text-muted) !important;
+}
+
+div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: var(--text-primary) !important;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    background: var(--bg-panel);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    gap: 4px;
+    padding: 4px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: var(--text-muted);
+    border-radius: 6px;
+}
+
+.stTabs [aria-selected="true"] {
+    background: rgba(79, 124, 255, 0.2) !important;
+    color: var(--text-primary) !important;
+}
+
+.stDataFrame, .stTable {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+hr {
+    border-color: var(--border);
+}
+
+.stAlert {
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+/* Plot containers */
+.plot-container {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+}
+
+/* Gauge */
+.mbsi-gauge {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.mbsi-gauge-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+    border-radius: 4px;
+}
+
+/* Export report */
+.mbsi-report-hero {
+    background: linear-gradient(135deg, #0d1828 0%, #142038 50%, #0d1828 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+}
+
+.mbsi-report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 768px) {
+    .mbsi-topnav { flex-direction: column; }
+    .mbsi-metric-value { font-size: 1.2rem; }
+}
+
+@media print {
+    div[data-testid="stSidebar"] { display: none; }
+    .mbsi-topnav { display: none; }
+}

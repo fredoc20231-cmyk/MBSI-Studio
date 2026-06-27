@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mbsi-studio"
+version = "0.2.0"
+description = "Morpho-Biophysical Sheaf Integration for spatial transcriptomics super-resolution"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "MBSI Studio Team"}
+]
+keywords = ["spatial-transcriptomics", "super-resolution", "optimal-transport", "sheaf-theory"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+dependencies = [
+    "scanpy>=1.10.0",
+    "anndata>=0.10.0",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    "pandas>=2.0.0",
+    "scikit-learn>=1.3.0",
+    "scikit-image>=0.22.0",
+    "torch>=2.0.0",
+    "POT>=0.9.0",
+    "networkx>=3.1",
+    "plotly>=5.17.0",
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.0.0",
+    "streamlit>=1.28.0",
+    "pillow>=10.0.0",
+    "tqdm>=4.66.0",
+    "pyyaml>=6.0.0",
+    "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.1.0",
+    "mypy>=1.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/mbsi-studio"
+Repository = "https://github.com/yourusername/mbsi-studio"
+Documentation = "https://github.com/yourusername/mbsi-studio#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mbsi*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

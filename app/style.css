@@ -1,0 +1,144 @@
+/* MBSI Studio v2 — Reference Dashboard Theme */
+
+:root {
+  --bg: #07111f;
+  --panel: #0d1828;
+  --panel2: #101d2e;
+  --border: #22314a;
+  --text: #f4f7fb;
+  --muted: #9aa7b8;
+  --blue: #4f7cff;
+  --green: #39d98a;
+  --orange: #ffb020;
+  --red: #ff5c7a;
+  --purple: #9b6cff;
+  --cyan: #30d5c8;
+  --pink: #ff5c9c;
+}
+
+.stApp {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+header[data-testid="stHeader"] { background: transparent !important; }
+div[data-testid="stToolbar"] { display: none !important; }
+section[data-testid="stSidebar"] { display: none !important; }
+.block-container { padding: 0.4rem 0.8rem 4.5rem !important; max-width: 100% !important; }
+
+.mbsi-app { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+/* Top navbar */
+.mbsi-navbar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 14px; margin-bottom: 8px; gap: 8px;
+}
+.mbsi-brand { display: flex; align-items: center; gap: 10px; min-width: 240px; }
+.mbsi-logo {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.65rem; color: white;
+}
+.mbsi-brand-title { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.1; }
+.mbsi-brand-sub { font-size: 0.68rem; color: var(--muted); }
+
+.mbsi-nav-center { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; justify-content: center; }
+.mbsi-nav-item {
+  font-size: 0.72rem; color: var(--muted); padding: 6px 10px; border-radius: 6px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.mbsi-nav-item.active {
+  color: var(--text); background: var(--panel2);
+  border-color: var(--border); border-bottom: 2px solid var(--blue);
+}
+
+.mbsi-nav-right { display: flex; align-items: center; gap: 8px; }
+.mbsi-demo-btn {
+  background: var(--green); color: #04120a; font-size: 0.72rem; font-weight: 700;
+  padding: 5px 10px; border-radius: 6px;
+}
+.mbsi-icon-btn {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--panel2);
+  border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 0.75rem;
+}
+.mbsi-avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--blue);
+  color: white; font-size: 0.7rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* Panels */
+.mbsi-panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.mbsi-panel-title {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 8px;
+}
+.mbsi-panel-heading { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+.mbsi-check { color: var(--green); margin-right: 6px; }
+.mbsi-row { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 2px 0; }
+.mbsi-row span:first-child { color: var(--muted); }
+.mbsi-row span:last-child { color: var(--text); font-weight: 600; }
+
+.mbsi-readiness-ring {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: conic-gradient(var(--green) 0 353deg, var(--border) 353deg 360deg);
+  display: flex; align-items: center; justify-content: center; margin: 8px auto;
+}
+.mbsi-readiness-inner {
+  width: 54px; height: 54px; border-radius: 50%; background: var(--panel);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; font-weight: 700; color: var(--green);
+}
+
+.mbsi-subtabs {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.mbsi-subtab {
+  font-size: 0.72rem; padding: 5px 10px; border-radius: 6px;
+  color: var(--muted); border: 1px solid transparent;
+}
+.mbsi-subtab.active { color: var(--text); background: var(--panel2); border-color: var(--border); }
+
+.mbsi-metric-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 8px 0; }
+.mbsi-metric-card {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; text-align: center;
+}
+.mbsi-metric-value { font-size: 1.35rem; font-weight: 800; line-height: 1; }
+.mbsi-metric-label { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
+.mbsi-mv-blue { color: var(--blue); }
+.mbsi-mv-purple { color: var(--purple); }
+.mbsi-mv-cyan { color: var(--cyan); }
+.mbsi-mv-orange { color: var(--orange); }
+.mbsi-mv-green { color: var(--green); }
+
+.mbsi-bottom-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px; }
+.mbsi-analytic-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px; min-height: 220px;
+}
+.mbsi-analytic-title { font-size: 0.72rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+
+.mbsi-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; margin: 2px 0; }
+.mbsi-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.mbsi-statusbar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 999;
+  background: var(--panel); border-top: 1px solid var(--border);
+  padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.72rem; color: var(--muted);
+}
+.mbsi-status-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.mbsi-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 4px; }
+.mbsi-status-actions { display: flex; gap: 8px; }
+
+div[data-testid="stSelectbox"] label, div[data-testid="stMultiSelect"] label { font-size: 0.72rem !important; color: var(--muted) !important; }
+div[data-baseweb="select"] > div { background: var(--panel2) !important; border-color: var(--border) !important; font-size: 0.75rem !important; }
+.stButton > button { font-size: 0.75rem !important; border-radius: 6px !important; }

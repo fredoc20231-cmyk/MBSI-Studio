@@ -1,0 +1,15 @@
+{
+  "pearson_correlation": 0.9454292714525536,
+  "spearman_correlation": 0.5121288438082262,
+  "rmse": 2.1159554024883946,
+  "r2_score": -25.239147186279297,
+  "spatial_correlation": 0.16968225918987642,
+  "marker_localization": 0.7988348185532377,
+  "morans_i_true": -0.004493117444961484,
+  "morans_i_recon": 0.26732708623757445,
+  "morans_i_preservation": 0.27182020368253595,
+  "cell_type_accuracy": 0.0,
+  "spot_pearson": 0.6981826325338836,
+  "spot_rmse": 2.336694474782399,
+  "boundary_leakage_recon": 0.0021188128739595413
+}

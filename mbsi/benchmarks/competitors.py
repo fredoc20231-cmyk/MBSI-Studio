@@ -11,6 +11,8 @@ import anndata as ad
 import numpy as np
 from scipy.spatial.distance import cdist
 
+from mbsi.utils import build_result_adata, to_dense_flat
+
 
 def run_baseline_methods(
     spot_adata: ad.AnnData,
@@ -94,20 +96,12 @@ def baseline_uniform(
         start_idx = i * n_cells_per_spot
         end_idx = min((i + 1) * n_cells_per_spot, n_cells)
         
-        spot_expr = spot_adata.X[i]
-        if hasattr(spot_expr, 'toarray'):
-            spot_expr = spot_expr.toarray().flatten()
+        spot_expr = to_dense_flat(spot_adata.X[i])
         
         # Uniform distribution
         cell_expression[start_idx:end_idx] = spot_expr / n_cells_per_spot
     
-    # Create AnnData
-    baseline_adata = ad.AnnData(X=cell_expression, dtype=np.float32)
-    baseline_adata.var_names = spot_adata.var_names.copy()
-    baseline_adata.obs_names = [f"cell_{i}" for i in range(n_cells)]
-    baseline_adata.obsm['spatial'] = cell_coords
-    
-    return baseline_adata
+    return build_result_adata(cell_expression, cell_coords, spot_adata.var_names)
 
 
 def baseline_distance_weighted(
@@ -133,9 +127,7 @@ def baseline_distance_weighted(
     
     # Distribute based on distance
     for i in range(n_spots):
-        spot_expr = spot_adata.X[i]
-        if hasattr(spot_expr, 'toarray'):
-            spot_expr = spot_expr.toarray().flatten()
+        spot_expr = to_dense_flat(spot_adata.X[i])
         
         # Get cells for this spot
         start_idx = i * n_cells_per_spot
@@ -151,13 +143,7 @@ def baseline_distance_weighted(
         for j, idx in enumerate(range(start_idx, end_idx)):
             cell_expression[idx] = weights[j] * spot_expr
     
-    # Create AnnData
-    baseline_adata = ad.AnnData(X=cell_expression, dtype=np.float32)
-    baseline_adata.var_names = spot_adata.var_names.copy()
-    baseline_adata.obs_names = [f"cell_{i}" for i in range(n_cells)]
-    baseline_adata.obsm['spatial'] = cell_coords
-    
-    return baseline_adata
+    return build_result_adata(cell_expression, cell_coords, spot_adata.var_names)
 
 
 def baseline_nearest_neighbor(
@@ -184,19 +170,11 @@ def baseline_nearest_neighbor(
     # Assign nearest spot expression
     for i in range(n_cells):
         spot_idx = indices[i]
-        spot_expr = spot_adata.X[spot_idx]
-        if hasattr(spot_expr, 'toarray'):
-            spot_expr = spot_expr.toarray().flatten()
+        spot_expr = to_dense_flat(spot_adata.X[spot_idx])
         
         cell_expression[i] = spot_expr
     
-    # Create AnnData
-    baseline_adata = ad.AnnData(X=cell_expression, dtype=np.float32)
-    baseline_adata.var_names = spot_adata.var_names.copy()
-    baseline_adata.obs_names = [f"cell_{i}" for i in range(n_cells)]
-    baseline_adata.obsm['spatial'] = cell_coords
-    
-    return baseline_adata
+    return build_result_adata(cell_expression, cell_coords, spot_adata.var_names)
 
 
 def baseline_linear_interpolation(
@@ -232,18 +210,10 @@ def baseline_linear_interpolation(
         # Interpolate expression
         cell_expr = np.zeros(n_genes)
         for j, spot_idx in enumerate(neighbor_indices):
-            spot_expr = spot_adata.X[spot_idx]
-            if hasattr(spot_expr, 'toarray'):
-                spot_expr = spot_expr.toarray().flatten()
+            spot_expr = to_dense_flat(spot_adata.X[spot_idx])
             
             cell_expr += weights[j] * spot_expr
         
         cell_expression[i] = cell_expr
     
-    # Create AnnData
-    baseline_adata = ad.AnnData(X=cell_expression, dtype=np.float32)
-    baseline_adata.var_names = spot_adata.var_names.copy()
-    baseline_adata.obs_names = [f"cell_{i}" for i in range(n_cells)]
-    baseline_adata.obsm['spatial'] = cell_coords
-    
-    return baseline_adata
+    return build_result_adata(cell_expression, cell_coords, spot_adata.var_names)

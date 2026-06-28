@@ -5,6 +5,8 @@ from typing import Dict, List
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def estimate_spatial_dynamics(timepoint_adatas: List[ad.AnnData]) -> Dict:
     """
@@ -16,8 +18,8 @@ def estimate_spatial_dynamics(timepoint_adatas: List[ad.AnnData]) -> Dict:
     transitions = []
     for t in range(len(timepoint_adatas) - 1):
         a0, a1 = timepoint_adatas[t], timepoint_adatas[t + 1]
-        X0 = a0.X.toarray() if hasattr(a0.X, "toarray") else np.asarray(a0.X)
-        X1 = a1.X.toarray() if hasattr(a1.X, "toarray") else np.asarray(a1.X)
+        X0 = to_dense_array(a0.X)
+        X1 = to_dense_array(a1.X)
         mean_change = float(np.mean(X1.mean(axis=0) - X0.mean(axis=0)))
         immune_score = 0.0
         if "compartment" in a1.obs:

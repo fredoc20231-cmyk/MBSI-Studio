@@ -5,6 +5,8 @@ from typing import List
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def compute_receptor_activation_flux(
     adata: ad.AnnData,
@@ -18,9 +20,7 @@ def compute_receptor_activation_flux(
     if not genes or ligand_field.size == 0:
         return np.zeros((adata.n_obs, len(receptor_genes)))
 
-    X = adata[:, genes].X
-    if hasattr(X, "toarray"):
-        X = X.toarray()
+    X = to_dense_array(adata[:, genes].X)
 
     n_lig = ligand_field.shape[1] if ligand_field.ndim > 1 else 1
     n_rec = X.shape[1]

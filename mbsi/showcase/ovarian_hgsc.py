@@ -10,6 +10,7 @@ import pandas as pd
 
 from mbsi.communication import run_communication_analysis
 from mbsi.tme import run_tme_analysis, detect_immune_exclusion, detect_caf_barriers
+from mbsi.utils import score_signature
 
 SHOWCASE_GUARDRAIL = (
     "Analytical outputs are computational results for research use only. "
@@ -112,15 +113,7 @@ def make_ovarian_showcase_adata(n_spots: int = 120, seed: int = 42) -> ad.AnnDat
 
 
 def _score_signature(adata: ad.AnnData, genes: List[str], layer: str = "logcounts") -> np.ndarray:
-    present = [g for g in genes if g in adata.var_names]
-    if not present:
-        return np.zeros(adata.n_obs)
-    if layer in adata.layers:
-        X = adata[:, present].layers[layer]
-    else:
-        X = adata[:, present].X
-    X = np.asarray(X.toarray() if hasattr(X, "toarray") else X, dtype=float)
-    return X.mean(axis=1)
+    return score_signature(adata, genes, layer)
 
 
 def score_resistance_programs(adata: ad.AnnData, layer: str = "logcounts") -> pd.DataFrame:

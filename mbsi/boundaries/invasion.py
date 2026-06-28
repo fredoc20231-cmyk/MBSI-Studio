@@ -4,7 +4,8 @@ from typing import List
 
 import anndata as ad
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
+
+from mbsi.utils import to_dense_array
 
 
 def detect_invasion_corridors(
@@ -18,7 +19,7 @@ def detect_invasion_corridors(
     if not t_genes or not s_genes:
         return np.zeros(adata.n_obs)
 
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     t_idx = [list(adata.var_names).index(g) for g in t_genes]
     s_idx = [list(adata.var_names).index(g) for g in s_genes]
     tumor = X[:, t_idx].mean(axis=1)
@@ -42,7 +43,7 @@ def detect_immune_exclusion_zones(
     if not t_genes:
         return np.zeros(adata.n_obs)
 
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     t_idx = [list(adata.var_names).index(g) for g in t_genes]
     tumor = X[:, t_idx].mean(axis=1)
     immune = X[:, [list(adata.var_names).index(g) for g in i_genes]].mean(axis=1) if i_genes else np.zeros(adata.n_obs)

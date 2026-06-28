@@ -12,6 +12,7 @@ import anndata as ad
 import pandas as pd
 from jinja2 import Template
 
+from mbsi.utils import to_dense_array
 from mbsi.visualization.spatial_plots import (
     plot_spatial_gene,
     plot_reconstruction_scatter,
@@ -184,7 +185,7 @@ def export_nature_figures(
     # Figure 1: Spatial comparison
     # Use variance-based gene selection instead of deprecated scanpy function
     import numpy as np
-    X = reconstructed_adata.X.toarray() if hasattr(reconstructed_adata.X, 'toarray') else reconstructed_adata.X
+    X = to_dense_array(reconstructed_adata.X)
     gene_vars = np.var(X, axis=0)
     top_gene_idx = np.argmax(gene_vars)
     top_gene = reconstructed_adata.var_names[top_gene_idx]

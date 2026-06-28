@@ -5,11 +5,11 @@ from __future__ import annotations
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def _as_dense(X) -> np.ndarray:
-    if hasattr(X, "toarray"):
-        return X.toarray()
-    return np.asarray(X)
+    return to_dense_array(X)
 
 
 def normalize_log_transform(adata: ad.AnnData, target_sum: float = 1e4) -> ad.AnnData:

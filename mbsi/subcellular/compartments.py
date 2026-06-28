@@ -5,6 +5,8 @@ from typing import Dict, Optional
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def infer_subcellular_compartments(
     cell_adata: ad.AnnData,
@@ -15,7 +17,7 @@ def infer_subcellular_compartments(
 
     Returns dict of score arrays (n_cells,) — reconstruction estimates.
     """
-    X = cell_adata.X.toarray() if hasattr(cell_adata.X, "toarray") else np.asarray(cell_adata.X)
+    X = to_dense_array(cell_adata.X)
     total = X.sum(axis=1) + 1e-10
 
     # Heuristic: high-variance genes -> nuclear; mid -> cytoplasmic; surface markers -> membrane

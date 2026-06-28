@@ -4,7 +4,8 @@ from typing import Dict, Optional
 
 import anndata as ad
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
+
+from mbsi.utils import build_knn_graph
 
 
 def detect_tissue_boundaries(
@@ -26,8 +27,7 @@ def detect_tissue_boundaries(
         labels = adata.obs["compartment_id"].values
 
     labels = np.asarray(labels)
-    tree = NearestNeighbors(n_neighbors=min(8, len(coords))).fit(coords)
-    _, idx = tree.kneighbors(coords)
+    _, idx = build_knn_graph(coords, k=8)
 
     boundary_score = np.zeros(len(coords))
     for i in range(len(coords)):

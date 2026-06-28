@@ -6,17 +6,15 @@ import numpy as np
 import pandas as pd
 import anndata as ad
 
+from mbsi.utils import to_dense_array
+
 
 def compute_qc_metrics(adata: ad.AnnData, mito_prefixes: tuple = ("MT-", "mt-")) -> ad.AnnData:
     """Add total_counts, n_genes_by_counts, pct_counts_mito, log1p_total_counts to obs."""
     adata = adata.copy()
-    X = adata.X
-    if hasattr(X, "toarray"):
-        totals = np.asarray(X.sum(axis=1)).flatten()
-        n_genes = np.asarray((X > 0).sum(axis=1)).flatten()
-    else:
-        totals = X.sum(axis=1)
-        n_genes = (X > 0).sum(axis=1)
+    X = to_dense_array(adata.X)
+    totals = X.sum(axis=1)
+    n_genes = (X > 0).sum(axis=1)
 
     mito_mask = np.zeros(adata.n_vars, dtype=bool)
     for prefix in mito_prefixes:

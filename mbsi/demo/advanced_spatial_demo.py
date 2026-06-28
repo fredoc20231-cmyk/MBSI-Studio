@@ -139,19 +139,18 @@ def _assign_cell_positions(n_cells: int, width: float, height: float, rng: np.ra
 
 def _build_neighborhood_graph(coords: np.ndarray, k: int = 8, max_edges: int = 8000) -> nx.Graph:
     """k-NN neighborhood graph on cell coordinates."""
-    from sklearn.neighbors import NearestNeighbors
+    from mbsi.utils import build_knn_graph
 
     n = min(len(coords), 6000)
     idx = np.linspace(0, len(coords) - 1, n, dtype=int)
     sub = coords[idx]
-    nn = NearestNeighbors(n_neighbors=min(k + 1, n)).fit(sub)
-    dists, indices = nn.kneighbors(sub)
+    dists, indices = build_knn_graph(sub, k=k)
 
     g = nx.Graph()
     edge_count = 0
     for i in range(n):
         g.add_node(int(idx[i]))
-        for j, d in zip(indices[i][1:], dists[i][1:], strict=False):
+        for j, d in zip(indices[i], dists[i], strict=False):
             if edge_count >= max_edges:
                 break
             u, v = int(idx[i]), int(idx[j])

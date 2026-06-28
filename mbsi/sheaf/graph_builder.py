@@ -10,7 +10,8 @@ from typing import Optional, List
 import numpy as np
 import networkx as nx
 from scipy.spatial import KDTree
-from sklearn.neighbors import NearestNeighbors
+
+from mbsi.utils import build_knn_graph
 
 
 def build_cell_graph(
@@ -41,9 +42,7 @@ def build_cell_graph(
     n_cells = coords.shape[0]
     
     # Build kNN graph
-    nbrs = NearestNeighbors(n_neighbors=min(k + 1, n_cells), algorithm='kd_tree')
-    nbrs.fit(coords)
-    distances, indices = nbrs.kneighbors(coords)
+    distances, indices = build_knn_graph(coords, k=k)
     
     # Create graph
     graph = nx.Graph()
@@ -54,10 +53,9 @@ def build_cell_graph(
         if boundary_labels is not None:
             graph.nodes[i]['label'] = boundary_labels[i]
     
-    # Add edges (skip self-loops)
+    # Add edges
     for i in range(n_cells):
         for j_idx, j in enumerate(indices[i]):
-            if i != j:  # Skip self
                 dist = distances[i, j_idx]
                 
                 # Apply distance threshold if specified

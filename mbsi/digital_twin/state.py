@@ -5,10 +5,12 @@ from typing import Any, Dict
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def build_tissue_digital_twin(adata: ad.AnnData) -> Dict[str, Any]:
     """Capture current tissue state for simulation."""
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     compartments = {}
     if "compartment" in adata.obs:
         for c in adata.obs["compartment"].unique():

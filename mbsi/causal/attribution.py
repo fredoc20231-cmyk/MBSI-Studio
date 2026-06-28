@@ -6,6 +6,8 @@ import anndata as ad
 import networkx as nx
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def rank_causal_drivers(dag: nx.DiGraph, outcome_node: str) -> List[Dict[str, Any]]:
     """Rank upstream nodes by path weight to outcome."""
@@ -33,7 +35,7 @@ def compute_spatial_attribution(adata: ad.AnnData, outcome_score: np.ndarray) ->
     """
     Attribute outcome score to genes via correlation (simple attribution map per cell).
     """
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     attrs = np.zeros(X.shape[1])
     for g in range(X.shape[1]):
         corr = np.corrcoef(X[:, g], outcome_score)[0, 1]

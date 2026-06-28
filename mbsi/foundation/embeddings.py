@@ -5,6 +5,8 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+from mbsi.utils import to_dense_array
+
 
 def compute_tissue_embedding(adata: ad.AnnData, n_components: int = 30) -> np.ndarray:
     """
@@ -12,7 +14,7 @@ def compute_tissue_embedding(adata: ad.AnnData, n_components: int = 30) -> np.nd
 
     Not a trained foundation model — placeholder for future upgrade.
     """
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     if "multimodal_raw" in adata.obsm:
         X = np.hstack([X, adata.obsm["multimodal_raw"]])
     n_components = min(n_components, X.shape[0], X.shape[1])

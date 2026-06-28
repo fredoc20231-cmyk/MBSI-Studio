@@ -5,6 +5,8 @@ from typing import Dict, List, Optional
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def compute_boundary_leakage(
     adata: ad.AnnData,
@@ -22,7 +24,7 @@ def compute_boundary_leakage(
     labels = boundaries["labels"]
 
     if marker_sets is None:
-        X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+        X = to_dense_array(adata.X)
         marker_expr = X.mean(axis=1)
     else:
         genes = []
@@ -31,9 +33,7 @@ def compute_boundary_leakage(
         genes = list(set(genes))[:10]
         if not genes:
             return 0.0
-        X = adata[:, genes].X
-        if hasattr(X, "toarray"):
-            X = X.toarray()
+        X = to_dense_array(adata[:, genes].X)
         marker_expr = X.mean(axis=1)
 
     # Leakage: high marker expression at boundary regions with label heterogeneity

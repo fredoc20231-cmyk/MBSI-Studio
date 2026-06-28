@@ -14,6 +14,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
 
+from mbsi.utils import to_dense_flat
+
 
 def plot_spatial_gene(
     adata: ad.AnnData,
@@ -53,10 +55,7 @@ def plot_spatial_gene(
         raise ValueError(f"Gene {gene} not found in AnnData")
     
     coords = adata.obsm['spatial']
-    expr = adata[:, gene].X
-    
-    if hasattr(expr, 'toarray'):
-        expr = expr.toarray().flatten()
+    expr = to_dense_flat(adata[:, gene].X)
     
     fig, ax = plt.subplots(figsize=figsize)
     
@@ -118,13 +117,8 @@ def plot_reconstruction_scatter(
     if gene not in true_adata.var_names or gene not in reconstructed_adata.var_names:
         raise ValueError(f"Gene {gene} not found in both AnnData objects")
     
-    true_expr = true_adata[:, gene].X
-    recon_expr = reconstructed_adata[:, gene].X
-    
-    if hasattr(true_expr, 'toarray'):
-        true_expr = true_expr.toarray().flatten()
-    if hasattr(recon_expr, 'toarray'):
-        recon_expr = recon_expr.toarray().flatten()
+    true_expr = to_dense_flat(true_adata[:, gene].X)
+    recon_expr = to_dense_flat(reconstructed_adata[:, gene].X)
     
     fig, ax = plt.subplots(figsize=figsize)
     
@@ -188,9 +182,7 @@ def plot_spatial_comparison(
     
     # True expression
     coords_true = true_adata.obsm['spatial']
-    expr_true = true_adata[:, gene].X
-    if hasattr(expr_true, 'toarray'):
-        expr_true = expr_true.toarray().flatten()
+    expr_true = to_dense_flat(true_adata[:, gene].X)
     
     scatter1 = axes[0].scatter(
         coords_true[:, 0],
@@ -207,9 +199,7 @@ def plot_spatial_comparison(
     
     # Reconstructed expression
     coords_recon = reconstructed_adata.obsm['spatial']
-    expr_recon = reconstructed_adata[:, gene].X
-    if hasattr(expr_recon, 'toarray'):
-        expr_recon = expr_recon.toarray().flatten()
+    expr_recon = to_dense_flat(reconstructed_adata[:, gene].X)
     
     scatter2 = axes[1].scatter(
         coords_recon[:, 0],
@@ -279,9 +269,7 @@ def plot_multiple_genes(
         if gene not in adata.var_names:
             continue
         
-        expr = adata[:, gene].X
-        if hasattr(expr, 'toarray'):
-            expr = expr.toarray().flatten()
+        expr = to_dense_flat(adata[:, gene].X)
         
         scatter = axes[i].scatter(
             coords[:, 0],
@@ -333,10 +321,7 @@ def plot_interactive_spatial(
         raise ValueError(f"Gene {gene} not found in AnnData")
     
     coords = adata.obsm['spatial']
-    expr = adata[:, gene].X
-    
-    if hasattr(expr, 'toarray'):
-        expr = expr.toarray().flatten()
+    expr = to_dense_flat(adata[:, gene].X)
     
     fig = go.Figure(data=go.Scatter(
         x=coords[:, 0],

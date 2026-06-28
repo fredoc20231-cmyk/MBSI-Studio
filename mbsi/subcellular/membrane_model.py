@@ -4,7 +4,8 @@ from typing import List, Optional
 
 import anndata as ad
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
+
+from mbsi.utils import build_knn_graph, to_dense_array
 
 
 def estimate_membrane_receptor_maps(
@@ -15,9 +16,7 @@ def estimate_membrane_receptor_maps(
     genes = [g for g in receptor_genes if g in cell_adata.var_names]
     if not genes:
         return np.zeros((cell_adata.n_obs, len(receptor_genes)))
-    X = cell_adata[:, genes].X
-    if hasattr(X, "toarray"):
-        X = X.toarray()
+    X = to_dense_array(cell_adata[:, genes].X)
     return np.asarray(X, dtype=np.float32)
 
 
@@ -35,12 +34,9 @@ def estimate_secreted_ligand_fields(
     if not genes:
         return np.zeros((n, len(ligand_genes)))
 
-    X = cell_adata[:, genes].X
-    if hasattr(X, "toarray"):
-        X = X.toarray()
+    X = to_dense_array(cell_adata[:, genes].X)
 
-    tree = NearestNeighbors(n_neighbors=min(15, n)).fit(coords)
-    dists, idx = tree.kneighbors(coords)
+    dists, idx = build_knn_graph(coords, k=min(15, n - 1))
     fields = np.zeros_like(X)
     for i in range(n):
         w = np.exp(-dists[i] ** 2 / (2 * sigma ** 2))

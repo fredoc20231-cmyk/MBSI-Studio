@@ -10,6 +10,8 @@ import anndata as ad
 import numpy as np
 from scipy.spatial import KDTree
 
+from mbsi.utils import to_dense_array
+
 
 @dataclass
 class AdapterResult:
@@ -44,9 +46,7 @@ class BaseBenchmarkAdapter(ABC):
         """kNN spatial interpolation from spot expression to true cell locations."""
         spot_coords = pseudo_visium_adata.obsm["spatial"]
         cell_coords = ground_truth_adata.obsm["spatial"]
-        spot_x = pseudo_visium_adata.X
-        if hasattr(spot_x, "toarray"):
-            spot_x = spot_x.toarray()
+        spot_x = to_dense_array(pseudo_visium_adata.X)
 
         tree = KDTree(spot_coords)
         k_use = min(k, pseudo_visium_adata.n_obs)

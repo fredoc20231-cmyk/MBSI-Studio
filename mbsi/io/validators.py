@@ -7,6 +7,8 @@ from typing import Dict, Any
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def validate_spatial_adata(adata: ad.AnnData) -> Dict[str, Any]:
     """
@@ -92,10 +94,7 @@ def validate_spatial_adata(adata: ad.AnnData) -> Dict[str, Any]:
         )
     
     # Check for NaN values
-    if hasattr(adata.X, 'toarray'):
-        X_dense = adata.X.toarray()
-    else:
-        X_dense = adata.X
+    X_dense = to_dense_array(adata.X)
     
     if np.isnan(X_dense).any():
         validation["warnings"].append("Expression matrix contains NaN values")

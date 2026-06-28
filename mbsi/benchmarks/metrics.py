@@ -13,6 +13,8 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.neighbors import NearestNeighbors
 
+from mbsi.utils import to_dense_array, to_dense_flat
+
 
 def align_reconstruction_to_truth(
     true_adata: ad.AnnData,
@@ -27,12 +29,8 @@ def align_reconstruction_to_truth(
     true_coords = true_adata.obsm['spatial']
     recon_coords = recon_adata.obsm['spatial']
 
-    true_expr = true_adata[:, genes].X
-    recon_expr = recon_adata[:, genes].X
-    if hasattr(true_expr, 'toarray'):
-        true_expr = true_expr.toarray()
-    if hasattr(recon_expr, 'toarray'):
-        recon_expr = recon_expr.toarray()
+    true_expr = to_dense_array(true_adata[:, genes].X)
+    recon_expr = to_dense_array(recon_adata[:, genes].X)
 
     if true_adata.n_obs == recon_adata.n_obs:
         return true_expr, recon_expr
@@ -84,13 +82,8 @@ def compute_all_metrics(
     recon_subset = reconstructed_adata[:, common_genes].copy()
     
     # Get expression matrices
-    X_true = true_subset.X
-    X_recon = recon_subset.X
-    
-    if hasattr(X_true, 'toarray'):
-        X_true = X_true.toarray()
-    if hasattr(X_recon, 'toarray'):
-        X_recon = X_recon.toarray()
+    X_true = to_dense_array(true_subset.X)
+    X_recon = to_dense_array(recon_subset.X)
     
     # Correlation metrics
     metrics['pearson_correlation'] = compute_correlation(X_true, X_recon, method='pearson')
@@ -162,10 +155,8 @@ def compute_all_metrics(
             gene_idx = [list(reconstructed_adata.var_names).index(g) for g in spot_common_genes]
             X_recon_spots = recon_spots[:, gene_idx]
             
-            if hasattr(X_pseudo, 'toarray'):
-                X_pseudo = X_pseudo.toarray()
-            if hasattr(X_recon_spots, 'toarray'):
-                X_recon_spots = X_recon_spots.toarray()
+            X_pseudo = to_dense_array(X_pseudo)
+            X_recon_spots = to_dense_array(X_recon_spots)
             
             metrics['spot_pearson'] = compute_correlation(X_pseudo, X_recon_spots, 'pearson')
             metrics['spot_rmse'] = compute_rmse(X_pseudo, X_recon_spots)
@@ -288,13 +279,8 @@ def compute_spatial_correlation(
     
     for gene in genes:
         if gene in true_adata.var_names and gene in recon_adata.var_names:
-            true_expr = true_adata[:, gene].X
-            recon_expr = recon_adata[:, gene].X
-            
-            if hasattr(true_expr, 'toarray'):
-                true_expr = true_expr.toarray().flatten()
-            if hasattr(recon_expr, 'toarray'):
-                recon_expr = recon_expr.toarray().flatten()
+            true_expr = to_dense_flat(true_adata[:, gene].X)
+            recon_expr = to_dense_flat(recon_adata[:, gene].X)
             
             # Compute spatial correlation using nearest neighbors
             corr = compute_spatial_autocorr(true_coords, true_expr, recon_coords, recon_expr)
@@ -373,7 +359,7 @@ def compute_marker_localization(
     Measures how well marker genes are localized to correct regions.
     """
     # Identify marker genes using variance-based selection
-    X = true_adata.X.toarray() if hasattr(true_adata.X, 'toarray') else true_adata.X
+    X = to_dense_array(true_adata.X)
     gene_vars = np.var(X, axis=0)
     top_gene_indices = np.argsort(gene_vars)[-top_n:][::-1]
     marker_genes = [true_adata.var_names[i] for i in top_gene_indices]
@@ -385,13 +371,8 @@ def compute_marker_localization(
     scores = []
     for gene in marker_genes[:5]:
         if gene in recon_adata.var_names:
-            true_expr = true_adata[:, gene].X
-            recon_expr = recon_adata[:, gene].X
-            
-            if hasattr(true_expr, 'toarray'):
-                true_expr = true_expr.toarray().flatten()
-            if hasattr(recon_expr, 'toarray'):
-                recon_expr = recon_expr.toarray().flatten()
+            true_expr = to_dense_flat(true_adata[:, gene].X)
+            recon_expr = to_dense_flat(recon_adata[:, gene].X)
             
             # Correlation as localization score
             corr, _ = pearsonr(true_expr, recon_expr)
@@ -433,10 +414,7 @@ def compute_morans_i(
     Simple implementation using nearest neighbors.
     """
     coords = adata.obsm['spatial']
-    X = adata.X
-    
-    if hasattr(X, 'toarray'):
-        X = X.toarray()
+    X = to_dense_array(adata.X)
     
     # Use first gene as example
     expr = X[:, 0]

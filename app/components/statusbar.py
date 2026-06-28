@@ -1,10 +1,13 @@
 """Bottom status bar for MBSI Studio cockpit."""
 
+import logging
 import platform
 
 import streamlit as st
 
 from app.components.page_utils import check_backend_online, OUTPUT_DIR
+
+logger = logging.getLogger(__name__)
 
 
 def render_statusbar(show_actions: bool = True) -> None:
@@ -19,8 +22,10 @@ def render_statusbar(show_actions: bool = True) -> None:
             gpu_label = torch.cuda.get_device_name(0)[:24]
         elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             gpu_label = "Apple MPS"
-    except Exception:
+    except ImportError:
         pass
+    except Exception as exc:
+        logger.debug("GPU detection failed: %s", exc)
 
     mem_mb = "—"
     try:

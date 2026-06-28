@@ -2,6 +2,7 @@
 FastAPI routes for MBSI Studio API.
 """
 
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -21,6 +22,8 @@ from mbsi.api.schemas import (
 from mbsi.reconstruction.solver import run_mbsi
 from mbsi.benchmarks.metrics import compute_all_metrics
 from mbsi.benchmarks.ablation import run_ablation_suite
+
+logger = logging.getLogger(__name__)
 
 
 from mbsi.api.job_store import get_job, job_exists, save_job, update_job
@@ -68,7 +71,8 @@ async def upload_file(
         )
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error loading file: {str(e)}")
+        logger.error("File upload failed for %s: %s", file.filename, e, exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Error loading file: {str(e)}") from e
 
 
 def run_mbsi_endpoint(request: dict) -> MBSIResponse:
@@ -134,8 +138,9 @@ def run_mbsi_endpoint(request: dict) -> MBSIResponse:
         )
         
     except Exception as e:
+        logger.error("Reconstruction failed for job %s: %s", job_id, e, exc_info=True)
         update_job(job_id, {"status": "failed", "error": str(e)})
-        raise HTTPException(status_code=500, detail=f"Reconstruction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Reconstruction failed: {str(e)}") from e
 
 
 def validate_endpoint(request: dict) -> ValidationResponse:
@@ -175,7 +180,8 @@ def validate_endpoint(request: dict) -> ValidationResponse:
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+        logger.error("Validation failed for job %s: %s", job_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}") from e
 
 
 def benchmark_endpoint(request: dict) -> BenchmarkResponse:
@@ -216,7 +222,8 @@ def benchmark_endpoint(request: dict) -> BenchmarkResponse:
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Benchmark failed: {str(e)}")
+        logger.error("Benchmark failed for job %s: %s", job_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Benchmark failed: {str(e)}") from e
 
 
 def download_file(job_id: str, file_type: str = "reconstructed"):

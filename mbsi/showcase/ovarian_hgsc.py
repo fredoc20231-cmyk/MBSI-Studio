@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional
 
 import anndata as ad
@@ -10,6 +11,8 @@ import pandas as pd
 
 from mbsi.communication import run_communication_analysis
 from mbsi.tme import run_tme_analysis, detect_immune_exclusion, detect_caf_barriers
+
+logger = logging.getLogger(__name__)
 
 SHOWCASE_GUARDRAIL = (
     "Analytical outputs are computational results for research use only. "
@@ -195,7 +198,8 @@ def run_ovarian_showcase_pipeline(
     try:
         from app.components.demo_data import _generate_he_image
         histology = _generate_he_image(seed=seed)
-    except Exception:
+    except Exception as exc:
+        logger.info("H&E image generation unavailable (%s); continuing without histology", exc)
         histology = None
 
     return {

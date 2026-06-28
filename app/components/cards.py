@@ -1,11 +1,14 @@
 """Dashboard cards, metrics strip, and export helpers."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import plotly.graph_objects as go
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 DARK = dict(
     paper_bgcolor="#0d1828",
@@ -142,8 +145,8 @@ def export_all(
                 spatial_stats_top_n=30,
             )
             export_analysis_results(analysis_results, out_dir=out_dir)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Analysis export failed: %s", exc)
     elif analysis_results:
         from mbsi.analysis.pipeline import export_analysis_results
 
@@ -154,8 +157,8 @@ def export_all(
 
         comm = run_communication_analysis(make_communication_demo_adata(seed=42))
         export_communication_results(comm, out_dir=out_dir)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Communication export failed: %s", exc)
 
     try:
         from mbsi.tme import run_tme_analysis, export_tme_results, generate_spatial_biomarker_report, make_tme_demo_adata
@@ -163,7 +166,7 @@ def export_all(
         tme = run_tme_analysis(make_tme_demo_adata(seed=42))
         export_tme_results(tme, out_dir=out_dir)
         generate_spatial_biomarker_report(tme, out_dir=out_dir)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("TME export failed: %s", exc)
 
     return out_dir

@@ -7,6 +7,8 @@ from typing import List, Optional
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_flat
+
 GENE_ALIASES = {
     "CXCR4": ["CXCR4"],
     "TGFBR1": ["TGFBR1", "TGFBR2", "TGFBR"],
@@ -34,4 +36,4 @@ def get_expression(adata: ad.AnnData, gene: str, layer: str = "logcounts") -> np
         x = adata[:, g].layers[layer]
     else:
         x = adata[:, g].X
-    return np.asarray(x.toarray() if hasattr(x, "toarray") else x).flatten().astype(float)
+    return to_dense_flat(x)

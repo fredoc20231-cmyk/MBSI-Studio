@@ -8,16 +8,15 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from sklearn.neighbors import NearestNeighbors
+
+from mbsi.utils import build_knn_graph
 
 
 def build_spatial_weights(adata: ad.AnnData, k: int = 6) -> sparse.csr_matrix:
     """Build symmetric kNN spatial weights from obsm['spatial']."""
     coords = np.asarray(adata.obsm["spatial"])
     n = coords.shape[0]
-    k_use = min(k + 1, n)
-    nn = NearestNeighbors(n_neighbors=k_use).fit(coords)
-    _, indices = nn.kneighbors(coords)
+    _, indices = build_knn_graph(coords, k=k)
 
     rows, cols, data = [], [], []
     for i in range(n):

@@ -18,6 +18,7 @@ from mbsi.diffusion.kernel import build_diffusion_kernel, build_euclidean_kernel
 from mbsi.transport.unbalanced_ot import solve_unbalanced_ot
 from mbsi.sheaf.graph_builder import build_cell_graph
 from mbsi.sheaf.sheaf_laplacian import build_graph_laplacian
+from mbsi.utils import to_dense_array
 from mbsi.morphology.diffusion_tensor import build_tensor_field
 
 
@@ -225,10 +226,7 @@ def apply_sheaf_regularization(
 
     Solved as (I + lambda * L) X = X0 using the graph Laplacian.
     """
-    if hasattr(expression, 'toarray'):
-        expression = expression.toarray()
-
-    x0 = np.asarray(expression, dtype=np.float64)
+    x0 = to_dense_array(expression).astype(np.float64)
     laplacian = build_graph_laplacian(graph).tocsr()
     n_cells = x0.shape[0]
     identity = scipy.sparse.eye(n_cells, format='csr')
@@ -294,9 +292,7 @@ def run_iterative_mbsi(
         np.random.seed(random_state)
 
     spot_coords = spot_adata.obsm['spatial']
-    spot_expression = spot_adata.X
-    if hasattr(spot_expression, 'toarray'):
-        spot_expression = spot_expression.toarray()
+    spot_expression = to_dense_array(spot_adata.X)
     n_spots = spot_expression.shape[0]
     n_genes = spot_expression.shape[1]
 

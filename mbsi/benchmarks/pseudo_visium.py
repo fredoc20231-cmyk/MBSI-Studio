@@ -11,6 +11,8 @@ import anndata as ad
 import numpy as np
 from scipy.spatial import KDTree
 
+from mbsi.utils import to_dense_array
+
 PLATFORM_CONFIG: Dict[str, Dict[str, Any]] = {
     "xenium": {"spot_diameter": 55.0, "aggregation": "hex"},
     "cosmx": {"spot_diameter": 30.0, "aggregation": "grid"},
@@ -180,8 +182,7 @@ def aggregate_cells_to_spots(
     cell_coords = cell_adata.obsm['spatial']
     cell_expression = cell_adata.X
     
-    if hasattr(cell_expression, 'toarray'):
-        cell_expression = cell_expression.toarray()
+    cell_expression = to_dense_array(cell_expression)
     
     n_spots = len(spot_coords)
     n_genes = cell_adata.n_vars

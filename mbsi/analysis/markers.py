@@ -7,13 +7,15 @@ import numpy as np
 import pandas as pd
 from scipy.stats import mannwhitneyu
 
+from mbsi.utils import to_dense_array
+
 
 def _expression_matrix(adata: ad.AnnData, layer: str = "logcounts") -> np.ndarray:
     if layer in adata.layers:
         X = adata.layers[layer]
     else:
         X = adata.X
-    return np.asarray(X.toarray() if hasattr(X, "toarray") else X, dtype=float)
+    return to_dense_array(X)
 
 
 def rank_cluster_markers(adata: ad.AnnData, groupby: str = "cluster", method: str = "wilcoxon") -> pd.DataFrame:

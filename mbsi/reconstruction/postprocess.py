@@ -11,6 +11,8 @@ import anndata as ad
 import numpy as np
 import scanpy as sc
 
+from mbsi.utils import to_dense_array
+
 
 def postprocess_reconstruction(
     reconstructed_adata: ad.AnnData,
@@ -93,9 +95,7 @@ def compute_quality_metrics(
     metrics['n_genes'] = reconstructed_adata.n_vars
     
     # Count statistics
-    X = reconstructed_adata.X
-    if hasattr(X, 'toarray'):
-        X = X.toarray()
+    X = to_dense_array(reconstructed_adata.X)
     
     metrics['total_counts'] = float(X.sum())
     metrics['mean_counts_per_cell'] = float(X.mean(axis=1).mean())
@@ -212,9 +212,7 @@ def compute_gene_statistics(
     """
     adata = reconstructed_adata.copy()
     
-    X = adata.X
-    if hasattr(X, 'toarray'):
-        X = X.toarray()
+    X = to_dense_array(adata.X)
     
     # Compute statistics
     adata.var['mean_expression'] = X.mean(axis=0)
@@ -242,9 +240,7 @@ def export_to_csv(
     import pandas as pd
     
     # Expression matrix
-    X = reconstructed_adata.X
-    if hasattr(X, 'toarray'):
-        X = X.toarray()
+    X = to_dense_array(reconstructed_adata.X)
     
     expr_df = pd.DataFrame(
         X,

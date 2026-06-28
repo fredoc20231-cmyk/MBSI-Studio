@@ -5,7 +5,8 @@ from typing import Any, Dict, List, Optional
 import anndata as ad
 import numpy as np
 import networkx as nx
-from sklearn.neighbors import NearestNeighbors
+
+from mbsi.utils import build_knn_graph, to_dense_array
 
 
 def build_spatial_causal_dag(
@@ -26,7 +27,7 @@ def build_spatial_causal_dag(
         if "compartment" in adata.obs:
             nodes.append("compartment")
         # Top variable genes as nodes
-        X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+        X = to_dense_array(adata.X)
         var_idx = np.argsort(np.var(X, axis=0))[-5:]
         nodes.extend([adata.var_names[i] for i in var_idx])
 
@@ -34,8 +35,7 @@ def build_spatial_causal_dag(
         G.add_node(n)
 
     coords = adata.obsm["spatial"]
-    tree = NearestNeighbors(n_neighbors=min(6, len(coords))).fit(coords)
-    _, idx = tree.kneighbors(coords)
+    _, idx = build_knn_graph(coords, k=6)
 
     # Prior: compartment -> gene expression
     if "compartment" in nodes:
@@ -44,7 +44,7 @@ def build_spatial_causal_dag(
                 G.add_edge("compartment", g, weight=0.5, prior=True)
 
     # Correlation edges among genes
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     for i, ni in enumerate(nodes):
         if ni not in adata.var_names:
             continue

@@ -5,6 +5,8 @@ from typing import Dict, List
 import anndata as ad
 import numpy as np
 
+from mbsi.utils import to_dense_array
+
 
 def partition_transcripts_by_compartment(
     cell_adata: ad.AnnData,
@@ -16,7 +18,7 @@ def partition_transcripts_by_compartment(
     Adds obs columns: nuclear_expr, cytoplasmic_expr, membrane_expr.
     """
     adata = cell_adata.copy()
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
 
     nuc = compartments.get("nuclear_score", np.ones(adata.n_obs) * 0.33)
     cyto = compartments.get("cytoplasmic_score", np.ones(adata.n_obs) * 0.33)

@@ -5,13 +5,14 @@ from typing import List
 import anndata as ad
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.neighbors import NearestNeighbors
+
+from mbsi.utils import to_dense_array
 
 
 def predict_missing_genes(adata: ad.AnnData, genes: List[str]) -> ad.AnnData:
     """Impute missing genes via k-NN among observed genes."""
     adata = adata.copy()
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     for gene in genes:
         if gene not in adata.var_names:
             # Mean of top variable genes as placeholder

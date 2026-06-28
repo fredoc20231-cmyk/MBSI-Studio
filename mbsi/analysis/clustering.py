@@ -9,6 +9,8 @@ from sklearn.cluster import SpectralClustering
 from sklearn.decomposition import PCA
 from sklearn.neighbors import kneighbors_graph
 
+from mbsi.utils import to_dense_array
+
 
 def _hvg_indices(adata: ad.AnnData) -> np.ndarray:
     if "highly_variable" in adata.var.columns:
@@ -22,9 +24,7 @@ def run_pca(adata: ad.AnnData, n_comps: int = 30, use_highly_variable: bool = Tr
     idx = _hvg_indices(adata) if use_highly_variable else np.arange(adata.n_vars)
     n_comps = min(n_comps, len(idx), adata.n_obs - 1)
     n_comps = max(1, n_comps)
-    X = np.asarray(adata.X[:, idx])
-    if hasattr(X, "toarray"):
-        X = X.toarray()
+    X = to_dense_array(adata.X[:, idx])
     pca = PCA(n_components=n_comps, random_state=0)
     adata.obsm["X_pca"] = pca.fit_transform(X)
     adata.uns["pca"] = {"variance_ratio": pca.explained_variance_ratio_.tolist()}

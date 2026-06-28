@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import anndata as ad
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
 
 from mbsi.communication._utils import get_expression, resolve_gene
+from mbsi.utils import build_knn_graph
 from mbsi.communication.diffusion_flux import compute_diffusion_flux
 from mbsi.communication.sender_receiver import rank_sender_receiver
 from mbsi.communication.niche_maps import build_niche_interaction_map
@@ -83,8 +83,7 @@ def score_ligand_receptor_pairs(
         pairs = [(p["ligand"], p["receptor"]) for p in DEFAULT_PATHWAYS]
 
     coords = adata.obsm["spatial"]
-    nn = NearestNeighbors(n_neighbors=min(k + 1, adata.n_obs)).fit(coords)
-    dists, indices = nn.kneighbors(coords)
+    dists, indices = build_knn_graph(coords, k=k)
 
     rows = []
     for lig, rec in pairs:
@@ -102,8 +101,6 @@ def score_ligand_receptor_pairs(
         pair_scores = []
         for i in range(adata.n_obs):
             for j_idx, j in enumerate(indices[i]):
-                if i == j:
-                    continue
                 w = np.exp(-dists[i, j_idx] ** 2 / (2 * 30.0 ** 2))
                 pair_scores.append(lig_e[i] * rec_e[j] * w)
 

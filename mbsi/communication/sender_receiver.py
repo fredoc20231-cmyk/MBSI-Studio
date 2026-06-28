@@ -7,9 +7,9 @@ from typing import Dict, Tuple
 import anndata as ad
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
 
 from mbsi.communication._utils import get_expression, resolve_gene
+from mbsi.utils import build_knn_graph
 
 
 def rank_sender_receiver(
@@ -26,8 +26,7 @@ def rank_sender_receiver(
     coords = adata.obsm["spatial"]
     n = adata.n_obs
 
-    nn = NearestNeighbors(n_neighbors=min(k + 1, n)).fit(coords)
-    dists, indices = nn.kneighbors(coords)
+    dists, indices = build_knn_graph(coords, k=k)
 
     sender_scores = lig_e.copy()
     receiver_scores = rec_e.copy()
@@ -35,8 +34,6 @@ def rank_sender_receiver(
 
     for i in range(n):
         for j_idx, j in enumerate(indices[i]):
-            if i == j:
-                continue
             w = np.exp(-dists[i, j_idx] ** 2 / (2 * 30.0 ** 2))
             flux = lig_e[i] * rec_e[j] * w
             edge_flux.append({

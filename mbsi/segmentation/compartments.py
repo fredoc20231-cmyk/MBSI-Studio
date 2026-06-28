@@ -6,6 +6,8 @@ import anndata as ad
 import numpy as np
 from sklearn.cluster import KMeans
 
+from mbsi.utils import to_dense_array
+
 COMPARTMENT_NAMES = ["tumor", "stroma", "immune", "necrosis"]
 
 
@@ -20,7 +22,7 @@ def infer_compartment_labels(
     Placeholder compartment model using k-means on coords + mean expression.
     """
     coords = adata.obsm["spatial"]
-    X = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    X = to_dense_array(adata.X)
     features = np.hstack([coords, X.mean(axis=1, keepdims=True)])
     labels = KMeans(n_clusters=min(n_compartments, len(adata)), random_state=42, n_init=10).fit_predict(features)
     adata = adata.copy()

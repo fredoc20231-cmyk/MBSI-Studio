@@ -20,14 +20,17 @@ def score_angiogenic_regions(adata: ad.AnnData, layer: str = "logcounts", k: int
     score = spatial_smooth(coords, normalize_scores(angio), k=k)
     threshold = np.percentile(score, 75)
     mask = score >= threshold
-    return {
+    result = {
         "score": score.astype(np.float32),
+        "spatial_vector": score.astype(np.float32),
         "mask": mask,
         "n_niches": int(mask.sum()),
         "mean_score": float(score[mask].mean()) if mask.any() else 0.0,
         "label": "Angiogenic Regions",
         "hypothesis": "computational_hypothesis",
     }
+    result["table"] = angiogenesis_table(adata, result)
+    return result
 
 
 def angiogenesis_table(adata: ad.AnnData, result: Dict) -> pd.DataFrame:

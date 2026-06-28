@@ -43,3 +43,15 @@ def compute_diffusion_flux(
     if flux.max() > 0:
         flux = flux / flux.max()
     return flux.astype(np.float32)
+
+
+def compute_diffusion_weighted_signaling(
+    adata: ad.AnnData,
+    ligand: str,
+    receptor: str,
+    k: int = 6,
+    layer: str = "logcounts",
+    sigma: float = 35.0,
+) -> np.ndarray:
+    """Alias for diffusion-weighted signaling flux field."""
+    return compute_diffusion_flux(adata, ligand, receptor, k=k, layer=layer, sigma=sigma)

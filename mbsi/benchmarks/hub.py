@@ -12,6 +12,8 @@ from mbsi.benchmarks.adapters import get_adapter, list_adapters
 from mbsi.benchmarks.leaderboard import build_leaderboard, leaderboard_summary
 from mbsi.benchmarks.metrics import compute_benchmark_metrics
 from mbsi.benchmarks.pseudo_visium import generate_pseudo_visium, make_synthetic_ground_truth
+from mbsi.benchmarks.real_ground_truth import resolve_ground_truth_adata
+from mbsi.benchmarks.datasets import validate_single_cell_spatial_ground_truth
 
 BENCHMARK_GUARDRAIL = (
     "Benchmark outputs are computational estimates for research use only. "
@@ -28,17 +30,33 @@ def run_benchmark_hub(
     seed: int = 42,
     n_spots: int = 80,
     synthetic_cells: int = 200,
+    dataset_mode: str = "synthetic",
+    uploaded_path: Optional[str] = None,
+    session_adata: Optional[ad.AnnData] = None,
 ) -> Dict[str, Any]:
     """
     Run Benchmark Hub: pseudo-visium → each method → metrics → leaderboard.
 
-    Uses synthetic ground truth when none provided.
+    Supports synthetic, upload, or session ground truth modes.
     """
+    dataset_meta = {}
     if ground_truth_adata is None:
-        ground_truth_adata = make_synthetic_ground_truth(
-            n_cells=synthetic_cells, seed=seed
+        ground_truth_adata, dataset_meta = resolve_ground_truth_adata(
+            mode=dataset_mode,
+            uploaded_path=uploaded_path,
+            session_adata=session_adata,
+            seed=seed,
+            n_cells=synthetic_cells,
         )
+    else:
+        from mbsi.benchmarks.datasets import prepare_ground_truth_for_benchmark
+        ground_truth_adata = prepare_ground_truth_for_benchmark(ground_truth_adata)
+        dataset_meta = {
+            "mode": "provided",
+            "validation": validate_single_cell_spatial_ground_truth(ground_truth_adata),
+        }
 
+    readiness = dataset_meta.get("validation", validate_single_cell_spatial_ground_truth(ground_truth_adata))
     pseudo_visium = generate_pseudo_visium(
         ground_truth_adata,
         n_spots=min(n_spots, max(20, ground_truth_adata.n_obs // 3)),
@@ -103,6 +121,10 @@ def run_benchmark_hub(
         "leaderboard": leaderboard,
         "platform": platform,
         "seed": seed,
+        "dataset_mode": dataset_meta.get("mode", dataset_mode),
+        "readiness_score": readiness.get("readiness_score", 0),
+        "readiness": readiness,
+        "dataset_meta": dataset_meta,
         "summary_text": leaderboard_summary(leaderboard),
         "guardrail": BENCHMARK_GUARDRAIL,
         "vc_banner": VC_BANNER,

@@ -27,8 +27,9 @@ def detect_tls_niches(adata: ad.AnnData, layer: str = "logcounts", eps: float = 
         labels[candidates] = clustering.labels_
     niche_ids = [i for i in np.unique(labels) if i >= 0]
     mask = labels >= 0
-    return {
+    result = {
         "score": score.astype(np.float32),
+        "spatial_vector": score.astype(np.float32),
         "mask": mask,
         "cluster_labels": labels,
         "n_niches": len(niche_ids),
@@ -36,6 +37,8 @@ def detect_tls_niches(adata: ad.AnnData, layer: str = "logcounts", eps: float = 
         "label": "TLS-like Niches",
         "hypothesis": "computational_hypothesis",
     }
+    result["table"] = tls_table(adata, result)
+    return result
 
 
 def tls_table(adata: ad.AnnData, result: Dict) -> pd.DataFrame:

@@ -27,14 +27,17 @@ def detect_immune_exclusion(
     score = spatial_smooth(coords, normalize_scores(raw), k=k)
     threshold = np.percentile(score, 75)
     mask = score >= threshold
-    return {
+    result = {
         "score": score.astype(np.float32),
+        "spatial_vector": score.astype(np.float32),
         "mask": mask,
         "n_niches": int(mask.sum()),
         "mean_score": float(score[mask].mean()) if mask.any() else 0.0,
         "label": "Immune Exclusion",
         "hypothesis": "computational_hypothesis",
     }
+    result["table"] = immune_exclusion_table(adata, result)
+    return result
 
 
 def immune_exclusion_table(adata: ad.AnnData, result: Dict) -> pd.DataFrame:

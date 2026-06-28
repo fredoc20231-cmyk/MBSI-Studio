@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import anndata as ad
 import numpy as np
@@ -34,3 +34,21 @@ def build_niche_interaction_map(
         "receptor": resolve_gene(adata, rec) or rec,
         "pathway": f"{lig}-{rec}",
     }
+
+
+def compute_niche_signaling_maps(
+    adata: ad.AnnData,
+    pairs: Optional[list] = None,
+    layer: str = "logcounts",
+    k: int = 6,
+) -> Dict:
+    """Compute niche signaling maps for multiple L-R pairs."""
+    from mbsi.communication.ligand_receptor import DEFAULT_PATHWAYS
+
+    if pairs is None:
+        pairs = [(p["ligand"], p["receptor"]) for p in DEFAULT_PATHWAYS[:3]]
+    maps = {}
+    for lig, rec in pairs:
+        key = f"{lig}_{rec}"
+        maps[key] = build_niche_interaction_map(adata, (lig, rec), layer=layer, k=k)
+    return maps

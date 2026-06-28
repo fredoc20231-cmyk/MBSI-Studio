@@ -20,12 +20,20 @@ COMMUNICATION_GUARDRAIL = (
 )
 
 DEFAULT_PATHWAYS: List[Dict[str, str]] = [
-    {"pathway": "CXCL12-CXCR4", "ligand": "CXCL12", "receptor": "CXCR4"},
-    {"pathway": "TGFB1-TGFBR", "ligand": "TGFB1", "receptor": "TGFBR1"},
-    {"pathway": "PD-L1-PD1", "ligand": "CD274", "receptor": "PDCD1"},
-    {"pathway": "VEGFA-VEGFR2", "ligand": "VEGFA", "receptor": "KDR"},
-    {"pathway": "MIF-CD74", "ligand": "MIF", "receptor": "CD74"},
+    {"pathway": "CXCL12-CXCR4", "ligand": "CXCL12", "receptor": "CXCR4", "category": "chemokine"},
+    {"pathway": "TGFB1-TGFBR", "ligand": "TGFB1", "receptor": "TGFBR1", "category": "immunosuppression"},
+    {"pathway": "PD-L1-PD1", "ligand": "CD274", "receptor": "PDCD1", "category": "checkpoint"},
+    {"pathway": "VEGFA-VEGFR2", "ligand": "VEGFA", "receptor": "KDR", "category": "angiogenesis"},
+    {"pathway": "MIF-CD74", "ligand": "MIF", "receptor": "CD74", "category": "inflammation"},
+    {"pathway": "CCL5-CCR5", "ligand": "CCL5", "receptor": "CCR5", "category": "chemokine"},
+    {"pathway": "IL6-IL6R", "ligand": "IL6", "receptor": "IL6R", "category": "cytokine"},
 ]
+
+
+def load_builtin_ligand_receptor_pairs() -> pd.DataFrame:
+    """Return built-in L-R pair catalog with full schema."""
+    return pd.DataFrame(DEFAULT_PATHWAYS)
+
 
 GENE_ALIASES: Dict[str, List[str]] = {
     "CXCR4": ["CXCR4"],
@@ -113,11 +121,15 @@ def score_ligand_receptor_pairs(
             "ligand": lig_g,
             "receptor": rec_g,
             "pathway": f"{lig}-{rec}",
+            "pathway_name": next((p["pathway"] for p in DEFAULT_PATHWAYS if p["ligand"] == lig), f"{lig}-{rec}"),
+            "category": next((p.get("category", "signaling") for p in DEFAULT_PATHWAYS if p["ligand"] == lig), "signaling"),
             "score": score,
             "probability": prob,
             "ligand_mean": float(lig_e.mean()),
             "receptor_mean": float(rec_e.mean()),
+            "spatial_score": score,
             "status": "ok",
+            "hypothesis": "computational_hypothesis",
         })
     df = pd.DataFrame(rows).sort_values("score", ascending=False).reset_index(drop=True)
     return df
@@ -137,7 +149,10 @@ def run_communication_analysis(
     k: int = 6,
 ) -> Dict[str, Any]:
     """Full communication intelligence pipeline."""
+    from mbsi.communication.pathway_enrichment import enrich_pathway_scores
+
     pair_scores = score_ligand_receptor_pairs(adata, layer=layer, k=k)
+    pair_scores = enrich_pathway_scores(pair_scores)
     rankings = pathway_rankings(adata, layer=layer)
 
     top_pair = rankings.iloc[0] if not rankings.empty else None

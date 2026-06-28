@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
 
@@ -35,6 +36,65 @@ def plot_leaderboard_bars(leaderboard_df: pd.DataFrame, metric: str = "gene_pear
         height=360,
         margin=dict(l=40, r=20, t=40, b=80),
     )
+    return fig
+
+
+def plot_ground_truth_spatial(adata, color_col: str = "cell_type") -> go.Figure:
+    coords = adata.obsm["spatial"]
+    c = adata.obs[color_col].astype(str) if color_col in adata.obs.columns else None
+    fig = px.scatter(x=coords[:, 0], y=coords[:, 1], color=c, title="Ground Truth Spatial")
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(**DARK, height=380, margin=dict(l=40, r=20, t=40, b=40))
+    return fig
+
+
+def plot_pseudo_visium_spatial(pseudo_adata) -> go.Figure:
+    coords = pseudo_adata.obsm["spatial"]
+    totals = pseudo_adata.X.sum(axis=1)
+    if hasattr(totals, "A1"):
+        totals = totals.A1
+    fig = px.scatter(x=coords[:, 0], y=coords[:, 1], color=totals, color_continuous_scale="Viridis", title="Pseudo-Visium")
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(**DARK, height=380, margin=dict(l=40, r=20, t=40, b=40))
+    return fig
+
+
+def plot_readiness_gauge(score: float) -> go.Figure:
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number", value=score,
+        title={"text": "Ground Truth Readiness"},
+        gauge={"axis": {"range": [0, 100]}, "bar": {"color": "#4f7cff"}},
+    ))
+    fig.update_layout(**DARK, height=280, margin=dict(l=30, r=30, t=50, b=20))
+    return fig
+
+
+def plot_spatial_error_map(coords, error_values, title: str = "Spatial Error") -> go.Figure:
+    fig = px.scatter(x=coords[:, 0], y=coords[:, 1], color=error_values, color_continuous_scale="Reds", title=title)
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(**DARK, height=380, margin=dict(l=40, r=20, t=40, b=40))
+    return fig
+
+
+def plot_boundary_preservation(leaderboard_df: pd.DataFrame) -> go.Figure:
+    if leaderboard_df.empty or "boundary_preservation" not in leaderboard_df.columns:
+        return plot_leaderboard_bars(leaderboard_df, "gene_pearson")
+    fig = go.Figure(data=go.Bar(x=leaderboard_df["method"], y=leaderboard_df["boundary_preservation"], marker_color="#39d98a"))
+    fig.update_layout(title="Boundary Preservation", **DARK, height=360, margin=dict(l=40, r=20, t=40, b=80))
+    return fig
+
+
+def plot_method_comparison_radar(leaderboard_df: pd.DataFrame) -> go.Figure:
+    metrics = [m for m in ("gene_pearson", "cell_type_accuracy", "niche_preservation") if m in leaderboard_df.columns]
+    if not metrics or leaderboard_df.empty:
+        return plot_leaderboard_bars(leaderboard_df)
+    fig = go.Figure()
+    for _, row in leaderboard_df.head(4).iterrows():
+        fig.add_trace(go.Scatterpolar(
+            r=[float(row.get(m, 0) or 0) for m in metrics],
+            theta=metrics, fill="toself", name=str(row["method"]),
+        ))
+    fig.update_layout(title="Method Comparison", **DARK, height=400, margin=dict(l=40, r=40, t=40, b=40))
     return fig
 
 

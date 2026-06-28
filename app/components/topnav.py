@@ -12,10 +12,11 @@ NAV_PAGES = [
     ("Validation", "pages/07_Validation.py"),
     ("AI Copilot", "pages/08_AI_Copilot.py"),
     ("Export", "pages/09_Export.py"),
-    ("Benchmark Hub", "pages/10_Benchmark_Hub.py"),
-    ("Communication", "pages/11_Communication_Intelligence.py"),
+    ("Benchmark", "pages/10_Benchmark_Hub.py"),
+    ("Comms", "pages/11_Communication_Intelligence.py"),
     ("TME", "pages/12_TME_Intelligence.py"),
-    ("HGSOC Showcase", "pages/13_Ovarian_Cancer_Showcase.py"),
+    ("HGSOC", "pages/13_Ovarian_Cancer_Showcase.py"),
+    ("Discovery", "pages/14_Discovery_Engine.py"),
 ]
 
 

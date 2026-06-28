@@ -10,10 +10,15 @@ from mbsi.tme.angiogenesis import score_angiogenic_regions
 from mbsi.tme.hypoxia import score_hypoxic_niches
 from mbsi.tme.invasion import detect_invasive_fronts
 
+from mbsi.tme.marker_sets import TME_MARKER_SETS
+from mbsi.tme.scores import score_marker_programs, program_summary
+from mbsi.tme.tme_report import generate_tme_report
+
 __all__ = [
     "run_tme_analysis",
     "export_tme_results",
     "generate_spatial_biomarker_report",
+    "generate_tme_report",
     "make_tme_demo_adata",
     "detect_immune_exclusion",
     "detect_tls_niches",
@@ -21,5 +26,8 @@ __all__ = [
     "score_angiogenic_regions",
     "score_hypoxic_niches",
     "detect_invasive_fronts",
+    "TME_MARKER_SETS",
+    "score_marker_programs",
+    "program_summary",
     "TME_GUARDRAIL",
 ]

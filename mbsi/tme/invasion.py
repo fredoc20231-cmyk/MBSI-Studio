@@ -33,14 +33,17 @@ def detect_invasive_fronts(adata: ad.AnnData, layer: str = "logcounts") -> Dict:
     score = normalize_scores(corridor + 0.5 * bscore)
     threshold = np.percentile(score, 80)
     mask = score >= threshold
-    return {
+    result = {
         "score": score.astype(np.float32),
+        "spatial_vector": score.astype(np.float32),
         "mask": mask,
         "n_niches": int(mask.sum()),
         "mean_score": float(score[mask].mean()) if mask.any() else 0.0,
         "label": "Invasive Fronts",
         "hypothesis": "computational_hypothesis",
     }
+    result["table"] = invasion_table(adata, result)
+    return result
 
 
 def invasion_table(adata: ad.AnnData, result: Dict) -> pd.DataFrame:

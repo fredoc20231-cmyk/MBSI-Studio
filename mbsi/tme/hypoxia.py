@@ -20,14 +20,17 @@ def score_hypoxic_niches(adata: ad.AnnData, layer: str = "logcounts", k: int = 8
     score = spatial_smooth(coords, normalize_scores(hyp), k=k)
     threshold = np.percentile(score, 75)
     mask = score >= threshold
-    return {
+    result = {
         "score": score.astype(np.float32),
+        "spatial_vector": score.astype(np.float32),
         "mask": mask,
         "n_niches": int(mask.sum()),
         "mean_score": float(score[mask].mean()) if mask.any() else 0.0,
         "label": "Hypoxic Regions",
         "hypothesis": "computational_hypothesis",
     }
+    result["table"] = hypoxia_table(adata, result)
+    return result
 
 
 def hypoxia_table(adata: ad.AnnData, result: Dict) -> pd.DataFrame:

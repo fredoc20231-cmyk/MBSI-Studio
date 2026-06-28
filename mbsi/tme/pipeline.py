@@ -64,12 +64,18 @@ def run_tme_analysis(
 
     biomarkers = _rank_biomarker_candidates(adata, niches, layer=layer)
 
+    from mbsi.tme.scores import score_marker_programs, program_summary
+    program_scores = score_marker_programs(adata, layer=layer)
+    program_summary_df = program_summary(program_scores)
+
     return {
         "adata": adata,
         "niches": niches,
         "summary": summary,
         "scores": scores,
         "biomarkers": biomarkers,
+        "program_scores": program_scores,
+        "program_summary": program_summary_df,
         "guardrail": TME_GUARDRAIL,
         "tables": {
             "immune_exclusion": immune_exclusion_table(adata, immune_ex),

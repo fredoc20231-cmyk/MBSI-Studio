@@ -23,14 +23,17 @@ def detect_caf_barriers(adata: ad.AnnData, layer: str = "logcounts", k: int = 8)
     score = spatial_smooth(coords, normalize_scores(interface + caf * 0.5), k=k)
     threshold = np.percentile(score, 70)
     mask = score >= threshold
-    return {
+    result = {
         "score": score.astype(np.float32),
+        "spatial_vector": score.astype(np.float32),
         "mask": mask,
         "n_niches": int(mask.sum()),
         "mean_score": float(score[mask].mean()) if mask.any() else 0.0,
         "label": "CAF Barriers",
         "hypothesis": "computational_hypothesis",
     }
+    result["table"] = caf_barrier_table(adata, result)
+    return result
 
 
 def caf_barrier_table(adata: ad.AnnData, result: Dict) -> pd.DataFrame:

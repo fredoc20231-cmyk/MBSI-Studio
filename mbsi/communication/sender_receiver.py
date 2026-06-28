@@ -75,3 +75,26 @@ def rank_sender_receiver(
         "top_senders": top_senders,
         "top_receivers": top_receivers,
     }
+
+
+def build_sender_receiver_network(
+    adata: ad.AnnData,
+    pair: Tuple[str, str],
+    k: int = 6,
+    layer: str = "logcounts",
+    top_n: int = 50,
+) -> Dict:
+    """Build sender-receiver network graph data for visualization."""
+    sr = rank_sender_receiver(adata, pair, k=k, layer=layer, top_n=top_n)
+    edges = sr["edges"]
+    nodes = []
+    if not edges.empty:
+        for spot in pd.unique(edges["sender"].tolist() + edges["receiver"].tolist()):
+            row = sr["table"][sr["table"]["spot"] == spot]
+            if not row.empty:
+                nodes.append({
+                    "id": spot,
+                    "sender_score": float(row.iloc[0]["sender_score"]),
+                    "receiver_score": float(row.iloc[0]["receiver_score"]),
+                })
+    return {"nodes": nodes, "edges": edges.to_dict(orient="records"), "pair": pair}

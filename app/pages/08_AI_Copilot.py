@@ -8,7 +8,13 @@ from app.components.layout import inject_styles
 from app.components.page_utils import init_session, guardrail_banner, ensure_advanced_demo, causal_warning
 from app.components.topnav import render_topnav
 from app.components.statusbar import render_statusbar
-from mbsi.copilot import answer_tissue_query, QUERY_TEMPLATES, generate_biological_summary
+from mbsi.copilot import (
+    answer_tissue_query,
+    QUERY_TEMPLATES,
+    ALLOWED_SOURCES,
+    build_analysis_context,
+    generate_biological_summary,
+)
 
 st.set_page_config(page_title="AI Copilot | MBSI Studio", layout="wide", initial_sidebar_state="collapsed")
 
@@ -22,8 +28,11 @@ render_topnav(active="AI Copilot")
 
 st.markdown("### AI Tissue Copilot")
 st.caption("Answers grounded in computed MBSI outputs only.")
+st.caption(f"Allowed sources: {', '.join(ALLOWED_SOURCES)}")
 
-state = st.session_state.analysis_state or {"metrics": st.session_state.metrics}
+state = build_analysis_context(dict(st.session_state))
+if not state:
+    state = st.session_state.analysis_state or {"metrics": st.session_state.metrics}
 
 for t in QUERY_TEMPLATES:
     if st.button(t, key=f"tpl_{t}"):
@@ -31,10 +40,9 @@ for t in QUERY_TEMPLATES:
 
 query = st.text_input("Ask about your tissue analysis")
 if st.button("Submit", type="primary") and query:
-    st.session_state.copilot_answer = answer_tissue_query(
-        query,
-        {**state, "boundaries": st.session_state.boundaries_result},
-    )
+    ctx = build_analysis_context(dict(st.session_state))
+    ctx["boundaries"] = st.session_state.boundaries_result
+    st.session_state.copilot_answer = answer_tissue_query(query, ctx)
 
 if "copilot_answer" in st.session_state:
     st.markdown(

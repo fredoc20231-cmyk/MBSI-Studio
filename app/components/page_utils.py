@@ -39,6 +39,7 @@ def init_session():
         "communication_result": {},
         "communication_results": None,
         "tme_results": None,
+        "discovery_results": None,
         "ovarian_showcase_results": None,
         "causal_result": {},
         "temporal_result": {},

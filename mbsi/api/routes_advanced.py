@@ -1,6 +1,7 @@
 """Extended API route handlers for advanced MBSI modules."""
 
 import json
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,6 +12,25 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
 from mbsi.api.job_store import get_job, job_exists, update_job
+
+_UUID_RE = re.compile(r"\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
+
+
+def _validate_job_id(job_id: str) -> None:
+    if not _UUID_RE.match(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+
+
+def _validate_data_path(path: str) -> Path:
+    """Ensure path is within the allowed data directory."""
+    allowed_root = Path("data").resolve()
+    resolved = Path(path).resolve()
+    if not str(resolved).startswith(str(allowed_root)):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: path must be within the data directory"
+        )
+    return resolved
 from mbsi.segmentation import segment_tissue, segment_nuclei, infer_cell_boundaries, assign_spots_to_compartments
 from mbsi.subcellular import infer_subcellular_compartments, partition_transcripts_by_compartment
 from mbsi.subcellular.membrane_model import estimate_membrane_receptor_maps, estimate_secreted_ligand_fields
@@ -26,6 +46,7 @@ from mbsi.pipeline import run_full_pipeline
 
 
 def _load_reconstructed(job_id: str) -> ad.AnnData:
+    _validate_job_id(job_id)
     if not job_exists(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
     job = get_job(job_id, load_adata=True, load_reconstructed=True)
@@ -40,6 +61,7 @@ def _load_reconstructed(job_id: str) -> ad.AnnData:
 
 def segment_endpoint(request: dict) -> Dict[str, Any]:
     job_id = request["job_id"]
+    _validate_job_id(job_id)
     job = get_job(job_id, load_adata=True)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -92,7 +114,8 @@ def causal_intervene_endpoint(request: dict) -> Dict[str, Any]:
 
 def temporal_align_endpoint(request: dict) -> Dict[str, Any]:
     paths = request.get("timepoint_paths", [])
-    adatas = [ad.read_h5ad(p) for p in paths]
+    validated_paths = [_validate_data_path(p) for p in paths]
+    adatas = [ad.read_h5ad(p) for p in validated_paths]
     return align_spatial_timepoints(adatas)
 
 

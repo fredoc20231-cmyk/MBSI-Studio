@@ -187,9 +187,16 @@ def visium_folder_uploader() -> Optional[dict]:
             import tempfile
             import os
             
-            # Extract ZIP
+            # Extract ZIP with zip-slip protection
             with tempfile.TemporaryDirectory() as temp_dir:
                 with zipfile.ZipFile(uploaded_file, 'r') as zip_ref:
+                    for member in zip_ref.namelist():
+                        member_path = Path(temp_dir) / member
+                        if not str(member_path.resolve()).startswith(
+                            str(Path(temp_dir).resolve())
+                        ):
+                            st.error("Rejected: ZIP contains path traversal entries")
+                            return None
                     zip_ref.extractall(temp_dir)
                 
                 # Look for Visium files

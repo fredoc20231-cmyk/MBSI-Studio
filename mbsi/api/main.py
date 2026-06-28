@@ -2,6 +2,7 @@
 FastAPI main application for MBSI Studio.
 """
 
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,12 +33,15 @@ from mbsi.api.schemas import (
     CopilotRequest, CopilotResponse,
 )
 
+ALLOWED_ORIGINS = os.environ.get(
+    "MBSI_CORS_ORIGINS", "http://localhost:8501,http://localhost:3000"
+).split(",")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager."""
     # Startup
-    import os
     os.makedirs("data/uploads", exist_ok=True)
     os.makedirs("data/outputs", exist_ok=True)
     yield
@@ -55,10 +59,10 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 

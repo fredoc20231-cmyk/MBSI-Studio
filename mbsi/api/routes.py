@@ -3,6 +3,7 @@ FastAPI routes for MBSI Studio API.
 """
 
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -25,6 +26,20 @@ from mbsi.benchmarks.ablation import run_ablation_suite
 
 from mbsi.api.job_store import get_job, job_exists, save_job, update_job
 
+_UUID_RE = re.compile(r"\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
+MAX_UPLOAD_SIZE = 500 * 1024 * 1024  # 500 MB
+
+
+def _validate_job_id(job_id: str) -> None:
+    """Ensure job_id is a valid UUID to prevent path traversal."""
+    if not _UUID_RE.match(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Strip path components from an uploaded filename."""
+    return Path(filename).name.replace("..", "_")
+
 async def upload_file(
     file: UploadFile = File(...),
     file_type: str = "h5ad"
@@ -38,10 +53,19 @@ async def upload_file(
     job_dir = Path("data/uploads") / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     
-    # Save uploaded file
-    file_path = job_dir / file.filename
+    # Sanitize filename to prevent path traversal
+    safe_name = _sanitize_filename(file.filename or "upload.h5ad")
+    file_path = job_dir / safe_name
+    
+    # Read with size limit
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)} MB"
+        )
+    
     with open(file_path, 'wb') as f:
-        content = await file.read()
         f.write(content)
     
     # Load and validate data
@@ -61,7 +85,7 @@ async def upload_file(
         save_job(job_id, job_meta)
         return UploadResponse(
             job_id=job_id,
-            filename=file.filename,
+            filename=safe_name,
             file_type=file_type,
             n_spots=adata.n_obs,
             n_genes=adata.n_vars
@@ -79,6 +103,7 @@ def run_mbsi_endpoint(request: dict) -> MBSIResponse:
     
     req = MBSIRequest(**request)
     job_id = req.job_id
+    _validate_job_id(job_id)
     
     # Check job exists
     if not job_exists(job_id):
@@ -146,6 +171,7 @@ def validate_endpoint(request: dict) -> ValidationResponse:
     
     req = ValidationRequest(**request)
     job_id = req.job_id
+    _validate_job_id(job_id)
     
     if not job_exists(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
@@ -159,9 +185,16 @@ def validate_endpoint(request: dict) -> ValidationResponse:
     try:
         reconstructed = job["reconstructed"]
         
-        # If true data provided, load it
+        # If true data provided, restrict to allowed data directories
         if req.true_adata_path:
-            true_adata = ad.read_h5ad(req.true_adata_path)
+            allowed_root = Path("data").resolve()
+            requested = Path(req.true_adata_path).resolve()
+            if not str(requested).startswith(str(allowed_root)):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied: path must be within the data directory"
+                )
+            true_adata = ad.read_h5ad(requested)
         else:
             # Use original spot data as reference (not ideal but works for demo)
             true_adata = job["adata"]
@@ -186,6 +219,7 @@ def benchmark_endpoint(request: dict) -> BenchmarkResponse:
     
     req = BenchmarkRequest(**request)
     job_id = req.job_id
+    _validate_job_id(job_id)
     
     if not job_exists(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
@@ -223,6 +257,7 @@ def download_file(job_id: str, file_type: str = "reconstructed"):
     """
     Download results file.
     """
+    _validate_job_id(job_id)
     if not job_exists(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
 

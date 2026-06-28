@@ -50,6 +50,12 @@ def main() -> None:
 
     tme = run_tme_analysis(make_tme_demo_adata(seed=7))
     plot_niche_summary(tme["summary"])
+
+    from mbsi.showcase import run_ovarian_showcase_pipeline
+    from mbsi.showcase.report import generate_ovarian_showcase_report
+
+    showcase = run_ovarian_showcase_pipeline(seed=42)
+    generate_ovarian_showcase_report(showcase, ROOT / "data" / "outputs")
     print("MBSI Studio UI smoke test passed.")
 
 

@@ -135,6 +135,14 @@ def main():
     report = generate_spatial_biomarker_report(tme, out_dir=OUTPUT)
     print(f"   Report: {report}")
 
+    print("13. Ovarian HGSOC Showcase...")
+    from mbsi.showcase import run_ovarian_showcase_pipeline, export_ovarian_showcase, generate_ovarian_showcase_report
+
+    showcase = run_ovarian_showcase_pipeline(seed=42)
+    export_ovarian_showcase(showcase, out_dir=OUTPUT)
+    hgsc_report = generate_ovarian_showcase_report(showcase, out_dir=OUTPUT)
+    print(f"   HGSOC report: {hgsc_report}")
+
     summary = {
         "n_spots": spot_adata.n_obs,
         "n_cells": reconstructed.n_obs,

@@ -15,6 +15,7 @@ NAV_PAGES = [
     ("Benchmark Hub", "pages/10_Benchmark_Hub.py"),
     ("Communication", "pages/11_Communication_Intelligence.py"),
     ("TME", "pages/12_TME_Intelligence.py"),
+    ("HGSOC Showcase", "pages/13_Ovarian_Cancer_Showcase.py"),
 ]
 
 

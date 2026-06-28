@@ -44,6 +44,12 @@ def main() -> None:
 
     comm = run_communication_analysis(make_communication_demo_adata(seed=7), k=5)
     plot_pathway_rankings(comm["pathway_rankings"])
+
+    from mbsi.tme import run_tme_analysis, make_tme_demo_adata
+    from mbsi.visualization.tme_plots import plot_niche_summary
+
+    tme = run_tme_analysis(make_tme_demo_adata(seed=7))
+    plot_niche_summary(tme["summary"])
     print("MBSI Studio UI smoke test passed.")
 
 

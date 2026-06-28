@@ -38,6 +38,7 @@ def init_session():
         "boundaries_result": {},
         "communication_result": {},
         "communication_results": None,
+        "tme_results": None,
         "causal_result": {},
         "temporal_result": {},
         "digital_twin": {},

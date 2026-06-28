@@ -127,6 +127,14 @@ def main():
     export_communication_results(comm, out_dir=OUTPUT)
     print(f"   Top pathway: {comm.get('top_pathway')}")
 
+    print("12. TME Intelligence...")
+    from mbsi.tme import run_tme_analysis, export_tme_results, generate_spatial_biomarker_report, make_tme_demo_adata
+
+    tme = run_tme_analysis(make_tme_demo_adata(seed=42))
+    export_tme_results(tme, out_dir=OUTPUT)
+    report = generate_spatial_biomarker_report(tme, out_dir=OUTPUT)
+    print(f"   Report: {report}")
+
     summary = {
         "n_spots": spot_adata.n_obs,
         "n_cells": reconstructed.n_obs,

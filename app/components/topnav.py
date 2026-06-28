@@ -14,6 +14,7 @@ NAV_PAGES = [
     ("Export", "pages/09_Export.py"),
     ("Benchmark Hub", "pages/10_Benchmark_Hub.py"),
     ("Communication", "pages/11_Communication_Intelligence.py"),
+    ("TME", "pages/12_TME_Intelligence.py"),
 ]
 
 

@@ -157,4 +157,13 @@ def export_all(
     except Exception:
         pass
 
+    try:
+        from mbsi.tme import run_tme_analysis, export_tme_results, generate_spatial_biomarker_report, make_tme_demo_adata
+
+        tme = run_tme_analysis(make_tme_demo_adata(seed=42))
+        export_tme_results(tme, out_dir=out_dir)
+        generate_spatial_biomarker_report(tme, out_dir=out_dir)
+    except Exception:
+        pass
+
     return out_dir

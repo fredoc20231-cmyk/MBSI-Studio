@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Dict
 
 from mbsi.tme.pipeline import TME_GUARDRAIL
+
+logger = logging.getLogger(__name__)
 
 
 def generate_spatial_biomarker_report(
@@ -82,6 +85,6 @@ th{{background:#07111f}}.guardrail{{color:#9aa7b8;font-style:italic;margin:16px 
                     y = 750
         c.save()
     except ImportError:
-        pass
+        logger.info("reportlab not installed; skipping PDF generation for biomarker report")
 
     return html_path

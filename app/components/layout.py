@@ -1,8 +1,11 @@
 """Layout helpers — CSS injection and HTML chrome."""
 
+import logging
 from pathlib import Path
 
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 
 def inject_styles() -> None:
@@ -127,8 +130,11 @@ def render_statusbar() -> None:
         import psutil
         mem = psutil.virtual_memory()
         mem_str = f"{mem.used / 1e9:.1f} / {mem.total / 1e9:.1f} GB"
-    except Exception:
-        mem_str = "21.4 / 23.6 GB"
+    except ImportError:
+        mem_str = "N/A (psutil not installed)"
+    except Exception as exc:
+        logger.debug("Memory detection failed: %s", exc)
+        mem_str = "N/A"
     st.markdown(
         f"""
         <div class="mbsi-statusbar">

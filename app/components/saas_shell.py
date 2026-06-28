@@ -69,14 +69,16 @@ def render_product_header() -> None:
 
 
 def render_project_panel() -> None:
-    st.markdown('<div class="saas-side-card">', unsafe_allow_html=True)
-    st.markdown('<div class="saas-side-title">Project</div>', unsafe_allow_html=True)
-    st.markdown('<div class="saas-project-name">Ovarian Cancer — HGSOC</div>', unsafe_allow_html=True)
+    """Static project card — buttons render as sibling Streamlit widgets below."""
     st.markdown(
         """
-        <div class="saas-mini-grid">
-          <div><span>Data</span><strong>Demo</strong></div>
-          <div><span>Status</span><strong>Ready</strong></div>
+        <div class="saas-side-card">
+          <div class="saas-side-title">Project</div>
+          <div class="saas-project-name">Ovarian Cancer — HGSOC</div>
+          <div class="saas-mini-grid">
+            <div><span>Data</span><strong>Demo</strong></div>
+            <div><span>Status</span><strong>Ready</strong></div>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -87,12 +89,11 @@ def render_project_panel() -> None:
     if st.button("Generate report", key="saas_go_report", use_container_width=True):
         st.session_state.active_module = "report"
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_left_main_nav() -> None:
+    """Grouped module nav — styled via .saas-left-nav-anchor on parent column."""
     render_project_panel()
-    st.markdown('<div class="saas-left-nav">', unsafe_allow_html=True)
 
     grouped: dict[str, list[dict]] = defaultdict(list)
     for mod in MODULES:
@@ -117,16 +118,15 @@ def render_left_main_nav() -> None:
                 st.session_state.active_module = key
                 st.rerun()
 
-    st.markdown('<div class="saas-nav-footer">', unsafe_allow_html=True)
+    st.divider()
     render_theme_quick_toggle(compact=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_top_context_bar() -> None:
+    """Ribbon controls — styled via .saas-top-bar-anchor on parent row."""
     active_key = st.session_state.get("active_module", "project")
     mod = get_module(active_key)
-    st.markdown('<div class="saas-top-bar">', unsafe_allow_html=True)
+    st.markdown('<span class="saas-top-bar-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
     title_col, control_col = st.columns([1.4, 4.6], gap="small")
     with title_col:
         st.markdown(
@@ -138,15 +138,17 @@ def render_top_context_bar() -> None:
         )
     with control_col:
         render_context_controls(active_key)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_main_workspace() -> None:
+    """Route selected module — styled via .saas-workspace-anchor on parent column."""
     key = st.session_state.get("active_module", "project")
     mod_path = WORKSPACE_ROUTES.get(key, WORKSPACE_ROUTES["project"])
     full_width = not module_show_drawer(key)
-    cls = "saas-workspace saas-workspace-full" if full_width else "saas-workspace"
-    st.markdown(f'<div class="{cls}">', unsafe_allow_html=True)
+    anchor_cls = "saas-workspace-anchor saas-shell-anchor"
+    if full_width:
+        anchor_cls += " saas-workspace-full-anchor"
+    st.markdown(f'<span class="{anchor_cls}"></span>', unsafe_allow_html=True)
     try:
         ws = importlib.import_module(mod_path)
         if hasattr(ws, "render"):
@@ -157,7 +159,6 @@ def render_main_workspace() -> None:
         st.error(f"Could not load workspace: {key}")
         st.caption(str(exc))
         st.session_state.setdefault("saas_warnings", []).append(f"Workspace {key} failed: {exc}")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_saas_app() -> None:
@@ -168,6 +169,7 @@ def render_saas_app() -> None:
 
     left_col, content_col = st.columns([1.12, 5.88], gap="small")
     with left_col:
+        st.markdown('<span class="saas-left-nav-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
         render_left_main_nav()
 
     with content_col:

@@ -10,7 +10,7 @@ from mbsi.reports.registry import get_registered_outputs
 
 
 def render_results_drawer() -> None:
-    st.markdown('<div class="saas-drawer">', unsafe_allow_html=True)
+    st.markdown('<span class="saas-drawer-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
     st.markdown("#### Insights")
 
     warnings = st.session_state.get("saas_warnings", [])
@@ -43,7 +43,6 @@ def render_results_drawer() -> None:
 
     st.divider()
     render_results_notebook(compact=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 render_right_results_drawer = render_results_drawer

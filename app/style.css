@@ -237,24 +237,37 @@ div[data-testid="stSelectbox"] label, div[data-testid="stMultiSelect"] label { f
 div[data-baseweb="select"] > div { background: var(--panel2) !important; border-color: var(--border) !important; font-size: 0.75rem !important; }
 .stButton > button { font-size: 0.75rem !important; border-radius: 6px !important; }
 
-/* SaaS shell */
+/* SaaS shell — anchor-based panels (Streamlit widgets sit outside HTML divs) */
 .saas-app { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-.saas-left-nav {
+.saas-shell-anchor { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }
+
+.saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: 8px; min-height: 70vh;
+  padding: 8px;
 }
-.saas-left-nav .stButton > button { width: 100%; text-align: left; margin-bottom: 4px; }
-.saas-top-bar {
+.saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) .stButton > button {
+  width: 100%; text-align: left; margin-bottom: 4px;
+}
+.saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) hr {
+  margin-top: 12px; border-color: var(--border);
+}
+
+.saas-app div[data-testid="stHorizontalBlock"]:has(.saas-top-bar-anchor) {
   background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
   padding: 10px 14px; margin-bottom: 8px;
 }
-.saas-workspace {
+
+.saas-app div[data-testid="column"]:has(.saas-workspace-anchor) {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: 12px 16px; min-height: 60vh;
+  padding: 12px 16px; min-height: 50vh;
 }
-.saas-drawer {
+.saas-app div[data-testid="column"]:has(.saas-workspace-full-anchor) {
+  min-height: 65vh; width: 100%;
+}
+
+.saas-app div[data-testid="column"]:has(.saas-drawer-anchor) {
   background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 12px; min-height: 60vh; font-size: 0.78rem;
+  padding: 10px 12px; font-size: 0.78rem;
 }
 .saas-context-module { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .saas-section-label { font-size: 0.65rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
@@ -269,10 +282,9 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
   background: rgba(217, 119, 6, 0.1);
 }
 
-.saas-nav-footer {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+.saas-nav-footer-divider hr,
+.saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) hr {
+  border-top-color: var(--border);
 }
 
 /* Streamlit widgets — theme-aware (day/light mode) */
@@ -319,14 +331,14 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
   border-color: var(--blue) !important;
 }
 
-[data-mbsi-theme="light"] .saas-left-nav .stButton > button[kind="secondary"],
-.stApp[data-mbsi-theme="light"] .saas-left-nav .stButton > button {
+[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) .stButton > button[kind="secondary"],
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) .stButton > button {
   color: var(--muted) !important;
   background-color: transparent !important;
 }
 
-[data-mbsi-theme="light"] .saas-left-nav .stButton > button[kind="primary"],
-.stApp[data-mbsi-theme="light"] .saas-left-nav .stButton > button[kind="primary"] {
+[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) .stButton > button[kind="primary"],
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) .stButton > button[kind="primary"] {
   color: #ffffff !important;
   background-color: var(--blue) !important;
 }
@@ -368,22 +380,22 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
   border-radius: 8px;
 }
 
-[data-mbsi-theme="light"] .saas-left-nav,
-[data-mbsi-theme="light"] .saas-top-bar,
-[data-mbsi-theme="light"] .saas-workspace,
-[data-mbsi-theme="light"] .saas-drawer,
-.stApp[data-mbsi-theme="light"] .saas-left-nav,
-.stApp[data-mbsi-theme="light"] .saas-top-bar,
-.stApp[data-mbsi-theme="light"] .saas-workspace,
-.stApp[data-mbsi-theme="light"] .saas-drawer {
+[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor),
+[data-mbsi-theme="light"] .saas-app div[data-testid="stHorizontalBlock"]:has(.saas-top-bar-anchor),
+[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-workspace-anchor),
+[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-drawer-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="stHorizontalBlock"]:has(.saas-top-bar-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-workspace-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-drawer-anchor) {
   color: var(--text);
   background: var(--panel);
 }
 
-[data-mbsi-theme="light"] .saas-top-bar,
-[data-mbsi-theme="light"] .saas-drawer,
-.stApp[data-mbsi-theme="light"] .saas-top-bar,
-.stApp[data-mbsi-theme="light"] .saas-drawer {
+[data-mbsi-theme="light"] .saas-app div[data-testid="stHorizontalBlock"]:has(.saas-top-bar-anchor),
+[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-drawer-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="stHorizontalBlock"]:has(.saas-top-bar-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-drawer-anchor) {
   background: var(--panel2);
 }
 
@@ -437,8 +449,8 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
   color: var(--text) !important;
 }
 
-[data-mbsi-theme="light"] .saas-nav-footer,
-.stApp[data-mbsi-theme="light"] .saas-nav-footer {
+[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) hr,
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor) hr {
   border-top-color: var(--border);
 }
 
@@ -502,4 +514,4 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
   letter-spacing: 0.06em; color: var(--green); background: rgba(57, 217, 138, 0.12);
   border: 1px solid var(--green); border-radius: 999px; padding: 4px 10px; margin-bottom: 8px;
 }
-.saas-workspace-full { min-height: 65vh; width: 100%; }
+.saas-workspace-full-anchor { /* marker only — sizing via parent column */ }

@@ -175,10 +175,10 @@ def _light_mode_widget_css() -> str:
   color: var(--text) !important;
   background: var(--panel2) !important;
 }
-.stApp[data-mbsi-theme="light"] .saas-left-nav,
-.stApp[data-mbsi-theme="light"] .saas-top-bar,
-.stApp[data-mbsi-theme="light"] .saas-workspace,
-.stApp[data-mbsi-theme="light"] .saas-drawer {
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="stHorizontalBlock"]:has(.saas-top-bar-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-workspace-anchor),
+.stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-drawer-anchor) {
   color: var(--text) !important;
 }
 .stApp[data-mbsi-theme="light"] .saas-context-module {

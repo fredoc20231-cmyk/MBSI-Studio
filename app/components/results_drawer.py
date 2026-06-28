@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app.components.safe import safe_get, safe_dataframe
+from app.components.results_notebook import render_results_notebook
+from app.components.safe import safe_get
 from mbsi.reports.registry import get_registered_outputs
 
 
 def render_results_drawer() -> None:
     st.markdown('<div class="saas-drawer">', unsafe_allow_html=True)
-    st.markdown("#### Results")
+    st.markdown("#### Insights")
 
     warnings = st.session_state.get("saas_warnings", [])
     if warnings:
@@ -39,6 +40,9 @@ def render_results_drawer() -> None:
 
     last = st.session_state.get("last_run", "Demo loaded")
     st.caption(f"Last run: {last}")
+
+    st.divider()
+    render_results_notebook(compact=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 

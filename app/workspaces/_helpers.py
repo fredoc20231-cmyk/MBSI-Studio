@@ -18,8 +18,25 @@ def add_warning(msg: str) -> None:
     st.session_state.setdefault("saas_warnings", []).append(msg)
 
 
-def add_finding(title: str, detail: str) -> None:
+def add_finding(title: str, detail: str, module: str = "workspace") -> None:
     st.session_state.setdefault("saas_findings", []).append({"title": title, "detail": detail})
+    safe_register_finding(f"{title}: {detail}", section="findings", module=module, title=title)
+
+
+def safe_register_finding(text: str, section: str, module: str, title: str = "") -> None:
+    try:
+        from mbsi.reports.registry import register_finding
+        register_finding(text, section, module, title=title)
+    except Exception:
+        pass
+
+
+def safe_register_table(module: str, title: str, df, section: str = "tables") -> None:
+    try:
+        from mbsi.reports.registry import register_table
+        register_table(module, title, df, section=section)
+    except Exception:
+        pass
 
 
 def demo_banner():

@@ -444,3 +444,62 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
 
 [data-mbsi-theme="light"] .saas-warning { color: var(--orange) !important; }
 [data-mbsi-theme="light"] .saas-finding { color: var(--cyan) !important; }
+
+/* SaaS layout polish — ribbon, notebook, workflow */
+.saas-product-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 8px;
+}
+.saas-product-brand { display: flex; align-items: center; gap: 12px; }
+.saas-logo-mark {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.saas-product-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+.saas-product-subtitle { font-size: 0.72rem; color: var(--muted); }
+.saas-product-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.saas-pill {
+  font-size: 0.65rem; padding: 3px 8px; border-radius: 999px;
+  background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+}
+.saas-pill-green { color: var(--green); border-color: var(--green); }
+.saas-side-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px; margin-bottom: 8px;
+}
+.saas-side-title { font-size: 0.68rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.06em; margin-bottom: 6px; }
+.saas-project-name { font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.saas-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75rem; margin-bottom: 8px; }
+.saas-mini-grid span { color: var(--muted); display: block; }
+.saas-nav-section {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); margin: 10px 0 4px; padding-top: 6px; border-top: 1px solid var(--border);
+}
+.saas-nav-section:first-of-type { border-top: none; padding-top: 0; }
+.saas-module-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+.saas-module-description { font-size: 0.72rem; color: var(--muted); }
+
+.saas-ribbon {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; margin-top: 4px;
+}
+.saas-ribbon-item { display: flex; flex-direction: column; gap: 2px; }
+.saas-ribbon-label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.saas-workflow-hint {
+  font-size: 0.68rem; color: var(--muted); background: var(--panel2);
+  border: 1px dashed var(--border); border-radius: 6px; padding: 6px 8px; margin: 4px 0 8px;
+}
+.saas-notebook-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.saas-notebook-entry {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; color: var(--text);
+}
+.saas-report-final-badge {
+  display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--green); background: rgba(57, 217, 138, 0.12);
+  border: 1px solid var(--green); border-radius: 999px; padding: 4px 10px; margin-bottom: 8px;
+}
+.saas-workspace-full { min-height: 65vh; width: 100%; }

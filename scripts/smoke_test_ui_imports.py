@@ -23,7 +23,7 @@ def main() -> int:
     )
     from app.components.safe import safe_get, safe_dataframe, safe_plotly
     from app.components.saas_shell import render_saas_app, init_saas_state
-    from app.components.module_registry import MODULES
+    from app.components.module_registry import MODULES, module_show_drawer
     from app.components.theme import init_theme_state, get_theme, inject_theme_styles
     from mbsi.reports.registry import register_figure, get_registered_outputs
 
@@ -31,7 +31,9 @@ def main() -> int:
     assert callable(render_statusbar)
     assert callable(render_analysis_subtabs)
     assert len(NAV_PAGES) == 14
-    assert len(MODULES) == 14
+    assert len(MODULES) == 15
+    assert module_show_drawer("benchmark") is True
+    assert module_show_drawer("project") is False
     assert callable(render_saas_app)
     assert callable(init_saas_state)
     assert callable(init_theme_state)

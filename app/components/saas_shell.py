@@ -8,7 +8,7 @@ from collections import defaultdict
 import streamlit as st
 
 from app.components.context_controls import render_context_controls
-from app.components.module_registry import MODULES, get_module
+from app.components.module_registry import MODULES, SECTION_ORDER, get_module, module_show_drawer
 from app.components.page_utils import init_session
 from app.components.results_drawer import render_right_results_drawer
 from app.components.statusbar import render_statusbar
@@ -28,11 +28,10 @@ WORKSPACE_ROUTES = {
     "discovery": "app.workspaces.discovery",
     "ml_learning": "app.workspaces.ml_learning",
     "ai_review": "app.workspaces.ai_review",
+    "notebook": "app.workspaces.notebook",
     "report": "app.workspaces.report",
     "settings": "app.workspaces.settings",
 }
-
-SECTION_ORDER = ["Core", "Analysis", "Discovery", "Intelligence", "Export"]
 
 
 def init_saas_state() -> None:
@@ -40,7 +39,6 @@ def init_saas_state() -> None:
     init_session()
     init_theme_state()
     st.session_state.setdefault("active_module", "project")
-    st.session_state.setdefault("saas_drawer_open", True)
     st.session_state.setdefault("saas_warnings", [])
     st.session_state.setdefault("saas_findings", [])
     st.session_state.setdefault("run_outputs", {})
@@ -49,7 +47,6 @@ def init_saas_state() -> None:
 
 
 def render_product_header() -> None:
-    """Compact commercial product header."""
     st.markdown(
         """
         <div class="saas-product-header">
@@ -72,7 +69,6 @@ def render_product_header() -> None:
 
 
 def render_project_panel() -> None:
-    """First left panel: project context and primary actions."""
     st.markdown('<div class="saas-side-card">', unsafe_allow_html=True)
     st.markdown('<div class="saas-side-title">Project</div>', unsafe_allow_html=True)
     st.markdown('<div class="saas-project-name">Ovarian Cancer — HGSOC</div>', unsafe_allow_html=True)
@@ -95,7 +91,6 @@ def render_project_panel() -> None:
 
 
 def render_left_main_nav() -> None:
-    """Second left panel: grouped main product modules."""
     render_project_panel()
     st.markdown('<div class="saas-left-nav">', unsafe_allow_html=True)
 
@@ -108,6 +103,11 @@ def render_left_main_nav() -> None:
         if not mods:
             continue
         st.markdown(f'<div class="saas-nav-section">{section}</div>', unsafe_allow_html=True)
+        if section == "Intelligence":
+            st.markdown(
+                '<div class="saas-workflow-hint">Review outcomes → export final report</div>',
+                unsafe_allow_html=True,
+            )
         for mod in mods:
             key = mod["key"]
             active = st.session_state.get("active_module") == key
@@ -124,11 +124,10 @@ def render_left_main_nav() -> None:
 
 
 def render_top_context_bar() -> None:
-    """Top contextual controls for the active module."""
     active_key = st.session_state.get("active_module", "project")
     mod = get_module(active_key)
     st.markdown('<div class="saas-top-bar">', unsafe_allow_html=True)
-    title_col, control_col, action_col = st.columns([2.8, 4.2, 1.4], gap="small")
+    title_col, control_col = st.columns([1.4, 4.6], gap="small")
     with title_col:
         st.markdown(
             f"""
@@ -139,18 +138,15 @@ def render_top_context_bar() -> None:
         )
     with control_col:
         render_context_controls(active_key)
-    with action_col:
-        if st.button("Insights", key="saas_toggle_drawer", use_container_width=True):
-            st.session_state.saas_drawer_open = not st.session_state.get("saas_drawer_open", True)
-            st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_main_workspace() -> None:
-    """Route selected module to a focused workspace renderer."""
     key = st.session_state.get("active_module", "project")
     mod_path = WORKSPACE_ROUTES.get(key, WORKSPACE_ROUTES["project"])
-    st.markdown('<div class="saas-workspace">', unsafe_allow_html=True)
+    full_width = not module_show_drawer(key)
+    cls = "saas-workspace saas-workspace-full" if full_width else "saas-workspace"
+    st.markdown(f'<div class="{cls}">', unsafe_allow_html=True)
     try:
         ws = importlib.import_module(mod_path)
         if hasattr(ws, "render"):
@@ -165,7 +161,6 @@ def render_main_workspace() -> None:
 
 
 def render_saas_app() -> None:
-    """Render organized SaaS app shell with stable commercial-grade ratios."""
     init_saas_state()
     inject_theme_styles()
     st.markdown('<div class="saas-app">', unsafe_allow_html=True)
@@ -177,7 +172,8 @@ def render_saas_app() -> None:
 
     with content_col:
         render_top_context_bar()
-        if st.session_state.get("saas_drawer_open", True):
+        active_key = st.session_state.get("active_module", "project")
+        if module_show_drawer(active_key):
             main_col, right_col = st.columns([4.55, 1.45], gap="small")
             with main_col:
                 render_main_workspace()

@@ -7,7 +7,7 @@ import pytest
 def test_module_registry():
     from app.components.module_registry import MODULES, MODULE_KEYS, get_module
 
-    assert len(MODULES) == 14
+    assert len(MODULES) == 15
     assert "discovery" in MODULE_KEYS
     assert get_module("discovery")["label"] == "Discovery"
     assert get_module("missing")["key"] == "project"
@@ -19,16 +19,21 @@ def test_report_registry():
         get_registered_outputs,
         register_figure,
         register_table,
+        register_finding,
+        get_notebook_entries,
     )
 
     clear_registry()
     register_table("test", "demo", pd.DataFrame({"a": [1]}))
     register_figure("test", "fig", object())
+    register_finding("finding text", section="test", module="test", title="Finding")
     out = get_registered_outputs()
     assert len(out["tables"]) == 1
     assert len(out["figures"]) == 1
+    assert len(out["findings"]) == 1
+    assert len(get_notebook_entries()) == 3
     clear_registry()
-    assert get_registered_outputs() == {"figures": [], "tables": []}
+    assert get_registered_outputs() == {"figures": [], "tables": [], "findings": []}
 
 
 def test_final_report(tmp_path):
@@ -44,7 +49,8 @@ def test_final_report(tmp_path):
         "tme_results": None,
         "discovery_results": None,
         "last_run": "test",
-        "registered": {"figures": [], "tables": []},
+        "registered": {"figures": [], "tables": [], "findings": []},
+        "notebook": [],
     }
     html = generate_final_html_report(tmp_path, snapshot=snap)
     pdf = generate_final_pdf_report(tmp_path, snapshot=snap)
@@ -98,7 +104,7 @@ def test_workspace_imports():
     keys = [
         "project", "upload", "preprocess", "segmentation", "reconstruction",
         "spatial_analysis", "benchmark", "communication", "tme", "discovery",
-        "ml_learning", "ai_review", "report", "settings",
+        "ml_learning", "ai_review", "notebook", "report", "settings",
     ]
     import importlib
 

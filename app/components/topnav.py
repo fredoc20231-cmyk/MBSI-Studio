@@ -1,4 +1,4 @@
-"""Top navigation bar for MBSI Studio — single clickable navbar."""
+"""Top navigation bar for MBSI Studio — button-based navigation (reliable)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ from pathlib import Path
 
 import streamlit as st
 
-# Paths are relative to the main entry script directory (app/) when running:
-#   streamlit run app/streamlit_app.py
+# Paths relative to app/ when running: streamlit run app/streamlit_app.py
+APP_DIR = Path(__file__).resolve().parent.parent
+
 CORE_NAV = [
     ("Dashboard", "streamlit_app.py"),
     ("Upload & Data", "pages/02_Upload_Data.py"),
@@ -37,110 +38,71 @@ def _slug(label: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
 
 
-def main_script_dir() -> Path:
-    """Directory containing streamlit_app.py (Streamlit multipage root)."""
-    try:
-        from streamlit.runtime.scriptrunner import get_script_run_ctx
-
-        ctx = get_script_run_ctx()
-        if ctx and ctx.main_script_path:
-            return Path(ctx.main_script_path).resolve().parent
-    except Exception:
-        pass
-    return Path(__file__).resolve().parent.parent
-
-
 def resolve_page_path(relative: str) -> str:
-    """Validate and return a Streamlit page path for switch_page / page_link."""
+    """Validate path exists under app/ and return normalized relative path."""
     rel = relative.replace("\\", "/")
-    target = main_script_dir() / rel
-    if not target.is_file():
-        raise FileNotFoundError(f"Navigation target not found: {target}")
+    if not (APP_DIR / rel).is_file():
+        raise FileNotFoundError(f"Missing nav target: {APP_DIR / rel}")
     return rel
 
 
-def _navigate(label: str, relative: str) -> None:
-    """Navigate via switch_page with validated path."""
-    path = resolve_page_path(relative)
+def _go(label: str, relative: str) -> None:
+    """Navigate to page — always uses st.switch_page (proven multipage API)."""
     st.session_state.mbsi_nav_active = label
-    st.switch_page(path)
+    st.switch_page(resolve_page_path(relative))
 
 
-def _render_nav_link(label: str, relative: str, active: str, row: str) -> None:
-    """Render one nav item using page_link (preferred) or button fallback."""
-    path = resolve_page_path(relative)
-    is_active = label == active
+def _nav_button(label: str, relative: str, active: str, row: str) -> None:
+    """Render one navbar tab as a Streamlit button."""
     slug = _slug(label)
-
-    if hasattr(st, "page_link"):
-        try:
-            st.page_link(path, label=label, use_container_width=True)
-            return
-        except Exception:
-            pass
-
+    is_active = label == active
     if st.button(
         label,
-        key=f"nav_{row}_{slug}",
+        key=f"mbsi_nav_{row}_{slug}",
         use_container_width=True,
         type="primary" if is_active else "secondary",
     ):
-        _navigate(label, relative)
-
-
-def _inject_active_nav_css(active: str) -> None:
-    esc = active.replace("\\", "\\\\").replace('"', '\\"')
-    st.markdown(
-        f"""
-        <style>
-        div[data-testid="stHorizontalBlock"] a[data-testid="stPageLink-{esc}"] {{
-            color: #f4f7fb !important;
-            font-weight: 700 !important;
-            border-bottom: 2px solid #4f7cff !important;
-            border-radius: 0 !important;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+        _go(label, relative)
 
 
 def render_topnav(active: str | None = None) -> None:
-    """Render brand header + clickable nav rows (core + discovery modules)."""
+    """Render clickable navbar — brand row + core tabs + discovery tabs."""
     if active is None:
         active = st.session_state.get("mbsi_nav_active", "Analysis")
 
-    st.markdown(
-        """
-        <div class="mbsi-navbar">
-          <div class="mbsi-brand">
-            <div class="mbsi-logo">MBSI</div>
-            <div>
-              <div class="mbsi-brand-title">MBSI Studio</div>
-              <div class="mbsi-brand-sub">Physics-Aware Spatial Biology Intelligence</div>
+    # Brand row (Streamlit-native, no HTML overlay on tabs)
+    brand_left, brand_right = st.columns([3, 1])
+    with brand_left:
+        st.markdown(
+            """
+            <div class="mbsi-nav-brand-inline">
+              <span class="mbsi-logo-inline">MBSI</span>
+              <span>
+                <span class="mbsi-brand-title">MBSI Studio</span>
+                <span class="mbsi-brand-sub">Physics-Aware Spatial Biology Intelligence</span>
+              </span>
             </div>
-          </div>
-          <div class="mbsi-nav-right">
-            <span class="mbsi-demo-btn">Demo Mode</span>
-            <span class="mbsi-icon-btn">?</span>
-            <span class="mbsi-icon-btn">⚙</span>
-            <span class="mbsi-avatar">AU</span>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
+    with brand_right:
+        st.markdown(
+            """
+            <div class="mbsi-nav-right-inline">
+              <span class="mbsi-demo-btn">Demo Mode</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    st.markdown(f'<div class="mbsi-nav-brand-marker mbsi-nav-active-{_slug(active)}"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="mbsi-nav-row-start"></div>', unsafe_allow_html=True)
 
     core_cols = st.columns(len(CORE_NAV))
     for col, (label, path) in zip(core_cols, CORE_NAV):
         with col:
-            _render_nav_link(label, path, active, row="core")
+            _nav_button(label, path, active, row="core")
 
     ext_cols = st.columns(len(EXTENDED_NAV))
     for col, (label, path) in zip(ext_cols, EXTENDED_NAV):
         with col:
-            _render_nav_link(label, path, active, row="ext")
-
-    _inject_active_nav_css(active)
+            _nav_button(label, path, active, row="ext")

@@ -54,19 +54,42 @@ section[data-testid="stSidebar"] { display: none !important; }
   border-color: var(--border); border-bottom: 2px solid var(--blue);
 }
 
-/* Clickable navbar — page_link + button rows after brand marker */
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] {
+/* Inline brand (Streamlit column row above nav tabs) */
+.mbsi-nav-brand-inline {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 12px; margin-bottom: 4px;
+}
+.mbsi-logo-inline {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  font-weight: 800; font-size: 0.65rem; color: white;
+}
+.mbsi-nav-brand-inline .mbsi-brand-title {
+  display: block; font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.1;
+}
+.mbsi-nav-brand-inline .mbsi-brand-sub {
+  display: block; font-size: 0.68rem; color: var(--muted);
+}
+.mbsi-nav-right-inline { text-align: right; padding-top: 6px; }
+
+/* Clickable navbar button rows (after .mbsi-nav-row-start marker) */
+.mbsi-nav-row-start ~ div[data-testid="stHorizontalBlock"] {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 2px 4px 0;
   margin-bottom: 4px;
   gap: 0 !important;
+  position: relative;
+  z-index: 20;
+  pointer-events: auto !important;
 }
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] a[data-testid^="stPageLink"] {
-  display: block;
-  text-align: center;
-  text-decoration: none !important;
+.mbsi-nav-row-start ~ div[data-testid="stHorizontalBlock"] .stButton {
+  pointer-events: auto !important;
+}
+.mbsi-nav-row-start ~ div[data-testid="stHorizontalBlock"] .stButton > button {
   background: transparent !important;
   border: none !important;
   border-bottom: 2px solid transparent !important;
@@ -74,39 +97,25 @@ section[data-testid="stSidebar"] { display: none !important; }
   color: var(--muted) !important;
   font-size: 0.68rem !important;
   font-weight: 500 !important;
-  padding: 6px 2px 4px !important;
-  min-height: 28px !important;
-  line-height: 1.2 !important;
-}
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] a[data-testid^="stPageLink"]:hover {
-  color: var(--text) !important;
-  background: var(--panel2) !important;
-}
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button {
-  background: transparent !important;
-  border: none !important;
-  border-bottom: 2px solid transparent !important;
-  border-radius: 0 !important;
-  color: var(--muted) !important;
-  font-size: 0.68rem !important;
-  font-weight: 500 !important;
-  padding: 6px 2px 4px !important;
-  min-height: 28px !important;
+  padding: 8px 4px 6px !important;
+  min-height: 32px !important;
   box-shadow: none !important;
   white-space: nowrap !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
 }
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button:hover {
+.mbsi-nav-row-start ~ div[data-testid="stHorizontalBlock"] .stButton > button:hover {
   color: var(--text) !important;
   background: var(--panel2) !important;
 }
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button[kind="primary"],
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button[data-testid="baseButton-primary"] {
+.mbsi-nav-row-start ~ div[data-testid="stHorizontalBlock"] .stButton > button[kind="primary"],
+.mbsi-nav-row-start ~ div[data-testid="stHorizontalBlock"] .stButton > button[data-testid="baseButton-primary"] {
   background: transparent !important;
   color: var(--text) !important;
   border-bottom: 2px solid var(--blue) !important;
   font-weight: 700 !important;
 }
-.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"]:last-of-type {
+.mbsi-nav-row-start ~ div[data-testid="stHorizontalBlock"]:last-of-type {
   margin-bottom: 8px;
 }
 

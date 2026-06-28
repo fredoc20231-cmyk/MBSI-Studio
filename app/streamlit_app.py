@@ -37,13 +37,14 @@ st.set_page_config(
 init_session()
 inject_styles()
 
+render_navbar(active=st.session_state.get("mbsi_nav_active", "Analysis"))
+
 if "dashboard_demo" not in st.session_state:
     st.session_state.dashboard_demo = generate_dashboard_demo(seed=42)
 
 demo = st.session_state.dashboard_demo
 summary = demo["summary"]
 
-render_navbar(active=st.session_state.get("mbsi_nav_active", "Analysis"))
 selected_tab = render_analysis_subtabs()
 
 # --- Main grid: 14% | 49% | 20% | 17% ---

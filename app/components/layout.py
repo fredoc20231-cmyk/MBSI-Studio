@@ -49,33 +49,44 @@ def render_navbar(active: str = "Analysis") -> None:
         unsafe_allow_html=True,
     )
 
-    # Compact page navigation (Streamlit page links)
-    try:
-        pl_cols = st.columns(9)
-        pages = [
-            ("Dashboard", "streamlit_app.py"),
-            ("Upload", "pages/02_Upload_Data.py"),
-            ("Preprocess", "pages/03_Preprocess.py"),
-            ("Segmentation", "pages/04_Segmentation.py"),
-            ("Run MBSI", "pages/05_Run_MBSI.py"),
-            ("Analysis", "streamlit_app.py"),
-            ("Validation", "pages/07_Validation.py"),
-            ("Copilot", "pages/08_AI_Copilot.py"),
-            ("Export", "pages/09_Export.py"),
-        ]
-        for col, (label, path) in zip(pl_cols, pages):
-            with col:
-                st.page_link(path, label=label, use_container_width=True)
-    except Exception:
-        pass
-
 
 def render_subtabs(active: str = "Spatial Map") -> None:
+    """Static visual subtabs retained for backward compatibility."""
     tabs = ["Spatial Map", "Cell Types", "Clusters", "Neighborhoods", "Boundaries", "Pathways", "3D View"]
     html = "".join(
         f'<span class="mbsi-subtab{" active" if t == active else ""}">{t}</span>' for t in tabs
     )
     st.markdown(f'<div class="mbsi-subtabs">{html}</div>', unsafe_allow_html=True)
+
+
+def render_analysis_subtabs() -> str:
+    """Clickable Analysis subtab selector.
+
+    Returns the active Analysis subtab while keeping all subtabs visible on the
+    same dashboard page. This function is intentionally kept in layout.py so
+    app/streamlit_app.py can import it safely.
+    """
+    tabs = ["Spatial Map", "Cell Types", "Clusters", "Neighborhoods", "Boundaries", "Pathways", "3D View"]
+
+    if "analysis_subtab" not in st.session_state:
+        st.session_state.analysis_subtab = "Spatial Map"
+
+    # Compact CSS-friendly button row. Use columns so Streamlit can track clicks.
+    cols = st.columns([1.0, 0.9, 0.8, 1.2, 1.0, 0.9, 0.8], gap="small")
+    for col, tab in zip(cols, tabs):
+        with col:
+            active = st.session_state.analysis_subtab == tab
+            label = f"● {tab}" if active else tab
+            if st.button(
+                label,
+                key=f"analysis_tab_{tab}",
+                use_container_width=True,
+                type="primary" if active else "secondary",
+            ):
+                st.session_state.analysis_subtab = tab
+                st.rerun()
+
+    return st.session_state.analysis_subtab
 
 
 def render_left_sidebar(summary: dict) -> None:

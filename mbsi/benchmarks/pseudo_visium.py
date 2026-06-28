@@ -5,11 +5,71 @@ Creates spot-level aggregates from single-cell data to simulate
 Visium-style spatial transcriptomics for benchmarking.
 """
 
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict, Any
 
 import anndata as ad
 import numpy as np
 from scipy.spatial import KDTree
+
+PLATFORM_CONFIG: Dict[str, Dict[str, Any]] = {
+    "xenium": {"spot_diameter": 55.0, "aggregation": "hex"},
+    "cosmx": {"spot_diameter": 30.0, "aggregation": "grid"},
+    "merfish": {"spot_diameter": 40.0, "aggregation": "grid"},
+}
+
+
+def make_synthetic_ground_truth(
+    n_cells: int = 500,
+    n_genes: int = 120,
+    n_types: int = 4,
+    seed: int = 42,
+) -> ad.AnnData:
+    """Synthetic single-cell ground truth with spatial niches and cell types."""
+    rng = np.random.default_rng(seed)
+    side = int(np.ceil(np.sqrt(n_cells)))
+    rows, cols = np.divmod(np.arange(n_cells), side)
+    coords = np.column_stack([
+        cols * 8 + rng.normal(0, 0.8, n_cells),
+        rows * 8 + rng.normal(0, 0.8, n_cells),
+    ])
+
+    cell_types = [f"type_{i % n_types}" for i in range(n_cells)]
+    base = rng.uniform(1, 4, (n_types, n_genes))
+    X = np.zeros((n_cells, n_genes), dtype=np.float32)
+    for i, ct in enumerate(cell_types):
+        tidx = int(ct.split("_")[1])
+        niche = 1.0 + 0.5 * np.sin(coords[i, 0] / 20) * np.cos(coords[i, 1] / 20)
+        X[i] = rng.poisson(base[tidx] * niche).astype(np.float32)
+
+    adata = ad.AnnData(X=X)
+    adata.var_names = [f"GENE{i}" for i in range(n_genes)]
+    adata.obs_names = [f"cell_{i:05d}" for i in range(n_cells)]
+    adata.obsm["spatial"] = coords.astype(np.float32)
+    adata.obs["cell_type"] = cell_types
+    adata.obs["x"] = coords[:, 0]
+    adata.obs["y"] = coords[:, 1]
+    adata.uns["platform"] = "synthetic"
+    return adata
+
+
+def generate_pseudo_visium(
+    ground_truth_adata: ad.AnnData,
+    n_spots: int = 500,
+    platform: str = "xenium",
+    seed: int = 42,
+) -> ad.AnnData:
+    """Bin/aggregate single-cell ground truth to pseudo-Visium spot-level data."""
+    cfg = PLATFORM_CONFIG.get(platform.lower(), PLATFORM_CONFIG["xenium"])
+    pseudo = make_pseudo_visium(
+        ground_truth_adata,
+        spot_diameter=cfg["spot_diameter"],
+        aggregation=cfg["aggregation"],
+        n_spots=n_spots,
+        random_state=seed,
+    )
+    pseudo.uns["platform"] = platform
+    pseudo.uns["source"] = "pseudo_visium_from_ground_truth"
+    return pseudo
 
 
 def make_pseudo_visium(

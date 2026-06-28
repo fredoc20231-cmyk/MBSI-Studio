@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -105,7 +105,11 @@ def treatment_radar(treatment: Dict, baseline: Dict, treatment_name: str) -> go.
     return fig
 
 
-def export_all(demo: Dict[str, Any], out_dir: Path = Path("data/outputs")) -> Path:
+def export_all(
+    demo: Dict[str, Any],
+    out_dir: Path = Path("data/outputs"),
+    analysis_results: Optional[Dict[str, Any]] = None,
+) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     demo["cells"].to_csv(out_dir / "dashboard_cells.csv", index=False)
     demo["pathways"].to_csv(out_dir / "pathways.csv", index=False)
@@ -119,4 +123,30 @@ def export_all(demo: Dict[str, Any], out_dir: Path = Path("data/outputs")) -> Pa
         "pathways": demo["pathways"].to_dict(orient="records"),
         "causal": demo["causal"].to_dict(orient="records"),
     }, indent=2))
+
+    if analysis_results is None:
+        try:
+            from mbsi.analysis.demo import make_synthetic_visium_adata
+            from mbsi.analysis.pipeline import run_standard_spatial_analysis, export_analysis_results
+
+            adata = make_synthetic_visium_adata(n_spots=60, n_genes=120, seed=42)
+            analysis_results = run_standard_spatial_analysis(
+                adata,
+                min_counts=0,
+                min_genes=0,
+                max_mito=100.0,
+                n_top_genes=60,
+                n_comps=10,
+                n_neighbors=10,
+                n_pcs=5,
+                spatial_stats_top_n=30,
+            )
+            export_analysis_results(analysis_results, out_dir=out_dir)
+        except Exception:
+            pass
+    elif analysis_results:
+        from mbsi.analysis.pipeline import export_analysis_results
+
+        export_analysis_results(analysis_results, out_dir=out_dir)
+
     return out_dir

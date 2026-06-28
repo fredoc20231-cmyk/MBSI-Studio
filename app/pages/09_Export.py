@@ -62,10 +62,18 @@ with g3:
                     use_container_width=True, config={"displayModeBar": False})
 
 st.markdown("---")
+st.markdown("#### Analysis Exports")
+ae1, ae2 = st.columns(2)
+with ae1:
+    st.caption("qc_summary.csv · cluster_markers.csv · spatial_autocorrelation.csv")
+with ae2:
+    st.caption("processed_adata.h5ad · analysis_parameters.json")
+
+st.markdown("---")
 e1, e2, e3, e4 = st.columns(4)
 with e1:
     if st.button("Export All (CSV + JSON)", type="primary", use_container_width=True):
-        out = export_all(demo)
+        out = export_all(demo, analysis_results=st.session_state.get("analysis_results"))
         st.success(f"Saved to {out}")
 with e2:
     if st.button("Export HTML Report", use_container_width=True):

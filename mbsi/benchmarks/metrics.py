@@ -501,6 +501,97 @@ def compute_cell_type_accuracy(
     return float(correct / total) if total > 0 else 0.0
 
 
+def compute_niche_preservation(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+    k: int = 8,
+) -> float:
+    """Compare local cell-type composition similarity (higher = better)."""
+    if "cell_type" not in true_adata.obs.columns:
+        return 0.0
+
+    coords = true_adata.obsm["spatial"]
+    types = true_adata.obs["cell_type"].astype(str)
+    uniq = sorted(types.unique())
+    type_to_idx = {t: i for i, t in enumerate(uniq)}
+    n = true_adata.n_obs
+    true_comp = np.zeros((n, len(uniq)))
+    for i, t in enumerate(types):
+        true_comp[i, type_to_idx[t]] = 1.0
+
+    tree = NearestNeighbors(n_neighbors=min(k, n)).fit(coords)
+    _, idx = tree.kneighbors(coords)
+    true_niche = np.array([true_comp[i].mean(axis=0) for i in idx])
+
+    recon_types = recon_adata.obs.get("cell_type", types.iloc[: recon_adata.n_obs])
+    if len(recon_types) != n:
+        recon_aligned = np.zeros((n, len(uniq)))
+        recon_coords = recon_adata.obsm["spatial"]
+        rtree = NearestNeighbors(n_neighbors=1).fit(recon_coords)
+        _, ridx = rtree.kneighbors(coords)
+        for i, j in enumerate(ridx.flatten()):
+            rt = str(recon_types.iloc[j]) if hasattr(recon_types, "iloc") else str(recon_types[j])
+            if rt in type_to_idx:
+                recon_aligned[i, type_to_idx[rt]] = 1.0
+    else:
+        recon_aligned = np.zeros((n, len(uniq)))
+        for i, t in enumerate(recon_types.astype(str)):
+            if t in type_to_idx:
+                recon_aligned[i, type_to_idx[t]] = 1.0
+
+    recon_niche = np.array([recon_aligned[i].mean(axis=0) for i in idx])
+    corrs = []
+    for i in range(n):
+        a, b = true_niche[i], recon_niche[i]
+        if a.std() > 0 and b.std() > 0:
+            c, _ = pearsonr(a, b)
+            if not np.isnan(c):
+                corrs.append(c)
+    return float(np.mean(corrs)) if corrs else 0.0
+
+
+def compute_benchmark_metrics(
+    true_adata: ad.AnnData,
+    reconstructed_adata: ad.AnnData,
+    pseudo_spot_adata: Optional[ad.AnnData] = None,
+    runtime_sec: float = 0.0,
+    peak_memory_mb: float = 0.0,
+) -> Dict[str, Any]:
+    """Hub-facing metrics with standardized keys and runtime/memory."""
+    base = compute_all_metrics(true_adata, reconstructed_adata, pseudo_spot_adata)
+    if "error" in base:
+        return {
+            "gene_pearson": 0.0,
+            "gene_spearman": 0.0,
+            "rmse": float("inf"),
+            "error": base["error"],
+            "runtime_sec": runtime_sec,
+            "peak_memory_mb": peak_memory_mb,
+        }
+
+    boundary_leak = base.get("boundary_leakage")
+    if boundary_leak is None and "cell_type" in true_adata.obs.columns:
+        boundary_leak = 1.0 - base.get("cell_type_accuracy", 0.0)
+
+    morans_pres = base.get("morans_i_preservation")
+    if morans_pres is not None:
+        morans_pres = float(morans_pres)
+
+    return {
+        "gene_pearson": float(base.get("pearson_correlation", 0.0)),
+        "gene_spearman": float(base.get("spearman_correlation", 0.0)),
+        "rmse": float(base.get("rmse", 0.0)),
+        "r2_score": float(base.get("r2_score", 0.0)),
+        "cell_type_accuracy": float(base.get("cell_type_accuracy", 0.0)),
+        "boundary_preservation": float(1.0 - boundary_leak) if boundary_leak is not None else None,
+        "niche_preservation": compute_niche_preservation(true_adata, reconstructed_adata),
+        "morans_i_preservation": morans_pres,
+        "spatial_correlation": base.get("spatial_correlation"),
+        "runtime_sec": float(runtime_sec),
+        "peak_memory_mb": float(peak_memory_mb),
+    }
+
+
 def benchmark_reconstruction(
     true_adata: ad.AnnData,
     pseudo_spot_adata: ad.AnnData,

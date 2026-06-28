@@ -93,6 +93,33 @@ def main():
     )
     (OUTPUT / "smoke_report.html").write_text(report_html)
 
+    print("9. Core spatial analysis pipeline...")
+    from mbsi.analysis.demo import make_synthetic_visium_adata
+    from mbsi.analysis.pipeline import run_standard_spatial_analysis, export_analysis_results
+
+    synth = make_synthetic_visium_adata(n_spots=80, n_genes=150, seed=42)
+    analysis = run_standard_spatial_analysis(
+        synth,
+        min_counts=0,
+        min_genes=0,
+        max_mito=100.0,
+        n_top_genes=80,
+        n_comps=10,
+        n_neighbors=10,
+        n_pcs=5,
+        spatial_stats_top_n=30,
+    )
+    export_analysis_results(analysis, out_dir=OUTPUT)
+    print(f"   Processed {analysis['adata'].n_obs} spots, {analysis['adata'].obs['cluster'].nunique()} clusters")
+
+    print("10. Benchmark Hub...")
+    from mbsi.benchmarks.hub import run_benchmark_hub
+    from mbsi.benchmarks.export import export_benchmark_hub
+
+    bench = run_benchmark_hub(methods=["mbsi", "tangram"], seed=42, n_spots=30, synthetic_cells=80)
+    export_benchmark_hub(bench, out_dir=OUTPUT)
+    print(f"   Top method: {bench['leaderboard'].iloc[0]['method']}")
+
     summary = {
         "n_spots": spot_adata.n_obs,
         "n_cells": reconstructed.n_obs,

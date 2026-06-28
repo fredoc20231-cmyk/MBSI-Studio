@@ -12,6 +12,7 @@ NAV_PAGES = [
     ("Validation", "pages/07_Validation.py"),
     ("AI Copilot", "pages/08_AI_Copilot.py"),
     ("Export", "pages/09_Export.py"),
+    ("Benchmark Hub", "pages/10_Benchmark_Hub.py"),
 ]
 
 

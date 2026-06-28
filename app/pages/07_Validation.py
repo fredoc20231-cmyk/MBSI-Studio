@@ -20,6 +20,9 @@ ensure_reconstructed(quick=True, show_warning=False)
 render_topnav(active="Validation")
 
 st.markdown("### Validation & Benchmarking")
+st.info("Every reconstruction claim is benchmarked against single-cell ground truth.")
+if st.button("Open Benchmark Hub", use_container_width=False):
+    st.switch_page("pages/10_Benchmark_Hub.py")
 
 if st.button("Run Validation", type="primary"):
     true = st.session_state.true_adata or st.session_state.ground_truth

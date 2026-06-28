@@ -13,6 +13,30 @@ import pandas as pd
 import plotly.graph_objects as go
 import seaborn as sns
 
+DARK = {
+    "paper_bgcolor": "#0d1828",
+    "plot_bgcolor": "#07111f",
+    "font": {"color": "#f4f7fb", "size": 10},
+}
+
+
+def plot_leaderboard_bars(leaderboard_df: pd.DataFrame, metric: str = "gene_pearson"):
+    """Plotly bar chart for benchmark leaderboard (MBSI dark theme)."""
+    if leaderboard_df.empty or metric not in leaderboard_df.columns:
+        return None
+    fig = go.Figure(data=go.Bar(
+        x=leaderboard_df["method"],
+        y=leaderboard_df[metric],
+        marker_color=["#4f7cff" if m == "mbsi" else "#9aa7b8" for m in leaderboard_df["method"]],
+    ))
+    fig.update_layout(
+        title=f"Leaderboard — {metric}",
+        **DARK,
+        height=360,
+        margin=dict(l=40, r=20, t=40, b=80),
+    )
+    return fig
+
 
 def plot_benchmark_summary(
     metrics_df: pd.DataFrame,

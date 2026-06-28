@@ -12,8 +12,11 @@ import streamlit as st
 
 from app.components.demo_data import generate_dashboard_demo, CELL_TYPE_COLORS, CELL_COUNTS
 from app.components.layout import (
-    inject_styles, render_navbar, render_subtabs,
-    render_left_sidebar, render_statusbar,
+    inject_styles,
+    render_navbar,
+    render_analysis_subtabs,
+    render_left_sidebar,
+    render_statusbar,
 )
 from app.components.histology import make_histology_overlay, make_marker_spatial_heatmap, make_ligand_gradient
 from app.components.network import neighborhood_graph, interactions_bar
@@ -41,7 +44,7 @@ demo = st.session_state.dashboard_demo
 summary = demo["summary"]
 
 render_navbar(active="Analysis")
-render_subtabs(active="Spatial Map")
+selected_tab = render_analysis_subtabs()
 
 # --- Main grid: 14% | 49% | 20% | 17% ---
 left, center, mid_r, far_r = st.columns([1.4, 4.9, 2.0, 1.7], gap="small")
@@ -57,6 +60,30 @@ with left:
         for k in list(st.session_state.keys()):
             del st.session_state[k]
         st.rerun()
+    with st.expander("Spatial Analysis", expanded=False):
+        st.caption(
+            "Analytical outputs are computational results for research use only. "
+            "Biological and clinical conclusions require independent validation."
+        )
+        if st.button("Open Analysis Page", use_container_width=True, key="goto_analysis"):
+            st.switch_page("pages/06_Analysis.py")
+        if st.button("Run Full Analysis (demo)", use_container_width=True, key="run_spatial_analysis"):
+            from mbsi.analysis.demo import make_synthetic_visium_adata
+            from mbsi.analysis.pipeline import run_standard_spatial_analysis, export_analysis_results
+            from pathlib import Path
+
+            adata = st.session_state.get("adata") or make_synthetic_visium_adata(seed=42)
+            results = run_standard_spatial_analysis(
+                adata, min_counts=0, min_genes=0, max_mito=100.0,
+                n_top_genes=80, n_comps=10, n_neighbors=15, n_pcs=5, spatial_stats_top_n=50,
+            )
+            st.session_state.analysis_results = results
+            st.session_state.adata = results["adata"]
+            st.session_state.marker_table = results["markers"]
+            st.session_state.spatial_stats = results["spatial_stats"]
+            export_analysis_results(results, out_dir=Path("data/outputs"))
+            st.session_state.last_run = "Full spatial analysis"
+            st.toast("Spatial analysis complete.")
     st.caption("MBSI Studio v2.0.0")
 
 with center:

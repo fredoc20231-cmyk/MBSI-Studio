@@ -149,3 +149,13 @@ def render_statusbar() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+__all__ = [
+    "inject_styles",
+    "render_navbar",
+    "render_subtabs",
+    "render_analysis_subtabs",
+    "render_left_sidebar",
+    "render_statusbar",
+]

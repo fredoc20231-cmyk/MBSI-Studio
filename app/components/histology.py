@@ -5,12 +5,11 @@ from typing import Dict, List, Optional
 import numpy as np
 import plotly.graph_objects as go
 
-DARK = dict(
-    paper_bgcolor="#0d1828",
-    plot_bgcolor="#07111f",
-    font=dict(color="#f4f7fb", size=10),
-    margin=dict(l=4, r=4, t=28, b=4),
-)
+DARK = {
+    "paper_bgcolor": "#0d1828",
+    "plot_bgcolor": "#07111f",
+    "font": {"color": "#f4f7fb", "size": 10},
+}
 
 
 def make_histology_overlay(
@@ -81,6 +80,7 @@ def make_histology_overlay(
         **DARK,
         xaxis=dict(visible=False), yaxis=dict(visible=False, scaleanchor="x"),
         showlegend=False,
+        margin=dict(l=4, r=4, t=28, b=4),
     )
     fig.update_yaxes(autorange="reversed")
     return fig
@@ -91,8 +91,11 @@ def make_marker_spatial_heatmap(field: np.ndarray, title: str = "Marker") -> go.
         z=field, colorscale=[[0, "#07111f"], [0.5, "#ffb020"], [1, "#ff5c7a"]],
         showscale=False,
     ))
-    fig.update_layout(title=title, **DARK,
-                      xaxis=dict(visible=False), yaxis=dict(visible=False))
+    fig.update_layout(
+        title=title, **DARK,
+        xaxis=dict(visible=False), yaxis=dict(visible=False),
+        margin=dict(l=4, r=4, t=28, b=4),
+    )
     return fig
 
 

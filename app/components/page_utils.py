@@ -27,6 +27,11 @@ def init_session():
         "uploaded_segmentation": None,
         "ground_truth": None,
         "preprocessing_params": {},
+        "analysis_results": None,
+        "benchmark_results": None,
+        "benchmark_leaderboard": None,
+        "marker_table": None,
+        "spatial_stats": None,
         "morphology_params": {},
         "segmentation_result": {},
         "subcellular_result": {},
@@ -155,21 +160,11 @@ def load_demo_into_session(advanced: bool = True) -> bool:
     return False
 
 
-def generate_synthetic_demo(n_spots: int = 40, n_genes: int = 50) -> None:
-    """Create minimal synthetic spot data when no demo files exist."""
-    import anndata as ad
-    import numpy as np
+def generate_synthetic_demo(n_spots: int = 120, n_genes: int = 300) -> None:
+    """Create synthetic Visium-like spot data when no demo files exist."""
+    from mbsi.analysis.demo import make_synthetic_visium_adata
 
-    np.random.seed(42)
-    X = np.random.poisson(3, (n_spots, n_genes)).astype(np.float32)
-    adata = ad.AnnData(X=X)
-    adata.var_names = [f"gene_{i}" for i in range(n_genes)]
-    adata.obs_names = [f"spot_{i}" for i in range(n_spots)]
-    adata.obsm["spatial"] = np.column_stack([
-        np.random.uniform(0, 200, n_spots),
-        np.random.uniform(0, 200, n_spots),
-    ])
-    st.session_state.adata = adata
+    st.session_state.adata = make_synthetic_visium_adata(n_spots=n_spots, n_genes=n_genes, seed=42)
     st.session_state.using_synthetic_demo = True
 
 

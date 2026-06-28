@@ -1,6 +1,7 @@
 /* MBSI Studio v2 — Reference Dashboard Theme */
 
-:root {
+:root,
+[data-mbsi-theme="dark"] {
   --bg: #07111f;
   --panel: #0d1828;
   --panel2: #101d2e;
@@ -16,9 +17,37 @@
   --pink: #ff5c9c;
 }
 
+[data-mbsi-theme="light"] {
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --panel2: #eef2f8;
+  --border: #c8d4e3;
+  --text: #1a2332;
+  --muted: #5a6b7d;
+  --blue: #2563eb;
+  --green: #059669;
+  --orange: #d97706;
+  --red: #dc2626;
+  --purple: #7c3aed;
+  --cyan: #0891b2;
+  --pink: #db2777;
+}
+
 .stApp {
   background: var(--bg) !important;
   color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] .stApp,
+[data-mbsi-theme="light"] .saas-app,
+[data-mbsi-theme="light"] .mbsi-app {
+  color-scheme: light;
+}
+
+[data-mbsi-theme="dark"] .stApp,
+[data-mbsi-theme="dark"] .saas-app,
+[data-mbsi-theme="dark"] .mbsi-app {
+  color-scheme: dark;
 }
 
 header[data-testid="stHeader"] { background: transparent !important; }
@@ -235,4 +264,43 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
 .saas-disclaimer {
   background: rgba(255, 176, 32, 0.08); border-left: 3px solid var(--orange);
   padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; margin-bottom: 8px;
+}
+[data-mbsi-theme="light"] .saas-disclaimer {
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.saas-nav-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* Streamlit widgets — theme-aware */
+[data-mbsi-theme="light"] div[data-testid="stMarkdown"] p,
+[data-mbsi-theme="light"] div[data-testid="stMarkdown"] li,
+[data-mbsi-theme="light"] h1, [data-mbsi-theme="light"] h2,
+[data-mbsi-theme="light"] h3, [data-mbsi-theme="light"] h4 {
+  color: var(--text);
+}
+[data-mbsi-theme="light"] div[data-baseweb="select"] > div,
+[data-mbsi-theme="light"] div[data-baseweb="input"] > div,
+[data-mbsi-theme="light"] textarea,
+[data-mbsi-theme="light"] input {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+[data-mbsi-theme="light"] [data-testid="stChatMessage"] {
+  background: var(--panel2) !important;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+[data-mbsi-theme="dark"] [data-testid="stChatMessage"] {
+  background: var(--panel2) !important;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+[data-mbsi-theme="light"] .stAlert,
+[data-mbsi-theme="light"] [data-testid="stNotificationContentInfo"] {
+  color: var(--text);
 }

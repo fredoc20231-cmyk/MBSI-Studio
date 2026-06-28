@@ -8,10 +8,12 @@ from app.components.context_controls import render_context_controls
 from app.components.module_registry import MODULES, get_module
 from app.components.page_utils import init_session
 from app.components.results_drawer import render_right_results_drawer
+from app.components.theme import init_theme_state, inject_theme_styles, render_theme_quick_toggle
 
 
 def init_saas_state() -> None:
     init_session()
+    init_theme_state()
     st.session_state.setdefault("active_module", "project")
     st.session_state.setdefault("saas_drawer_open", True)
     st.session_state.setdefault("saas_warnings", [])
@@ -29,6 +31,9 @@ def render_left_main_nav() -> None:
         if st.button(f"{icon} {label}".strip(), key=f"nav_{key}", type=btn_type, use_container_width=True):
             st.session_state.active_module = key
             st.rerun()
+    st.markdown('<div class="saas-nav-footer">', unsafe_allow_html=True)
+    render_theme_quick_toggle(compact=True)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -73,6 +78,7 @@ def render_main_workspace() -> None:
 
 def render_saas_app() -> None:
     init_saas_state()
+    inject_theme_styles()
     st.markdown('<div class="saas-app">', unsafe_allow_html=True)
     left, main = st.columns([1, 4])
     with left:

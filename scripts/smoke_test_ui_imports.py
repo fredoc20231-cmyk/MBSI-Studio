@@ -24,6 +24,7 @@ def main() -> int:
     from app.components.safe import safe_get, safe_dataframe, safe_plotly
     from app.components.saas_shell import render_saas_app, init_saas_state
     from app.components.module_registry import MODULES
+    from app.components.theme import init_theme_state, get_theme, inject_theme_styles
     from mbsi.reports.registry import register_figure, get_registered_outputs
 
     assert callable(render_topnav)
@@ -33,6 +34,9 @@ def main() -> int:
     assert len(MODULES) == 14
     assert callable(render_saas_app)
     assert callable(init_saas_state)
+    assert callable(init_theme_state)
+    assert callable(inject_theme_styles)
+    assert get_theme() in ("dark", "light")
     assert callable(register_figure)
     assert isinstance(get_registered_outputs(), dict)
     assert resolve_page_path("streamlit_app.py") == "streamlit_app.py"

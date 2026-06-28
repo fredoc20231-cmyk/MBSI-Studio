@@ -7,6 +7,7 @@ from typing import Any, Optional
 import streamlit as st
 
 from app.components.safe import safe_plotly
+from app.components.theme import apply_plotly_theme
 
 PLOTLY_CONFIG = {
     "displayModeBar": True,
@@ -31,6 +32,7 @@ def render_interactive_plot(
     try:
         if title and hasattr(fig, "update_layout"):
             fig.update_layout(title=title)
+        apply_plotly_theme(fig)
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=key)
         if register and module:
             from mbsi.reports.registry import register_figure

@@ -105,3 +105,31 @@ def test_workspace_imports():
     for k in keys:
         mod = importlib.import_module(f"app.workspaces.{k}")
         assert callable(mod.render)
+
+
+def test_theme_module():
+    from app.components.theme import (
+        THEME_PALETTES,
+        apply_plotly_theme,
+        get_plotly_theme_colors,
+        VALID_THEMES,
+    )
+
+    assert VALID_THEMES == ("dark", "light")
+    assert "plot_paper" in THEME_PALETTES["light"]
+    assert THEME_PALETTES["light"]["bg"] == "#f4f7fb"
+    assert THEME_PALETTES["dark"]["bg"] == "#07111f"
+
+    class _FakeFig:
+        def __init__(self):
+            self.kwargs = {}
+
+        def update_layout(self, **kwargs):
+            self.kwargs.update(kwargs)
+
+    fig = _FakeFig()
+    apply_plotly_theme(fig)
+    assert fig.kwargs["paper_bgcolor"] == THEME_PALETTES["dark"]["plot_paper"]
+
+    colors = get_plotly_theme_colors()
+    assert colors["plot_font"] == THEME_PALETTES["dark"]["plot_font"]

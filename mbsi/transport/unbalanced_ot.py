@@ -5,10 +5,13 @@ Implements entropy-regularized unbalanced Sinkhorn algorithm
 with marginal relaxation parameters.
 """
 
+import logging
 from typing import Tuple, Dict, Any
 
 import numpy as np
 from ot import sinkhorn as ot_sinkhorn
+
+logger = logging.getLogger(__name__)
 
 
 def solve_unbalanced_ot(
@@ -89,7 +92,10 @@ def solve_unbalanced_ot(
         return transport_plan, log
         
     except Exception as e:
-        # Fallback to simple implementation if POT fails
+        logger.warning(
+            "POT sinkhorn failed (%s: %s); falling back to manual implementation",
+            type(e).__name__, e,
+        )
         return solve_unbalanced_ot_fallback(
             a, b, cost, epsilon, rho1, rho2, max_iter, tol
         )

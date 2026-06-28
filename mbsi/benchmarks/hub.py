@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import tracemalloc
 from typing import Any, Dict, List, Optional
@@ -12,6 +13,8 @@ from mbsi.benchmarks.adapters import get_adapter, list_adapters
 from mbsi.benchmarks.leaderboard import build_leaderboard, leaderboard_summary
 from mbsi.benchmarks.metrics import compute_benchmark_metrics
 from mbsi.benchmarks.pseudo_visium import generate_pseudo_visium, make_synthetic_ground_truth
+
+logger = logging.getLogger(__name__)
 
 BENCHMARK_GUARDRAIL = (
     "Benchmark outputs are computational estimates for research use only. "
@@ -59,6 +62,7 @@ def run_benchmark_hub(
             status = "ok"
             error = ""
         except Exception as exc:
+            logger.error("Adapter '%s' failed: %s", name, exc, exc_info=True)
             recon = None
             status = "error"
             error = str(exc)

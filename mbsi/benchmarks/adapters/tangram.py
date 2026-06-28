@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from mbsi.benchmarks.adapters.base import AdapterResult, BaseBenchmarkAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class TangramAdapter(BaseBenchmarkAdapter):
@@ -15,7 +19,7 @@ class TangramAdapter(BaseBenchmarkAdapter):
 
             self.method_type = "full"
         except ImportError:
-            pass
+            logger.info("tangram package not installed; using proxy adapter")
 
         recon = self._proxy_knn_from_spots(
             ground_truth_adata,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, Union
 
@@ -12,6 +13,8 @@ import numpy as np
 import pandas as pd
 from scipy.io import mmread
 from scipy.sparse import csr_matrix
+
+logger = logging.getLogger(__name__)
 
 
 def load_tissue_positions(outs_dir: Union[str, Path]) -> pd.DataFrame:
@@ -126,8 +129,8 @@ def read_visium_spaceranger(outs_dir: str, image_res: str = "lowres") -> ad.AnnD
         if img_path.exists():
             try:
                 images[res_key] = load_spatial_image(outs_dir, res="hires" if res_key == "hires" else "lowres")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to load spatial image %s: %s", fname, exc)
 
     adata.uns["spatial"] = {library_id: {"images": images, "scalefactors": scalefactors}}
     adata.uns["spatial"]["library_id"] = library_id

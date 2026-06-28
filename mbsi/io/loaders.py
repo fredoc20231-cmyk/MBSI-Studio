@@ -9,6 +9,7 @@ Supports:
 - Optional cell segmentation mask
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Optional, Union
@@ -19,6 +20,8 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 from scipy.io import mmread
+
+logger = logging.getLogger(__name__)
 
 
 def load_visium(path: Union[str, Path]) -> ad.AnnData:
@@ -43,8 +46,8 @@ def load_visium(path: Union[str, Path]) -> ad.AnnData:
     try:
         adata = sc.datasets.visium_sge(sample_id=str(path))
         return adata
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("scanpy loader failed for %s: %s; falling back to manual loading", path, exc)
     
     # Manual loading
     # Load count matrix

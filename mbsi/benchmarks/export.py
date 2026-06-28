@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def export_benchmark_hub(
@@ -66,7 +69,8 @@ def export_benchmark_hub(
                 y = 750
         c.save()
     except ImportError:
-        pdf_path = html_path  # fallback noted in return
+        logger.info("reportlab not installed; skipping PDF generation for benchmark report")
+        pdf_path = html_path
 
     meta = {
         "platform": hub_output.get("platform"),

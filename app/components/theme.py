@@ -88,13 +88,17 @@ def apply_plotly_theme(fig: Any) -> Any:
     if fig is None or not hasattr(fig, "update_layout"):
         return fig
     c = get_plotly_theme_colors()
-    fig.update_layout(
-        paper_bgcolor=c["plot_paper"],
-        plot_bgcolor=c["plot_bg"],
-        font=dict(color=c["plot_font"]),
-        xaxis=dict(gridcolor=c["plot_grid"], zerolinecolor=c["plot_grid"]),
-        yaxis=dict(gridcolor=c["plot_grid"], zerolinecolor=c["plot_grid"]),
-    )
+    layout_kwargs: Dict[str, Any] = {
+        "paper_bgcolor": c["plot_paper"],
+        "plot_bgcolor": c["plot_bg"],
+        "font": dict(color=c["plot_font"]),
+        "xaxis": dict(gridcolor=c["plot_grid"], zerolinecolor=c["plot_grid"], color=c["plot_font"]),
+        "yaxis": dict(gridcolor=c["plot_grid"], zerolinecolor=c["plot_grid"], color=c["plot_font"]),
+    }
+    if get_theme() == "light":
+        layout_kwargs["title"] = dict(font=dict(color=c["plot_font"]))
+        layout_kwargs["legend"] = dict(font=dict(color=c["plot_font"]))
+    fig.update_layout(**layout_kwargs)
     return fig
 
 
@@ -108,31 +112,120 @@ def _css_vars_block(selector: str, palette: Dict[str, str]) -> str:
     return "\n".join(lines)
 
 
+def _light_mode_widget_css() -> str:
+    """Explicit Streamlit widget overrides — fixes white-on-white in day mode."""
+    return """
+.stApp[data-mbsi-theme="light"],
+[data-mbsi-theme="light"] .stApp {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+.stApp[data-mbsi-theme="light"] p,
+.stApp[data-mbsi-theme="light"] span,
+.stApp[data-mbsi-theme="light"] label,
+.stApp[data-mbsi-theme="light"] li,
+.stApp[data-mbsi-theme="light"] h1,
+.stApp[data-mbsi-theme="light"] h2,
+.stApp[data-mbsi-theme="light"] h3,
+.stApp[data-mbsi-theme="light"] h4,
+.stApp[data-mbsi-theme="light"] h5,
+.stApp[data-mbsi-theme="light"] h6,
+.stApp[data-mbsi-theme="light"] div[data-testid="stMarkdownContainer"] p,
+.stApp[data-mbsi-theme="light"] div[data-testid="stMarkdownContainer"] li,
+.stApp[data-mbsi-theme="light"] div[data-testid="stCaptionContainer"],
+.stApp[data-mbsi-theme="light"] div[data-testid="stCaptionContainer"] p,
+.stApp[data-mbsi-theme="light"] div[data-testid="stMetricValue"],
+.stApp[data-mbsi-theme="light"] div[data-testid="stMetricLabel"] {
+  color: var(--text) !important;
+}
+.stApp[data-mbsi-theme="light"] div[data-testid="stMetricLabel"],
+.stApp[data-mbsi-theme="light"] small,
+.stApp[data-mbsi-theme="light"] .stCaption {
+  color: var(--muted) !important;
+}
+.stApp[data-mbsi-theme="light"] .stButton > button {
+  color: var(--text) !important;
+  background-color: var(--panel2) !important;
+  border: 1px solid var(--border) !important;
+}
+.stApp[data-mbsi-theme="light"] .stButton > button[kind="primary"],
+.stApp[data-mbsi-theme="light"] .stButton > button[data-testid="baseButton-primary"] {
+  color: #ffffff !important;
+  background-color: var(--blue) !important;
+  border-color: var(--blue) !important;
+}
+.stApp[data-mbsi-theme="light"] div[data-baseweb="select"] > div,
+.stApp[data-mbsi-theme="light"] div[data-baseweb="input"] > div,
+.stApp[data-mbsi-theme="light"] input,
+.stApp[data-mbsi-theme="light"] textarea {
+  background-color: var(--panel) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.stApp[data-mbsi-theme="light"] div[data-baseweb="select"] span,
+.stApp[data-mbsi-theme="light"] div[data-baseweb="input"] input {
+  color: var(--text) !important;
+}
+.stApp[data-mbsi-theme="light"] [data-testid="stDataFrame"],
+.stApp[data-mbsi-theme="light"] [data-testid="stTable"] {
+  color: var(--text) !important;
+}
+.stApp[data-mbsi-theme="light"] [data-testid="stChatMessage"],
+.stApp[data-mbsi-theme="light"] [data-testid="stChatMessageContent"] {
+  color: var(--text) !important;
+  background: var(--panel2) !important;
+}
+.stApp[data-mbsi-theme="light"] .saas-left-nav,
+.stApp[data-mbsi-theme="light"] .saas-top-bar,
+.stApp[data-mbsi-theme="light"] .saas-workspace,
+.stApp[data-mbsi-theme="light"] .saas-drawer {
+  color: var(--text) !important;
+}
+.stApp[data-mbsi-theme="light"] .saas-context-module {
+  color: var(--text) !important;
+}
+.stApp[data-mbsi-theme="light"] div[data-testid="stRadio"] label,
+.stApp[data-mbsi-theme="light"] div[data-testid="stCheckbox"] label,
+.stApp[data-mbsi-theme="light"] div[data-testid="stSelectbox"] label,
+.stApp[data-mbsi-theme="light"] div[data-testid="stSlider"] label {
+  color: var(--text) !important;
+}
+.stApp[data-mbsi-theme="light"] [data-testid="stAlert"],
+.stApp[data-mbsi-theme="light"] [data-baseweb="notification"] {
+  color: var(--text) !important;
+}
+"""
+
+
 def inject_theme_styles() -> None:
     """Inject theme CSS variables onto .stApp and set data-mbsi-theme on document."""
     theme = get_theme()
     palette = THEME_PALETTES[theme]
     ui_palette = {k: v for k, v in palette.items() if not k.startswith("plot_")}
 
-    st.markdown(
-        f"<style>\n"
-        f"{_css_vars_block('.stApp', ui_palette)}\n"
-        f"{_css_vars_block('.saas-app', ui_palette)}\n"
-        f"{_css_vars_block('.mbsi-app', ui_palette)}\n"
-        f"</style>",
-        unsafe_allow_html=True,
-    )
+    css_parts = [
+        _css_vars_block(".stApp", ui_palette),
+        _css_vars_block(".saas-app", ui_palette),
+        _css_vars_block(".mbsi-app", ui_palette),
+        f'.stApp {{ color: {ui_palette["text"]} !important; background: {ui_palette["bg"]} !important; }}',
+    ]
+    if theme == "light":
+        css_parts.append(_light_mode_widget_css())
+
+    st.markdown(f"<style>\n{chr(10).join(css_parts)}\n</style>", unsafe_allow_html=True)
     components.html(
         f"""
         <script>
         (function() {{
           var t = "{theme}";
-          try {{
-            document.documentElement.setAttribute("data-mbsi-theme", t);
-            if (window.parent && window.parent.document) {{
-              window.parent.document.documentElement.setAttribute("data-mbsi-theme", t);
-            }}
-          }} catch (e) {{}}
+          function apply(doc) {{
+            if (!doc) return;
+            doc.documentElement.setAttribute("data-mbsi-theme", t);
+            var app = doc.querySelector(".stApp");
+            if (app) app.setAttribute("data-mbsi-theme", t);
+          }}
+          try {{ apply(window.parent.document); }} catch (e) {{}}
+          try {{ apply(document); }} catch (e) {{}}
         }})();
         </script>
         """,

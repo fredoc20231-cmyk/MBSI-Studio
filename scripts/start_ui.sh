@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="${PYTHON:-/Users/afadiel01/miniforge3/bin/python3}"
 PORT="${PORT:-8501}"
 HOST="${HOST:-127.0.0.1}"
+HEADLESS="${HEADLESS:-false}"
 
 cd "$ROOT"
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
@@ -17,11 +18,23 @@ if command -v lsof >/dev/null 2>&1; then
     echo "Stopping existing listener(s) on port $PORT: $OLD_PIDS"
     kill $OLD_PIDS 2>/dev/null || true
     sleep 1
+    # Force kill if still listening
+    STILL="$(lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
+    if [[ -n "$STILL" ]]; then
+      kill -9 $STILL 2>/dev/null || true
+      sleep 1
+    fi
   fi
 fi
 
-echo "Starting MBSI Studio at http://${HOST}:${PORT}"
+URL="http://${HOST}:${PORT}"
+echo "============================================"
+echo "  MBSI Studio UI"
+echo "  Open in browser: ${URL}"
+echo "============================================"
+
 exec "$PYTHON" -m streamlit run app/streamlit_app.py \
   --server.address="$HOST" \
   --server.port="$PORT" \
-  --server.headless=true
+  --server.headless="$HEADLESS" \
+  --browser.gatherUsageStats=false

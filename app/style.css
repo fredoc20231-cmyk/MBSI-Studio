@@ -275,32 +275,172 @@ div[data-baseweb="select"] > div { background: var(--panel2) !important; border-
   border-top: 1px solid var(--border);
 }
 
-/* Streamlit widgets — theme-aware */
-[data-mbsi-theme="light"] div[data-testid="stMarkdown"] p,
-[data-mbsi-theme="light"] div[data-testid="stMarkdown"] li,
-[data-mbsi-theme="light"] h1, [data-mbsi-theme="light"] h2,
-[data-mbsi-theme="light"] h3, [data-mbsi-theme="light"] h4 {
-  color: var(--text);
+/* Streamlit widgets — theme-aware (day/light mode) */
+.stApp[data-mbsi-theme="light"],
+[data-mbsi-theme="light"] .stApp {
+  background: var(--bg) !important;
+  color: var(--text) !important;
 }
+
+[data-mbsi-theme="light"] .stMarkdown,
+[data-mbsi-theme="light"] .stMarkdown p,
+[data-mbsi-theme="light"] .stMarkdown li,
+[data-mbsi-theme="light"] .stMarkdown span,
+[data-mbsi-theme="light"] label,
+[data-mbsi-theme="light"] h1,
+[data-mbsi-theme="light"] h2,
+[data-mbsi-theme="light"] h3,
+[data-mbsi-theme="light"] h4,
+[data-mbsi-theme="light"] h5,
+[data-mbsi-theme="light"] h6,
+.stApp[data-mbsi-theme="light"] div[data-testid="stMarkdownContainer"] p,
+.stApp[data-mbsi-theme="light"] div[data-testid="stCaptionContainer"] p {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] .stCaption,
+[data-mbsi-theme="light"] small,
+.stApp[data-mbsi-theme="light"] div[data-testid="stMetricLabel"] {
+  color: var(--muted) !important;
+}
+
+[data-mbsi-theme="light"] .stButton > button,
+.stApp[data-mbsi-theme="light"] .stButton > button {
+  color: var(--text) !important;
+  background-color: var(--panel2) !important;
+  border: 1px solid var(--border) !important;
+}
+
+[data-mbsi-theme="light"] .stButton > button[kind="primary"],
+[data-mbsi-theme="light"] .stButton > button[data-testid="baseButton-primary"],
+.stApp[data-mbsi-theme="light"] .stButton > button[kind="primary"] {
+  color: #ffffff !important;
+  background-color: var(--blue) !important;
+  border-color: var(--blue) !important;
+}
+
+[data-mbsi-theme="light"] .saas-left-nav .stButton > button[kind="secondary"],
+.stApp[data-mbsi-theme="light"] .saas-left-nav .stButton > button {
+  color: var(--muted) !important;
+  background-color: transparent !important;
+}
+
+[data-mbsi-theme="light"] .saas-left-nav .stButton > button[kind="primary"],
+.stApp[data-mbsi-theme="light"] .saas-left-nav .stButton > button[kind="primary"] {
+  color: #ffffff !important;
+  background-color: var(--blue) !important;
+}
+
 [data-mbsi-theme="light"] div[data-baseweb="select"] > div,
 [data-mbsi-theme="light"] div[data-baseweb="input"] > div,
 [data-mbsi-theme="light"] textarea,
-[data-mbsi-theme="light"] input {
-  background: var(--panel) !important;
+[data-mbsi-theme="light"] input,
+.stApp[data-mbsi-theme="light"] div[data-baseweb="select"] > div,
+.stApp[data-mbsi-theme="light"] input,
+.stApp[data-mbsi-theme="light"] textarea {
+  background-color: var(--panel) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }
-[data-mbsi-theme="light"] [data-testid="stChatMessage"] {
+
+[data-mbsi-theme="light"] div[data-baseweb="select"] span,
+.stApp[data-mbsi-theme="light"] div[data-baseweb="select"] span {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] [data-testid="stChatMessage"],
+[data-mbsi-theme="light"] [data-testid="stChatMessageContent"],
+.stApp[data-mbsi-theme="light"] [data-testid="stChatMessage"] {
   background: var(--panel2) !important;
   border: 1px solid var(--border);
   border-radius: 8px;
+  color: var(--text) !important;
 }
+
+[data-mbsi-theme="light"] [data-testid="stChatMessage"][data-testid="user"],
+.stApp[data-mbsi-theme="light"] [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+  background: var(--panel) !important;
+}
+
 [data-mbsi-theme="dark"] [data-testid="stChatMessage"] {
   background: var(--panel2) !important;
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-[data-mbsi-theme="light"] .stAlert,
-[data-mbsi-theme="light"] [data-testid="stNotificationContentInfo"] {
+
+[data-mbsi-theme="light"] .saas-left-nav,
+[data-mbsi-theme="light"] .saas-top-bar,
+[data-mbsi-theme="light"] .saas-workspace,
+[data-mbsi-theme="light"] .saas-drawer,
+.stApp[data-mbsi-theme="light"] .saas-left-nav,
+.stApp[data-mbsi-theme="light"] .saas-top-bar,
+.stApp[data-mbsi-theme="light"] .saas-workspace,
+.stApp[data-mbsi-theme="light"] .saas-drawer {
+  color: var(--text);
+  background: var(--panel);
+}
+
+[data-mbsi-theme="light"] .saas-top-bar,
+[data-mbsi-theme="light"] .saas-drawer,
+.stApp[data-mbsi-theme="light"] .saas-top-bar,
+.stApp[data-mbsi-theme="light"] .saas-drawer {
+  background: var(--panel2);
+}
+
+[data-mbsi-theme="light"] .saas-context-module,
+.stApp[data-mbsi-theme="light"] .saas-context-module {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] .mbsi-panel,
+[data-mbsi-theme="light"] .mbsi-metric-card,
+[data-mbsi-theme="light"] .mbsi-analytic-card,
+.stApp[data-mbsi-theme="light"] .mbsi-panel {
+  background: var(--panel);
   color: var(--text);
 }
+
+[data-mbsi-theme="light"] .mbsi-panel-title,
+[data-mbsi-theme="light"] .mbsi-brand-sub,
+.stApp[data-mbsi-theme="light"] .mbsi-panel-title {
+  color: var(--muted) !important;
+}
+
+[data-mbsi-theme="light"] .mbsi-brand-title,
+[data-mbsi-theme="light"] .mbsi-row span:last-child,
+.stApp[data-mbsi-theme="light"] .mbsi-brand-title {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] [data-testid="stDataFrame"],
+[data-mbsi-theme="light"] [data-testid="stTable"],
+.stApp[data-mbsi-theme="light"] [data-testid="stDataFrame"] {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] .stAlert,
+[data-mbsi-theme="light"] [data-testid="stNotificationContentInfo"],
+.stApp[data-mbsi-theme="light"] [data-testid="stAlert"] {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] div[data-testid="stRadio"] label,
+[data-mbsi-theme="light"] div[data-testid="stCheckbox"] label,
+[data-mbsi-theme="light"] div[data-testid="stSelectbox"] label,
+[data-mbsi-theme="light"] div[data-testid="stSlider"] label,
+.stApp[data-mbsi-theme="light"] div[data-testid="stRadio"] label {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] div[data-testid="stMetricValue"],
+.stApp[data-mbsi-theme="light"] div[data-testid="stMetricValue"] {
+  color: var(--text) !important;
+}
+
+[data-mbsi-theme="light"] .saas-nav-footer,
+.stApp[data-mbsi-theme="light"] .saas-nav-footer {
+  border-top-color: var(--border);
+}
+
+[data-mbsi-theme="light"] .saas-warning { color: var(--orange) !important; }
+[data-mbsi-theme="light"] .saas-finding { color: var(--cyan) !important; }

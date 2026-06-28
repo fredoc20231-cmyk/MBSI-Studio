@@ -38,6 +38,12 @@ def main() -> None:
     )
     plot_umap(results["adata"])
     plot_spatial_clusters(results["adata"])
+
+    from mbsi.communication import run_communication_analysis, make_communication_demo_adata
+    from mbsi.visualization.communication_plots import plot_pathway_rankings
+
+    comm = run_communication_analysis(make_communication_demo_adata(seed=7), k=5)
+    plot_pathway_rankings(comm["pathway_rankings"])
     print("MBSI Studio UI smoke test passed.")
 
 

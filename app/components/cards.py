@@ -149,4 +149,12 @@ def export_all(
 
         export_analysis_results(analysis_results, out_dir=out_dir)
 
+    try:
+        from mbsi.communication import run_communication_analysis, export_communication_results, make_communication_demo_adata
+
+        comm = run_communication_analysis(make_communication_demo_adata(seed=42))
+        export_communication_results(comm, out_dir=out_dir)
+    except Exception:
+        pass
+
     return out_dir

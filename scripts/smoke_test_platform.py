@@ -120,6 +120,13 @@ def main():
     export_benchmark_hub(bench, out_dir=OUTPUT)
     print(f"   Top method: {bench['leaderboard'].iloc[0]['method']}")
 
+    print("11. Communication Intelligence...")
+    from mbsi.communication import run_communication_analysis, export_communication_results, make_communication_demo_adata
+
+    comm = run_communication_analysis(make_communication_demo_adata(seed=42), k=5)
+    export_communication_results(comm, out_dir=OUTPUT)
+    print(f"   Top pathway: {comm.get('top_pathway')}")
+
     summary = {
         "n_spots": spot_adata.n_obs,
         "n_cells": reconstructed.n_obs,

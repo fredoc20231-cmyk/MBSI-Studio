@@ -37,6 +37,7 @@ def init_session():
         "subcellular_result": {},
         "boundaries_result": {},
         "communication_result": {},
+        "communication_results": None,
         "causal_result": {},
         "temporal_result": {},
         "digital_twin": {},

@@ -4,6 +4,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from app.components.topnav import render_topnav
+
 
 def inject_styles() -> None:
     css_paths = [
@@ -18,51 +20,9 @@ def inject_styles() -> None:
         st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
-DISCOVERY_NAV = [
-    ("Benchmark", "pages/10_Benchmark_Hub.py"),
-    ("Comms", "pages/11_Communication_Intelligence.py"),
-    ("TME", "pages/12_TME_Intelligence.py"),
-    ("Discovery", "pages/14_Discovery_Engine.py"),
-]
-
-
 def render_navbar(active: str = "Analysis") -> None:
-    nav_items = [
-        "Dashboard", "Upload & Data", "Preprocess", "Segmentation",
-        "Run MBSI", "Analysis", "Validation", "AI Copilot", "Export",
-        "Benchmark", "Comms", "TME", "Discovery",
-    ]
-    nav_html = "".join(
-        f'<span class="mbsi-nav-item{" active" if n == active else ""}">{n}</span>'
-        for n in nav_items
-    )
-    st.markdown(
-        f"""
-        <div class="mbsi-navbar">
-          <div class="mbsi-brand">
-            <div class="mbsi-logo">MBSI</div>
-            <div>
-              <div class="mbsi-brand-title">MBSI Studio</div>
-              <div class="mbsi-brand-sub">Physics-Aware Spatial Biology Intelligence</div>
-            </div>
-          </div>
-          <div class="mbsi-nav-center">{nav_html}</div>
-          <div class="mbsi-nav-right">
-            <span class="mbsi-demo-btn">Demo Mode</span>
-            <span class="mbsi-icon-btn">?</span>
-            <span class="mbsi-icon-btn">⚙</span>
-            <span class="mbsi-avatar">AU</span>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    cols = st.columns(len(DISCOVERY_NAV))
-    for col, (label, page_path) in zip(cols, DISCOVERY_NAV):
-        with col:
-            btn_type = "primary" if label == active else "secondary"
-            if st.button(label, key=f"layout_nav_{label}", use_container_width=True, type=btn_type):
-                st.switch_page(page_path)
+    """Render clickable top navbar (delegates to topnav)."""
+    render_topnav(active=active)
 
 
 def render_subtabs(active: str = "Spatial Map") -> None:

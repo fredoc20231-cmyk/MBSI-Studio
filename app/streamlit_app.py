@@ -43,7 +43,7 @@ if "dashboard_demo" not in st.session_state:
 demo = st.session_state.dashboard_demo
 summary = demo["summary"]
 
-render_navbar(active="Analysis")
+render_navbar(active=st.session_state.get("mbsi_nav_active", "Analysis"))
 selected_tab = render_analysis_subtabs()
 
 # --- Main grid: 14% | 49% | 20% | 17% ---

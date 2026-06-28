@@ -54,6 +54,62 @@ section[data-testid="stSidebar"] { display: none !important; }
   border-color: var(--border); border-bottom: 2px solid var(--blue);
 }
 
+/* Clickable navbar — page_link + button rows after brand marker */
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 4px 0;
+  margin-bottom: 4px;
+  gap: 0 !important;
+}
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] a[data-testid^="stPageLink"] {
+  display: block;
+  text-align: center;
+  text-decoration: none !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  color: var(--muted) !important;
+  font-size: 0.68rem !important;
+  font-weight: 500 !important;
+  padding: 6px 2px 4px !important;
+  min-height: 28px !important;
+  line-height: 1.2 !important;
+}
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] a[data-testid^="stPageLink"]:hover {
+  color: var(--text) !important;
+  background: var(--panel2) !important;
+}
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  color: var(--muted) !important;
+  font-size: 0.68rem !important;
+  font-weight: 500 !important;
+  padding: 6px 2px 4px !important;
+  min-height: 28px !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+}
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button:hover {
+  color: var(--text) !important;
+  background: var(--panel2) !important;
+}
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button[kind="primary"],
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"] .stButton > button[data-testid="baseButton-primary"] {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 2px solid var(--blue) !important;
+  font-weight: 700 !important;
+}
+.mbsi-nav-brand-marker ~ div[data-testid="stHorizontalBlock"]:last-of-type {
+  margin-bottom: 8px;
+}
+
 .mbsi-nav-right { display: flex; align-items: center; gap: 8px; }
 .mbsi-demo-btn {
   background: var(--green); color: #04120a; font-size: 0.72rem; font-weight: 700;

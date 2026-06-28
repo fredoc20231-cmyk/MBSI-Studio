@@ -29,7 +29,7 @@ st.set_page_config(
 
 init_session()
 inject_styles()
-render_topnav(active="HGSOC Showcase")
+render_topnav(active="HGSOC")
 
 st.markdown(
     """

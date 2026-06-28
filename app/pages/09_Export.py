@@ -8,9 +8,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import json
 import streamlit as st
 
-from app.components.layout import inject_styles, render_navbar, render_statusbar
+from app.components.layout import inject_styles
 from app.components.demo_data import generate_dashboard_demo
 from app.components.page_utils import init_session
+from app.components.topnav import render_topnav
+from app.components.statusbar import render_statusbar
 from app.components.cards import (
     render_metric_strip, export_all, donut_composition, causal_ranking,
     treatment_radar, invasion_heatmap,
@@ -21,7 +23,7 @@ from app.components.network import neighborhood_graph, interactions_bar
 st.set_page_config(page_title="Export | MBSI Studio", layout="wide", initial_sidebar_state="collapsed")
 init_session()
 inject_styles()
-render_navbar(active="Export")
+render_topnav(active="Export")
 
 if "dashboard_demo" not in st.session_state:
     st.session_state.dashboard_demo = generate_dashboard_demo(seed=42)
@@ -88,4 +90,4 @@ with e4:
     st.download_button("Download Pathways CSV", demo["pathways"].to_csv(index=False),
                        file_name="pathways.csv", use_container_width=True)
 
-render_statusbar()
+render_statusbar(show_actions=False)

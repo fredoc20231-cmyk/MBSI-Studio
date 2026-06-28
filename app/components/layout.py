@@ -4,8 +4,6 @@ from pathlib import Path
 
 import streamlit as st
 
-from app.components.topnav import render_topnav
-
 
 def inject_styles() -> None:
     css_paths = [
@@ -20,11 +18,6 @@ def inject_styles() -> None:
         st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
-def render_navbar(active: str = "Analysis") -> None:
-    """Render clickable top navbar (delegates to topnav)."""
-    render_topnav(active=active)
-
-
 def render_subtabs(active: str = "Spatial Map") -> None:
     """Static visual subtabs retained for backward compatibility."""
     tabs = ["Spatial Map", "Cell Types", "Clusters", "Neighborhoods", "Boundaries", "Pathways", "3D View"]
@@ -35,18 +28,12 @@ def render_subtabs(active: str = "Spatial Map") -> None:
 
 
 def render_analysis_subtabs() -> str:
-    """Clickable Analysis subtab selector.
-
-    Returns the active Analysis subtab while keeping all subtabs visible on the
-    same dashboard page. This function is intentionally kept in layout.py so
-    app/streamlit_app.py can import it safely.
-    """
+    """Clickable Analysis subtab selector."""
     tabs = ["Spatial Map", "Cell Types", "Clusters", "Neighborhoods", "Boundaries", "Pathways", "3D View"]
 
     if "analysis_subtab" not in st.session_state:
         st.session_state.analysis_subtab = "Spatial Map"
 
-    # Compact CSS-friendly button row. Use columns so Streamlit can track clicks.
     cols = st.columns([1.0, 0.9, 0.8, 1.2, 1.0, 0.9, 0.8], gap="small")
     for col, tab in zip(cols, tabs):
         with col:
@@ -97,38 +84,14 @@ def render_left_sidebar(summary: dict) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def render_statusbar() -> None:
-    try:
-        import psutil
-        mem = psutil.virtual_memory()
-        mem_str = f"{mem.used / 1e9:.1f} / {mem.total / 1e9:.1f} GB"
-    except Exception:
-        mem_str = "21.4 / 23.6 GB"
-    st.markdown(
-        f"""
-        <div class="mbsi-statusbar">
-          <div class="mbsi-status-left">
-            <span><strong style="color:#f4f7fb;">System Status</strong></span>
-            <span><span class="mbsi-status-dot"></span>Backend: Online</span>
-            <span><span class="mbsi-status-dot"></span>MBSI Engine: Ready</span>
-            <span><span class="mbsi-status-dot"></span>GPU: Available (RTX 4090)</span>
-            <span>Memory: {mem_str}</span>
-            <span>Last Run: 2 min ago</span>
-          </div>
-          <div class="mbsi-status-actions">
-            <span style="color:#9b6cff;">AI Copilot</span>
-            <span style="color:#4f7cff;margin-left:12px;">Quick Report</span>
-            <span style="color:#9aa7b8;margin-left:12px;">Export All</span>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def render_statusbar(show_actions: bool = True) -> None:
+    """Deprecated — use app.components.statusbar.render_statusbar."""
+    from app.components.statusbar import render_statusbar as _render_statusbar
+    _render_statusbar(show_actions=show_actions)
 
 
 __all__ = [
     "inject_styles",
-    "render_navbar",
     "render_subtabs",
     "render_analysis_subtabs",
     "render_left_sidebar",

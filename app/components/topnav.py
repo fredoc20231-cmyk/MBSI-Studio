@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Optional
 
 import streamlit as st
 
@@ -38,22 +39,25 @@ def _slug(label: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
 
 
-def resolve_page_path(relative: str) -> str:
-    """Validate path exists under app/ and return normalized relative path."""
+def resolve_page_path(relative: str) -> Optional[str]:
+    """Validate path exists under app/; return None if missing."""
     rel = relative.replace("\\", "/")
-    if not (APP_DIR / rel).is_file():
-        raise FileNotFoundError(f"Missing nav target: {APP_DIR / rel}")
-    return rel
+    if (APP_DIR / rel).is_file():
+        return rel
+    return None
 
 
 def _go(label: str, relative: str) -> None:
-    """Navigate to page — always uses st.switch_page (proven multipage API)."""
+    """Navigate to page — uses st.switch_page when target exists."""
+    path = resolve_page_path(relative)
+    if path is None:
+        st.warning(f"Navigation target missing: {relative}")
+        return
     st.session_state.mbsi_nav_active = label
-    st.switch_page(resolve_page_path(relative))
+    st.switch_page(path)
 
 
 def _nav_button(label: str, relative: str, active: str, row: str) -> None:
-    """Render one navbar tab as a Streamlit button."""
     slug = _slug(label)
     is_active = label == active
     if st.button(
@@ -70,7 +74,6 @@ def render_topnav(active: str | None = None) -> None:
     if active is None:
         active = st.session_state.get("mbsi_nav_active", "Analysis")
 
-    # Brand row (Streamlit-native, no HTML overlay on tabs)
     brand_left, brand_right = st.columns([3, 1])
     with brand_left:
         st.markdown(
@@ -87,11 +90,7 @@ def render_topnav(active: str | None = None) -> None:
         )
     with brand_right:
         st.markdown(
-            """
-            <div class="mbsi-nav-right-inline">
-              <span class="mbsi-demo-btn">Demo Mode</span>
-            </div>
-            """,
+            '<div class="mbsi-nav-right-inline"><span class="mbsi-demo-btn">Demo Mode</span></div>',
             unsafe_allow_html=True,
         )
 

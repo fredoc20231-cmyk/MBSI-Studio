@@ -335,3 +335,38 @@ def safe_import(module_path: str, fallback_msg: str):
     except Exception as exc:
         st.warning(f"{fallback_msg}: {exc}")
         return None
+
+
+def has_real_adata() -> bool:
+    """True when uploaded (non-demo) AnnData is in session."""
+    return st.session_state.get("adata") is not None and not st.session_state.get("using_synthetic_demo", False)
+
+
+def session_schema_snapshot() -> Dict[str, Any]:
+    """Bridge Streamlit session state to schema objects."""
+    from mbsi.schema.project import ProjectMetadata
+    from mbsi.schema.sample import SampleRecord
+    from mbsi.schema.study_design import StudyDesign
+    from mbsi.schema.technology import get_technology
+
+    project_meta = st.session_state.get("project_metadata") or {}
+    project = ProjectMetadata.from_session(project_meta)
+    project_id = project.title or st.session_state.get("project_name", "")
+    design = StudyDesign.from_session(
+        st.session_state.get("experimental_design"),
+        project_id=project_id,
+    )
+    samples_raw = st.session_state.get("sample_metadata")
+    if hasattr(samples_raw, "to_dict"):
+        samples_raw = samples_raw.to_dict("records")
+    samples = SampleRecord.from_rows(samples_raw or [])
+    tech_key = st.session_state.get("selected_technology") or st.session_state.get("mbsi_platform", "")
+    tech = get_technology(tech_key)
+    return {
+        "project": project,
+        "study_design": design,
+        "samples": samples,
+        "technology_key": tech_key,
+        "technology_spec": tech.to_dict() if tech else {},
+        "project_id": project_id,
+    }

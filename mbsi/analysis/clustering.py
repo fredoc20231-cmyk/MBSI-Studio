@@ -46,6 +46,57 @@ def run_neighbors(adata: ad.AnnData, n_neighbors: int = 80, n_pcs: int = 15) -> 
     return adata
 
 
+def run_clustering_method(
+    adata: ad.AnnData,
+    method: str = "Leiden",
+    resolution: float = 1.0,
+    key_added: str = "cluster",
+) -> tuple[ad.AnnData, str]:
+    """Run selected clustering with honest fallback when backend unavailable."""
+    adata = adata.copy()
+    method_key = (method or "Leiden").lower()
+    fallback_note = ""
+
+    if "leiden" in method_key:
+        adata = run_leiden_clustering(adata, resolution=resolution, key_added=key_added)
+        return adata, "Leiden (spectral on kNN graph)"
+
+    if "louvain" in method_key:
+        adata = run_leiden_clustering(adata, resolution=max(0.5, resolution * 0.8), key_added=key_added)
+        return adata, "Louvain unavailable — Leiden spectral fallback used"
+
+    if "k-means" in method_key or "kmeans" in method_key:
+        from sklearn.cluster import KMeans
+
+        n_clusters = max(2, min(int(round(2 + resolution * 4)), adata.n_obs - 1))
+        X = adata.obsm.get("X_pca")
+        if X is None:
+            adata = run_pca(adata)
+            X = adata.obsm["X_pca"]
+        labels = KMeans(n_clusters=n_clusters, random_state=0, n_init=10).fit_predict(X[:, : min(15, X.shape[1])])
+        adata.obs[key_added] = labels.astype(str)
+        return adata, "k-means on PCA"
+
+    if "spatial graph" in method_key or "spatial_graph" in method_key:
+        adata = run_neighbors(adata) if "connectivities" not in adata.obsp else adata
+        adata = run_leiden_clustering(adata, resolution=resolution, key_added=key_added)
+        return adata, "Spatial graph (kNN + spectral clustering)"
+
+    if "bayesspace" in method_key:
+        adata = run_neighbors(adata) if "connectivities" not in adata.obsp else adata
+        adata = run_leiden_clustering(adata, resolution=resolution, key_added=key_added)
+        return adata, "BayesSpace (R) unavailable — spatial kNN spectral fallback"
+
+    if "graphst" in method_key or "stagate" in method_key:
+        adata = run_neighbors(adata) if "connectivities" not in adata.obsp else adata
+        adata = run_leiden_clustering(adata, resolution=resolution, key_added=key_added)
+        backend = "GraphST" if "graphst" in method_key else "STAGATE"
+        return adata, f"{backend} adapter unavailable — graph-smoothed spectral fallback"
+
+    adata = run_leiden_clustering(adata, resolution=resolution, key_added=key_added)
+    return adata, f"Unknown method '{method}' — Leiden fallback"
+
+
 def run_leiden_clustering(adata: ad.AnnData, resolution: float = 1.0, key_added: str = "cluster") -> ad.AnnData:
     """Cluster spots using spectral clustering on the kNN graph."""
     adata = adata.copy()

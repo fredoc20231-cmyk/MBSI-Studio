@@ -37,11 +37,15 @@ def _init_segmentation_state():
 
 def _ensure_adata():
     adata = st.session_state.get("adata")
-    if adata is None:
+    if adata is not None:
+        return adata
+    st.warning("Segmentation unavailable — upload real data first.")
+    if st.button("Load Demo Dataset (labeled demo)", key="seg_load_demo"):
         adata = make_synthetic_visium_adata(n_spots=80, n_genes=120, seed=42)
         st.session_state.adata = adata
         st.session_state.using_synthetic_demo = True
-    return adata
+        st.rerun()
+    st.stop()
 
 
 def _synthetic_image():

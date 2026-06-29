@@ -67,7 +67,11 @@ class Finding:
     condition: Optional[str] = None
     replicate_id: Optional[str] = None
     platform: Optional[str] = None
+    technology: Optional[str] = None
     comparison_group: Optional[str] = None
+    project_id: Optional[str] = None
+    dataset_id: Optional[str] = None
+    run_id: Optional[str] = None
     created_at: str = field(default_factory=_utc_now)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,7 +89,11 @@ class Finding:
             "condition": self.condition,
             "replicate_id": self.replicate_id,
             "platform": self.platform,
+            "technology": self.technology,
             "comparison_group": self.comparison_group,
+            "project_id": self.project_id,
+            "dataset_id": self.dataset_id,
+            "run_id": self.run_id,
             "created_at": self.created_at,
         }
 
@@ -105,7 +113,11 @@ class Finding:
             condition=data.get("condition"),
             replicate_id=data.get("replicate_id"),
             platform=data.get("platform"),
+            technology=data.get("technology"),
             comparison_group=data.get("comparison_group"),
+            project_id=data.get("project_id"),
+            dataset_id=data.get("dataset_id"),
+            run_id=data.get("run_id"),
             created_at=data.get("created_at", _utc_now()),
         )
 

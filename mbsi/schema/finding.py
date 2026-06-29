@@ -26,6 +26,8 @@ def finding_with_sample_context(
         finding.replicate_id = sample.replicate_id
     if sample.platform:
         finding.platform = sample.platform
+    if sample.technology or sample.platform:
+        finding.technology = sample.technology or sample.platform
     if comparison_group or sample.comparison_group:
         finding.comparison_group = comparison_group or sample.comparison_group
     return finding

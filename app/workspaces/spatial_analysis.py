@@ -8,6 +8,13 @@ from app.components.interactive_figures import render_interactive_plot
 from app.components.page_utils import OUTPUT_DIR, init_session
 from app.workspaces._helpers import add_finding, demo_banner, safe_register_finding, safe_register_table
 from mbsi.analysis.pipeline import ANALYSIS_GUARDRAIL, export_analysis_results, run_standard_spatial_analysis
+from mbsi.analysis.seurat_like import run_seurat_like_pipeline
+from mbsi.discovery.seurat_evidence import build_seurat_evidence
+from mbsi.profiles.scalability import scalability_mode, SCALABILITY_CONFIG
+from mbsi.profiles.seurat_like import list_workflow_presets, get_workflow_preset
+from mbsi.references.atlas_registry import list_atlases, get_atlas_metadata
+from mbsi.references.marker_panels import list_panels, get_panel
+from mbsi.statistics.spatial_de import run_spatial_de
 from mbsi.analysis.markers import marker_expression_matrix, top_markers_per_cluster
 from mbsi.visualization.analysis_plots import (
     plot_counts_vs_mito,
@@ -27,13 +34,48 @@ from mbsi.visualization.analysis_plots import (
 def _ensure_adata():
     init_session()
     adata = st.session_state.get("adata")
-    if adata is None:
+    if adata is not None:
+        return adata
+    st.warning("Spatial analysis unavailable — upload real data first.")
+    if st.button("Load Demo Dataset (labeled demo)", key="sa_load_demo"):
         from mbsi.analysis.demo import make_synthetic_visium_adata
         adata = make_synthetic_visium_adata(n_spots=80, n_genes=150, seed=42)
         st.session_state.adata = adata
         st.session_state.using_synthetic_demo = True
-        st.info("No uploaded data — using synthetic Visium for analysis demo.")
-    return adata
+        st.rerun()
+    st.stop()
+
+
+def _run_seurat_like_analysis(adata, params: dict) -> None:
+    with st.spinner("Running Seurat-like spatial analysis pipeline..."):
+        try:
+            results = run_seurat_like_pipeline(adata, **params)
+            st.session_state.analysis_results = results
+            st.session_state.adata = results["adata"]
+            st.session_state.marker_table = results["markers"]
+            st.session_state.de_results = results.get("de_results")
+            export_analysis_results(
+                {"adata": results["adata"], "qc_summary": results["qc_summary"], "markers": results["markers"], "spatial_stats": run_spatial_de(results["adata"]), "parameters": results["parameters"]},
+                out_dir=OUTPUT_DIR,
+            )
+            st.session_state.last_run = "Seurat-like spatial analysis"
+            readiness = st.session_state.get("mbsi_readiness")
+            store, ev_warnings = build_seurat_evidence(results, readiness=readiness)
+            for f in store.list_findings():
+                safe_register_finding(f.title, section="spatial_analysis", module="spatial_analysis", title=f.title)
+            for w in results.get("warnings", []) + ev_warnings:
+                if w:
+                    st.warning(w)
+            safe_register_table("spatial_analysis", "qc_summary", results["qc_summary"])
+            safe_register_table("spatial_analysis", "cluster_markers", results["markers"])
+            add_finding(
+                "Spatial Analysis",
+                f"{results['adata'].obs['cluster'].nunique()} clusters (Seurat-like pipeline)",
+                module="spatial_analysis",
+            )
+            st.success("Seurat-like analysis complete.")
+        except Exception as exc:
+            st.error(f"Analysis failed: {exc}")
 
 
 def _run_full_analysis(adata, params: dict) -> None:
@@ -93,6 +135,10 @@ def render():
 
     adata = _ensure_adata()
 
+    mode = scalability_mode(adata.n_obs)
+    if mode != "in_memory":
+        st.warning(SCALABILITY_CONFIG["large_dataset_message"])
+
     if auto_run:
         _run_full_analysis(
             adata,
@@ -121,9 +167,42 @@ def render():
         n_neighbors = st.slider("Neighbors", 5, 100, 30, key="sa_n_neighbors")
         n_pcs = st.slider("PCs for graph", 5, 30, 15, key="sa_n_pcs")
         resolution = st.slider("Leiden resolution", 0.1, 2.0, 1.0, 0.1, key="sa_res")
+        clustering_method = st.selectbox("Clustering method", ["Leiden", "Louvain"], key="sa_cluster_method")
+        marker_test = st.selectbox("Marker test", ["wilcoxon", "t-test"], key="sa_marker_test")
+        de_test = st.selectbox("DE test", ["wilcoxon", "t-test"], key="sa_de_test")
+        de_correction = st.selectbox("Multiple-testing correction", ["bh", "bonferroni", "none"], key="sa_de_correction")
         spatial_top = st.number_input("Spatial stats genes", 20, 2000, 200, step=20, key="sa_spatial_top")
+        workflow_preset = st.selectbox(
+            "Workflow preset",
+            list_workflow_presets(),
+            format_func=lambda k: get_workflow_preset(k)["label"],
+            key="sa_workflow_preset",
+        )
+
+        st.markdown("**Reference & markers**")
+        atlas_options = ["None"] + list_atlases()
+        selected_atlas = st.selectbox("Reference atlas", atlas_options, key="sa_atlas")
+        if selected_atlas != "None":
+            meta = get_atlas_metadata(selected_atlas)
+            if meta:
+                st.caption(f"{meta.get('label')} — {meta.get('n_cells', '?')} cells")
+        marker_panel = st.selectbox("Marker panel", list_panels(), key="sa_marker_panel")
+        panel_genes = get_panel(marker_panel)
+        st.caption(f"Panel genes: {', '.join(panel_genes[:6])}{'…' if len(panel_genes) > 6 else ''}")
 
         params = dict(
+            preset=workflow_preset,
+            min_counts=min_counts,
+            min_genes=min_genes,
+            max_mito=max_mito,
+            n_top_genes=int(n_hvg),
+            n_comps=n_comps,
+            n_neighbors=n_neighbors,
+            n_pcs=n_pcs,
+            resolution=resolution,
+            clustering_method=clustering_method,
+        )
+        legacy_params = dict(
             min_counts=min_counts,
             min_genes=min_genes,
             max_mito=max_mito,
@@ -135,8 +214,11 @@ def render():
             spatial_stats_top_n=int(spatial_top),
         )
 
-        if st.button("Run Full Analysis", type="primary", key="sa_run_full"):
-            _run_full_analysis(adata, params)
+        if st.button("Run Seurat-like Pipeline", type="primary", key="sa_run_seurat"):
+            _run_seurat_like_analysis(adata, params)
+
+        if st.button("Run Full Analysis (legacy)", key="sa_run_full"):
+            _run_full_analysis(adata, legacy_params)
 
     with main:
         tabs = st.tabs(["QC", "PCA/UMAP", "Clusters", "Markers", "Spatial Stats", "Gene Viewer", "Export"])

@@ -1,6 +1,9 @@
 """Tests for mbsi.schema spine and technology catalog."""
 
 from mbsi.schema import (
+    AnalysisResult,
+    Confidence,
+    StudyDesign,
     TECHNOLOGY_CATALOG,
     UI_TECHNOLOGY_OPTIONS,
     WorkflowModule,
@@ -57,6 +60,12 @@ def test_sample_record_roundtrip():
     restored = SampleRecord.from_dict(s.to_dict())
     assert restored.sample_id == "S1"
     assert restored.comparison_group == "A vs B"
+
+
+def test_schema_epic_entities_import():
+    assert StudyDesign is not None
+    assert AnalysisResult is not None
+    assert Confidence is not None
 
 
 def test_compatibility_uses_workflow_keys():

@@ -14,6 +14,7 @@ from app.workspaces._study_setup_core import (
     _compute_dataset_readiness,
     _compute_project_completeness,
     _init_project_state,
+    _render_download_section,
     _render_experimental_design,
     _render_file_upload,
     _render_platform_modality,
@@ -95,6 +96,8 @@ def render() -> None:
     st.divider()
     _render_platform_modality()
     _render_stereo_seq_guidance()
+    st.divider()
+    _render_download_section()
     st.divider()
     _render_file_upload()
     st.divider()

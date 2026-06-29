@@ -23,11 +23,47 @@ PLATFORM_MODULE_RULES: Dict[str, Dict[str, bool]] = {
 }
 
 
-def _entry(status: str, reason: str = "", required_missing: Optional[List[str]] = None) -> Dict[str, Any]:
+def _entry(status: str, reason: str = "", required_missing: Optional[List[str]] = None, recommended_next_step: str = "") -> Dict[str, Any]:
     out: Dict[str, Any] = {"status": status, "reason": reason}
     if required_missing:
         out["required_missing"] = list(required_missing)
+    if recommended_next_step:
+        out["recommended_next_step"] = recommended_next_step
     return out
+
+
+def recommended_next_step_for_module(
+    module_key: str,
+    status: str,
+    required_missing: Optional[List[str]] = None,
+    has_adata: bool = False,
+) -> str:
+    """Human-readable next step for compatibility matrix rows."""
+    missing = required_missing or []
+    if not has_adata and module_key not in (
+        WorkflowModule.STUDY_SETUP.value,
+        WorkflowModule.REPORT_EXPORT.value,
+        WorkflowModule.SETTINGS.value,
+        WorkflowModule.AI_REVIEW.value,
+    ):
+        return "Upload spatial omics data in Study Setup"
+    if status == "available":
+        labels = {
+            WorkflowModule.QC_PREPROCESS.value: "Continue to Data QC & Preprocessing",
+            WorkflowModule.SEGMENT_REGISTER.value: "Run segmentation & registration",
+            WorkflowModule.SPATIAL_ANALYSIS.value: "Run spatial analysis",
+            WorkflowModule.RECONSTRUCTION.value: "Run MBSI reconstruction",
+            WorkflowModule.BENCHMARK.value: "Run benchmark with ground truth",
+            WorkflowModule.DISCOVERY.value: "Run Discovery Intelligence",
+            WorkflowModule.AI_REVIEW.value: "Review findings in AI Review",
+            WorkflowModule.REPORT_EXPORT.value: "Generate final report",
+        }
+        return labels.get(module_key, "Proceed with this module")
+    if missing:
+        return f"Resolve: {missing[0]}"
+    if status == "warn":
+        return "Proceed with caution — review warnings first"
+    return "Complete prerequisites in Study Setup"
 
 
 def _stereo_benchmark_available(adata: ad.AnnData, detection: Optional[PlatformDetection]) -> bool:
@@ -74,7 +110,12 @@ def get_compatibility_matrix(
             WorkflowModule.SPATIAL_ANALYSIS.value: _entry("unavailable", "no data loaded", ["spatial omics upload"]),
             WorkflowModule.RECONSTRUCTION.value: _entry("unavailable", "no data loaded", ["spatial omics upload"]),
             WorkflowModule.BENCHMARK.value: _entry("unavailable", "no data loaded", ["spatial omics upload"]),
-            WorkflowModule.DISCOVERY.value: _entry("warn", "demo pipeline only without upload"),
+            WorkflowModule.DISCOVERY.value: _entry(
+                "unavailable",
+                "upload real spatial data first",
+                ["spatial omics upload"],
+                "Upload data in Study Setup before Discovery",
+            ),
             WorkflowModule.AI_REVIEW.value: _entry("warn", "run discovery or analysis first"),
             WorkflowModule.REPORT_EXPORT.value: _entry("available"),
             WorkflowModule.SETTINGS.value: _entry("available"),
@@ -128,7 +169,9 @@ def get_compatibility_matrix(
         ),
         WorkflowModule.DISCOVERY.value: _entry(
             "warn" if platform in ("unknown", "incomplete") or partial else "available",
-            "discovery uses demo orchestration; real data enriches outputs",
+            "discovery requires uploaded spatial data with gene expression",
+            None if has_spatial and n_vars >= 20 else missing_spatial + missing_genes,
+            "Run Discovery Intelligence after QC" if has_spatial else "Upload spatial omics data first",
         ),
         WorkflowModule.AI_REVIEW.value: _entry("available", "Available after pipeline findings are generated"),
         WorkflowModule.REPORT_EXPORT.value: _entry("available"),

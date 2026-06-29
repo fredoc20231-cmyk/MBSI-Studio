@@ -39,17 +39,26 @@ def _sample_context(readiness: Optional[Dict[str, Any]]) -> Dict[str, Optional[s
         "platform": row.get("platform") or (readiness.get("platform_metadata") or {}).get("platforms", [None])[0]
         if (readiness.get("platform_metadata") or {}).get("platforms")
         else None,
+        "technology": row.get("technology") or row.get("platform"),
         "comparison_group": comparison,
     }
 
 
-def _attach_sample_context(finding: Finding, readiness: Optional[Dict[str, Any]]) -> Finding:
+def _attach_sample_context(
+    finding: Finding,
+    readiness: Optional[Dict[str, Any]],
+    run_id: str = "",
+) -> Finding:
     ctx = _sample_context(readiness)
     if not ctx or not ctx.get("sample_id"):
-        for field in ("sample_id", "condition", "replicate_id", "platform", "comparison_group"):
-            val = ctx.get(field)
-            if val is not None:
-                setattr(finding, field, val)
+        if run_id:
+            finding.run_id = run_id
+        project_id = (readiness or {}).get("project_id") or (readiness or {}).get("project_metadata", {}).get("project_title")
+        if project_id:
+            finding.project_id = str(project_id)
+        tech = (readiness or {}).get("technology_key")
+        if tech:
+            finding.technology = str(tech)
         return finding
     sample = SampleRecord.from_dict(
         {
@@ -57,10 +66,20 @@ def _attach_sample_context(finding: Finding, readiness: Optional[Dict[str, Any]]
             "condition": str(ctx.get("condition", "")),
             "replicate_id": str(ctx.get("replicate_id", "")),
             "platform": str(ctx.get("platform", "")),
+            "technology": str(ctx.get("technology") or ctx.get("platform", "")),
             "comparison_group": str(ctx.get("comparison_group", "")),
         }
     )
-    return finding_with_sample_context(finding, sample=sample, comparison_group=ctx.get("comparison_group"))
+    finding = finding_with_sample_context(finding, sample=sample, comparison_group=ctx.get("comparison_group"))
+    if run_id:
+        finding.run_id = run_id
+    project_id = (readiness or {}).get("project_id") or (readiness or {}).get("project_metadata", {}).get("project_title")
+    if project_id:
+        finding.project_id = str(project_id)
+    tech = (readiness or {}).get("technology_key")
+    if tech:
+        finding.technology = str(tech)
+    return finding
 
 
 def _niche_finding_type(niche_type: str) -> str:
@@ -79,6 +98,7 @@ def build_dos_findings(
     communication: Dict[str, Any],
     tme: Dict[str, Any],
     readiness: Optional[Dict[str, Any]] = None,
+    run_id: str = "",
 ) -> Tuple[FindingStore, Dict[str, Any]]:
     """Convert benchmark/communication/tme outputs to scored Finding objects."""
     store = FindingStore()
@@ -102,7 +122,7 @@ def build_dos_findings(
                 metadata={"method": top["method"], "gene_pearson": float(top.get("gene_pearson", 0))},
             )
             score_finding(finding, [ev], benchmark, readiness)
-            store.add(_attach_sample_context(finding, readiness))
+            store.add(_attach_sample_context(finding, readiness, run_id=run_id))
 
     if isinstance(communication, dict):
         top_pathway = communication.get("top_pathway")
@@ -121,7 +141,7 @@ def build_dos_findings(
                 evidence_ids=[ev.evidence_id],
             )
             score_finding(finding, [ev], benchmark, readiness)
-            store.add(_attach_sample_context(finding, readiness))
+            store.add(_attach_sample_context(finding, readiness, run_id=run_id))
 
         rankings = communication.get("pathway_rankings")
         if rankings is not None and hasattr(rankings, "head"):
@@ -140,7 +160,7 @@ def build_dos_findings(
                     evidence_ids=[ev.evidence_id],
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(_attach_sample_context(finding, readiness))
+                store.add(_attach_sample_context(finding, readiness, run_id=run_id))
 
     if isinstance(tme, dict):
         summary = tme.get("summary")
@@ -164,7 +184,7 @@ def build_dos_findings(
                     metadata={"n_spots": n_spots},
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(_attach_sample_context(finding, readiness))
+                store.add(_attach_sample_context(finding, readiness, run_id=run_id))
 
         prog = tme.get("program_summary")
         if prog is not None and hasattr(prog, "head"):
@@ -184,7 +204,7 @@ def build_dos_findings(
                     evidence_ids=[ev.evidence_id],
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(_attach_sample_context(finding, readiness))
+                store.add(_attach_sample_context(finding, readiness, run_id=run_id))
 
         biomarkers = tme.get("biomarkers")
         if biomarkers is None:
@@ -205,7 +225,7 @@ def build_dos_findings(
                     evidence_ids=[ev.evidence_id],
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(_attach_sample_context(finding, readiness))
+                store.add(_attach_sample_context(finding, readiness, run_id=run_id))
 
     graph = build_discovery_graph(store.list_findings(), store.list_evidence())
     return store, graph

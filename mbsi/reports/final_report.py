@@ -46,8 +46,17 @@ def _session_snapshot() -> Dict[str, Any]:
         "cell_mask_present": st.session_state.get("cell_mask") is not None,
         "compartment_labels_present": st.session_state.get("compartment_labels") is not None,
         "boundary_map_present": st.session_state.get("boundary_map") is not None,
-        "using_synthetic_demo": st.session_state.get("using_synthetic_demo", True),
+        "qc_settings": st.session_state.get("qc_settings"),
+        "preprocess_settings": (st.session_state.get("run_outputs") or {}).get("qc_preprocess"),
+        "segmentation_method": st.session_state.get("seg_tissue_method"),
+        "selected_technology": st.session_state.get("selected_technology"),
+        "technology_spec": (st.session_state.get("mbsi_readiness") or {}).get("technology_spec"),
+        "using_synthetic_demo": st.session_state.get("using_synthetic_demo", False),
         "last_run": st.session_state.get("last_run"),
+        "download_manifest": st.session_state.get("download_manifest"),
+        "download_dir": st.session_state.get("download_dir"),
+        "dataset_platform": st.session_state.get("dataset_platform"),
+        "download_preview": st.session_state.get("download_preview"),
         "registered": get_registered_outputs(),
         "notebook": get_notebook_entries(),
     }
@@ -137,6 +146,165 @@ def _uploaded_files_from_session() -> List[str]:
     return files
 
 
+def _download_section_html(snap: Dict[str, Any]) -> str:
+    manifest = snap.get("download_manifest")
+    if not manifest and not snap.get("download_dir"):
+        return ""
+
+    job_id = manifest.get("job_id", "—") if manifest else "—"
+    status = manifest.get("status", "—") if manifest else "—"
+    platform = manifest.get("detected_platform") or snap.get("dataset_platform") or "—"
+    readiness = manifest.get("readiness") if manifest else {}
+    preview = (manifest or {}).get("preview") or snap.get("download_preview") or {}
+    dl_dir = snap.get("download_dir") or manifest.get("output_dir", "—")
+
+    rows = []
+    for u in (manifest or {}).get("urls") or []:
+        rows.append(
+            f"<li><strong>{u.get('filename')}</strong> — {u.get('status')} · "
+            f"{u.get('source')} · {u.get('role')} · "
+            f"sha256: {(u.get('sha256') or '—')[:16]}… · "
+            f"<a href=\"{u.get('url', '')}\">{u.get('url', '')[:60]}</a></li>"
+        )
+    files_html = "<ul>" + "\n".join(rows) + "</ul>" if rows else "<p>No download manifest entries.</p>"
+
+    return f"""
+<h2>Downloaded Dataset</h2>
+<ul>
+<li><strong>Job ID:</strong> {job_id}</li>
+<li><strong>Status:</strong> {status}</li>
+<li><strong>Output directory:</strong> {dl_dir}</li>
+<li><strong>Created:</strong> {manifest.get('created_at', '—') if manifest else '—'}</li>
+<li><strong>Detected platform:</strong> {platform}</li>
+<li><strong>Readiness score:</strong> {readiness.get('score', snap.get('dataset_readiness', '—'))}</li>
+<li><strong>Readiness status:</strong> {readiness.get('status', '—')}</li>
+</ul>
+<h3>Source URLs &amp; Files</h3>
+{files_html}
+<h3>Patch Preview Summary</h3>
+<p>{preview.get('message', 'No patch preview run.')}</p>
+<ul>
+<li>Preview platform: {preview.get('platform', '—')}</li>
+<li>Confidence: {preview.get('confidence', '—')}</li>
+<li>Files complete: {preview.get('n_complete', '—')} / {preview.get('n_total', '—')}</li>
+<li>Tissue hint: {preview.get('tissue_hint') or '—'}</li>
+</ul>
+<p><em>Partial preview only when dataset incomplete — full analysis requires complete dataset.</em></p>"""
+
+
+def _sample_table_html(samples: Any) -> str:
+    if not samples:
+        return "<p>No sample metadata captured.</p>"
+    if not isinstance(samples, list):
+        return "<p>Sample metadata not in list form.</p>"
+    headers = ["sample_id", "patient_id", "condition", "timepoint", "replicate_id", "technology", "platform"]
+    head = "".join(f"<th>{h}</th>" for h in headers)
+    rows = []
+    for s in samples:
+        if not isinstance(s, dict):
+            continue
+        cells = "".join(f"<td>{s.get(h, '—')}</td>" for h in headers)
+        rows.append(f"<tr>{cells}</tr>")
+    if not rows:
+        return "<p>No sample rows.</p>"
+    return f"<table border='1' cellpadding='4'><tr>{head}</tr>{''.join(rows)}</table>"
+
+
+def _technology_profile_html(snap: Dict[str, Any]) -> str:
+    spec = snap.get("technology_spec") or {}
+    tech_key = snap.get("selected_technology") or snap.get("mbsi_platform") or spec.get("key", "—")
+    if not spec and not tech_key:
+        return "<p>No technology profile selected.</p>"
+    req = spec.get("required_files") or []
+    req_html = "<ul>" + "".join(f"<li>{r}</li>" for r in req) + "</ul>" if req else "<p>—</p>"
+    return f"""
+<h2>Technology Profile</h2>
+<ul>
+<li><strong>Technology:</strong> {spec.get('label', tech_key)}</li>
+<li><strong>Normalization:</strong> {spec.get('normalization_strategy', '—')}</li>
+<li><strong>Segmentation logic:</strong> {spec.get('segmentation_logic', '—')}</li>
+</ul>
+<h3>Required files</h3>
+{req_html}
+"""
+
+
+def _qc_and_stats_html(snap: Dict[str, Any]) -> str:
+    qc = snap.get("qc_settings") or {}
+    pre = (snap.get("preprocess_settings") or {}).get("preprocess", {}).get("outputs", {})
+    if not qc and not pre:
+        return "<p>No QC or statistical settings recorded — run QC & Preprocessing.</p>"
+    return f"""
+<h2>QC Criteria &amp; Statistical Settings</h2>
+<ul>
+<li>Min counts: {qc.get('min_counts', '—')}</li>
+<li>Max mito %: {qc.get('max_mito_pct', '—')}</li>
+<li>FDR threshold: {qc.get('fdr', '—')}</li>
+<li>P-value threshold: {qc.get('pval', '—')}</li>
+<li>Log2FC threshold: {qc.get('log2fc', '—')}</li>
+<li>Clustering method: {qc.get('clustering_method') or pre.get('clustering_method', '—')}</li>
+<li>Clustering backend: {pre.get('clustering_fallback') or pre.get('clustering_method', '—')}</li>
+<li>Reference marker panel: {qc.get('marker_panel') or pre.get('marker_panel', '—')}</li>
+<li>Normalization: {pre.get('normalization_strategy', '—')}</li>
+</ul>
+"""
+
+
+def _methods_html(snap: Dict[str, Any]) -> str:
+    seg_method = snap.get("segmentation_method") or "—"
+    qc = snap.get("qc_settings") or {}
+    demo_note = " (demo data)" if snap.get("using_synthetic_demo") else ""
+    return f"""
+<h2>Analysis Methods</h2>
+<ul>
+<li>Data source{demo_note}: {'synthetic demo' if snap.get('using_synthetic_demo') else 'uploaded spatial omics'}</li>
+<li>QC thresholds: min counts {qc.get('min_counts', '—')}, max mito {qc.get('max_mito_pct', '—')}%</li>
+<li>Clustering: {qc.get('clustering_method', 'Leiden')}</li>
+<li>Segmentation method: {seg_method}</li>
+<li>Discovery pipeline: benchmark hub, communication intelligence, TME analysis, confidence scoring</li>
+<li>Spatial analysis: PCA, kNN graph, marker ranking, Moran's I / Geary's C</li>
+</ul>
+"""
+
+
+def _limitations_html(snap: Dict[str, Any]) -> str:
+    limits = []
+    if snap.get("using_synthetic_demo"):
+        limits.append("Analysis used synthetic demo data — not suitable for clinical decisions.")
+    if (snap.get("dataset_readiness") or 0) < 60:
+        limits.append("Dataset readiness below recommended threshold — partial analyses may apply.")
+    pre = (snap.get("preprocess_settings") or {}).get("preprocess", {}).get("outputs", {})
+    fb = pre.get("clustering_fallback", "")
+    if fb and "unavailable" in str(fb).lower():
+        limits.append(f"Clustering fallback: {fb}")
+    manifest = snap.get("download_manifest") or {}
+    for w in manifest.get("warnings") or []:
+        limits.append(str(w))
+    if not limits:
+        limits.append("Standard computational-hypothesis limitations apply — validate findings experimentally.")
+    return "<ul>" + "".join(f"<li>{l}</li>" for l in limits) + "</ul>"
+
+
+def _reproducibility_manifest_html(snap: Dict[str, Any]) -> str:
+    discovery = snap.get("discovery_results") or {}
+    run_outputs = snap.get("run_outputs") or {}
+    notebook = snap.get("notebook") or []
+    files = snap.get("uploaded_files_summary") or []
+    return f"""
+<h2>Reproducibility Manifest</h2>
+<ul>
+<li>Discovery run ID: {discovery.get('run_id', 'N/A')}</li>
+<li>Last pipeline run: {snap.get('last_run', 'N/A')}</li>
+<li>Workflow runs logged: {len(run_outputs)} modules</li>
+<li>Notebook entries: {len(notebook)}</li>
+<li>Files ingested: {', '.join(files) or '—'}</li>
+<li>Dataset readiness: {snap.get('dataset_readiness', '—')}/100</li>
+<li>Project completeness: {snap.get('project_completeness', '—')}/100</li>
+<li>Technology: {snap.get('selected_technology') or snap.get('mbsi_platform', '—')}</li>
+</ul>
+"""
+
+
 def _project_setup_html(snap: Dict[str, Any]) -> str:
     meta = snap.get("project_metadata") or {}
     design = snap.get("experimental_design") or {}
@@ -156,6 +324,10 @@ def _project_setup_html(snap: Dict[str, Any]) -> str:
 <li><strong>Disease context:</strong> {meta.get('disease_context') or '—'}</li>
 <li><strong>Therapeutic context:</strong> {meta.get('therapeutic_context') or '—'}</li>
 <li><strong>Study type:</strong> {design.get('study_type') or '—'}</li>
+<li><strong>Primary comparison:</strong> {design.get('primary_comparison') or '—'}</li>
+<li><strong>Secondary comparisons:</strong> {design.get('secondary_comparisons') or '—'}</li>
+<li><strong>Timepoints:</strong> {design.get('timepoints') or '—'}</li>
+<li><strong>Treatment arms:</strong> {design.get('treatment_arms') or '—'}</li>
 <li><strong>Samples:</strong> {n_samples}</li>
 <li><strong>Replicates:</strong> {design.get('has_replicates', '—')} ({design.get('replicate_type', '—')})</li>
 <li><strong>Comparison groups:</strong> {design.get('comparison_groups') or '—'}</li>
@@ -164,7 +336,10 @@ def _project_setup_html(snap: Dict[str, Any]) -> str:
 <li><strong>Files used:</strong> {', '.join(files) or '—'}</li>
 <li><strong>Project completeness:</strong> {snap.get('project_completeness', '—')}/100</li>
 <li><strong>Dataset readiness:</strong> {snap.get('dataset_readiness', '—')}/100</li>
-</ul>"""
+</ul>
+<h3>Sample table</h3>
+{_sample_table_html(samples)}
+"""
 
 
 def _stereo_seq_report_html(snap: Dict[str, Any]) -> str:
@@ -309,6 +484,9 @@ pre {{ white-space: pre-wrap; background: #0d1828; padding: 1rem; border-radius:
 <div class="disclaimer">{BIOMARKER_DISCLAIMER}</div>
 <h2>Executive Summary</h2><p>{exec_summary}</p>
 {_project_setup_html(snap)}
+{_technology_profile_html(snap)}
+{_download_section_html(snap)}
+{_qc_and_stats_html(snap)}
 <h2>Top Findings</h2>{_findings_html(findings)}
 <h2>Evidence Summary</h2>{_evidence_html(evidence)}
 <h2>Confidence Summary</h2><p>{_confidence_summary(findings)}</p>
@@ -317,8 +495,10 @@ pre {{ white-space: pre-wrap; background: #0d1828; padding: 1rem; border-radius:
 {_stereo_seq_report_html(snap)}
 {_segmentation_report_html(snap)}
 {analysis_block}
-<h2>Methods</h2><p>Discovery OS pipeline: benchmark hub, communication intelligence, TME analysis, confidence scoring.</p>
-<h2>Reproducibility</h2>
+{_methods_html(snap)}
+<h2>Limitations</h2>{_limitations_html(snap)}
+{_reproducibility_manifest_html(snap)}
+<h2>Traceability</h2>
 <ul>
 <li>Run ID: {discovery.get('run_id', 'N/A')}</li>
 <li>Last run: {snap.get('last_run', 'N/A')}</li>

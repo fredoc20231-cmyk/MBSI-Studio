@@ -14,6 +14,7 @@ class SampleRecord:
     timepoint: str = ""
     replicate_id: str = ""
     platform: str = ""
+    technology: str = ""
     file_name: str = ""
     tissue_region: str = ""
     notes: str = ""
@@ -27,6 +28,7 @@ class SampleRecord:
             "timepoint": self.timepoint,
             "replicate_id": self.replicate_id,
             "platform": self.platform,
+            "technology": self.technology or self.platform,
             "file_name": self.file_name,
             "tissue_region": self.tissue_region,
             "notes": self.notes,
@@ -42,6 +44,7 @@ class SampleRecord:
             timepoint=str(data.get("timepoint", "")),
             replicate_id=str(data.get("replicate_id", "")),
             platform=str(data.get("platform", "")),
+            technology=str(data.get("technology", "") or data.get("platform", "")),
             file_name=str(data.get("file_name", "")),
             tissue_region=str(data.get("tissue_region", "")),
             notes=str(data.get("notes", "")),
@@ -60,6 +63,7 @@ SAMPLE_COLUMNS = [
     "timepoint",
     "replicate_id",
     "platform",
+    "technology",
     "file_name",
     "tissue_region",
     "notes",

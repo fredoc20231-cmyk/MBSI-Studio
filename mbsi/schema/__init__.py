@@ -1,5 +1,7 @@
 """MBSI schema spine — project, sample, dataset, technology, workflow, run, findings."""
 
+from mbsi.schema.analysis_result import AnalysisResult
+from mbsi.schema.confidence import Confidence
 from mbsi.schema.dataset import DatasetRecord
 from mbsi.schema.evidence import Evidence, create_evidence, evidence_from_registry
 from mbsi.schema.finding import Finding, finding_with_sample_context
@@ -7,6 +9,7 @@ from mbsi.schema.project import ProjectMetadata
 from mbsi.schema.report import ReportMetadata
 from mbsi.schema.run import RunRecord
 from mbsi.schema.sample import SAMPLE_COLUMNS, SampleRecord
+from mbsi.schema.study_design import StudyDesign
 from mbsi.schema.technology import (
     TECHNOLOGIES,
     TECHNOLOGY_CATALOG,
@@ -26,6 +29,8 @@ from mbsi.schema.workflow import (
 )
 
 __all__ = [
+    "AnalysisResult",
+    "Confidence",
     "DatasetRecord",
     "Evidence",
     "Finding",
@@ -33,6 +38,7 @@ __all__ = [
     "ReportMetadata",
     "RunRecord",
     "SampleRecord",
+    "StudyDesign",
     "SAMPLE_COLUMNS",
     "TechnologySpec",
     "TECHNOLOGIES",

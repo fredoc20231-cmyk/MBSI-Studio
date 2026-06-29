@@ -12,7 +12,7 @@ from app.components.page_utils import load_advanced_demo_into_session
 from app.components.uploaders import data_readiness_score, upload_panel
 from app.workspaces._helpers import safe_register_finding
 from app.workspaces._upload_helpers import _render_detection_panel, _store_ingestion
-from mbsi.io.compatibility import get_compatibility_matrix
+from mbsi.io.compatibility import get_compatibility_matrix, recommended_next_step_for_module
 from mbsi.profiles.stereo_seq import get_stereo_seq_profile
 from mbsi.schema.technology import UI_TECHNOLOGY_OPTIONS, get_technology
 from mbsi.schema.workflow import WorkflowModule
@@ -55,6 +55,7 @@ SAMPLE_COLUMNS = [
     "condition",
     "timepoint",
     "replicate_id",
+    "technology",
     "platform",
     "file_name",
     "tissue_region",
@@ -92,6 +93,11 @@ def _init_project_state() -> None:
             "has_replicates": "Not sure",
             "replicate_type": REPLICATE_TYPES[0],
             "comparison_groups": "",
+            "timepoints": "",
+            "treatment_arms": "",
+            "primary_comparison": "",
+            "secondary_comparisons": "",
+            "patient_ids": "",
         },
     )
     st.session_state.setdefault("platform_metadata", {"platforms": [], "modalities": []})
@@ -99,9 +105,15 @@ def _init_project_state() -> None:
     st.session_state.setdefault("project_completeness", 0)
     st.session_state.setdefault("dataset_readiness", 0)
     st.session_state.setdefault("dataset_compatibility", [])
+    st.session_state.setdefault("download_manifest", None)
+    st.session_state.setdefault("download_dir", None)
+    st.session_state.setdefault("dataset_platform", None)
+    st.session_state.setdefault("parsed_download_urls", [])
 
 
 def _default_sample_rows(num_samples: int) -> pd.DataFrame:
+    tech_key = st.session_state.get("selected_technology", "")
+    tech_label = next((label for label, key in UI_TECHNOLOGY_OPTIONS if key == tech_key), PLATFORM_OPTIONS[0])
     rows = []
     for i in range(1, max(1, num_samples) + 1):
         rows.append(
@@ -111,7 +123,8 @@ def _default_sample_rows(num_samples: int) -> pd.DataFrame:
                 "condition": "Case" if i % 2 else "Control",
                 "timepoint": "Baseline",
                 "replicate_id": "R1",
-                "platform": PLATFORM_OPTIONS[0],
+                "technology": tech_label,
+                "platform": tech_label,
                 "file_name": "",
                 "tissue_region": "Tumor core",
                 "notes": "",
@@ -210,6 +223,38 @@ def _render_experimental_design() -> None:
         placeholder="e.g. Responder vs non-responder; Treatment A vs B",
         key="ps_comparison_groups",
     )
+    c6, c7 = st.columns(2)
+    design["primary_comparison"] = c6.text_input(
+        "Primary comparison",
+        value=design.get("primary_comparison", ""),
+        placeholder="e.g. Responder vs non-responder",
+        key="ps_primary_comparison",
+    )
+    design["secondary_comparisons"] = c7.text_input(
+        "Secondary comparisons (comma-separated)",
+        value=design.get("secondary_comparisons", ""),
+        placeholder="e.g. Treatment A vs B, Baseline vs post-treatment",
+        key="ps_secondary_comparisons",
+    )
+    c8, c9 = st.columns(2)
+    design["timepoints"] = c8.text_input(
+        "Timepoints (comma-separated)",
+        value=design.get("timepoints", ""),
+        placeholder="e.g. Baseline, Week 4, Week 12",
+        key="ps_timepoints",
+    )
+    design["treatment_arms"] = c9.text_input(
+        "Treatment arms (comma-separated)",
+        value=design.get("treatment_arms", ""),
+        placeholder="e.g. Arm A: PARP inhibitor, Arm B: placebo",
+        key="ps_treatment_arms",
+    )
+    design["patient_ids"] = st.text_input(
+        "Patient / animal IDs (comma-separated, optional)",
+        value=design.get("patient_ids", ""),
+        placeholder="e.g. P001, P002, P003 — or leave blank and fill sample table",
+        key="ps_patient_ids",
+    )
     st.session_state.experimental_design = design
 
 
@@ -228,6 +273,7 @@ def _render_sample_table() -> None:
             "condition": st.column_config.TextColumn("Condition"),
             "timepoint": st.column_config.TextColumn("Timepoint"),
             "replicate_id": st.column_config.TextColumn("Replicate"),
+            "technology": st.column_config.SelectboxColumn("Technology", options=PLATFORM_OPTIONS),
             "platform": st.column_config.SelectboxColumn("Platform", options=PLATFORM_OPTIONS),
             "file_name": st.column_config.TextColumn("File name"),
             "tissue_region": st.column_config.TextColumn("Tissue region"),
@@ -313,6 +359,193 @@ def _upload_unprocessed(label: str, key: str, session_key: str, file_types: List
         st.error(f"Upload failed: {exc}")
 
 
+def _render_download_section() -> None:
+    """Download from facility / public source — parse URLs, download, inspect, preview."""
+    from mbsi.io.downloader.inspector import inspect_downloaded_files, update_ingestion_readiness
+    from mbsi.io.downloader.manager import (
+        cancel_download_job,
+        create_download_job,
+        start_download_job_async,
+    )
+    from mbsi.io.downloader.manifest import load_manifest, manifest_path
+    from mbsi.io.downloader.parse_commands import parse_url_entries
+    from mbsi.io.downloader.patch_analyzer import run_patch_preview_analysis
+    from mbsi.io.ingest import load_dataset_from_manifest
+    from app.workspaces._upload_helpers import _store_ingestion
+
+    st.markdown("#### Download from Facility / Public Source")
+    st.caption(
+        "Paste curl, wget, or raw URLs from your sequencing facility or public repository. "
+        "URLs are parsed only — commands are never executed in a shell."
+    )
+
+    paste_key = "ss_download_paste"
+    default_text = st.session_state.get(paste_key, "")
+    pasted = st.text_area(
+        "curl / wget / URL list",
+        value=default_text,
+        height=140,
+        placeholder=(
+            "curl -L -o WTA_Preview_outs.zip https://cf.10xgenomics.com/...\n"
+            "wget https://example.org/gene_groups.csv\n"
+            "https://example.org/he_image.ome.tif"
+        ),
+        key=paste_key,
+    )
+
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    if c1.button("Parse URLs", key="ss_dl_parse"):
+        entries = parse_url_entries(pasted)
+        st.session_state.parsed_download_urls = entries
+        if entries:
+            st.success(f"Parsed {len(entries)} URL(s)")
+        else:
+            st.warning("No URLs found in pasted text")
+
+    parsed = st.session_state.get("parsed_download_urls") or []
+    if parsed:
+        df = pd.DataFrame(
+            [
+                {
+                    "filename": e.get("filename"),
+                    "source": e.get("source"),
+                    "role": e.get("likely_role"),
+                    "tech_hint": e.get("technology_hint"),
+                    "url": e.get("url", "")[:80] + ("…" if len(e.get("url", "")) > 80 else ""),
+                }
+                for e in parsed
+            ]
+        )
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+    project_id = (
+        st.session_state.get("project_metadata", {}).get("project_title")
+        or st.session_state.get("project_name")
+        or "default_project"
+    )
+
+    if c2.button("Start Download", type="primary", key="ss_dl_start", disabled=not parsed):
+        from pathlib import Path
+
+        base = Path("data/downloads") / str(project_id).replace(" ", "_")[:40]
+        manifest = create_download_job(project_id, pasted, base, parsed_entries=parsed)
+        st.session_state.download_manifest = manifest.to_dict()
+        st.session_state.download_dir = manifest.output_dir
+        start_download_job_async(manifest)
+        st.session_state.download_job_id = manifest.job_id
+        st.info(f"Download job {manifest.job_id} started in background")
+
+    manifest_dict = st.session_state.get("download_manifest")
+    job_id = st.session_state.get("download_job_id")
+    if manifest_dict and job_id:
+        mp = manifest_path(Path(manifest_dict.get("output_dir", "data/downloads")), job_id)
+        if mp.exists():
+            try:
+                live = load_manifest(mp)
+                manifest_dict = live.to_dict()
+                st.session_state.download_manifest = manifest_dict
+            except Exception:
+                pass
+
+    if c3.button("Pause / Cancel", key="ss_dl_cancel", disabled=not job_id):
+        if cancel_download_job(job_id):
+            st.warning("Cancellation requested — in-progress files may finish current chunk")
+        else:
+            st.caption("No active background job to cancel")
+
+    if c4.button("Resume", key="ss_dl_resume", disabled=not manifest_dict):
+        if manifest_dict:
+            from mbsi.io.downloader.manifest import DownloadManifest
+
+            m = DownloadManifest.from_dict(manifest_dict)
+            m.status = "queued"
+            for u in m.urls:
+                if u.status in ("failed", "cancelled", "running"):
+                    u.status = "queued"
+            start_download_job_async(m)
+            st.session_state.download_job_id = m.job_id
+            st.info("Resuming incomplete downloads")
+
+    if c5.button("Inspect Files", key="ss_dl_inspect", disabled=not st.session_state.get("download_dir")):
+        dl_dir = st.session_state.download_dir
+        detection = inspect_downloaded_files(dl_dir)
+        bundle = update_ingestion_readiness(dl_dir, detection)
+        st.session_state.dataset_platform = detection.get("platform")
+        st.session_state.dataset_readiness = bundle["readiness"]
+        st.session_state.dataset_compatibility = bundle["compatibility"]
+        if manifest_dict:
+            manifest_dict["detected_platform"] = detection.get("platform")
+            manifest_dict["readiness"] = bundle["readiness"]
+            manifest_dict["compatibility"] = bundle["compatibility"]
+            st.session_state.download_manifest = manifest_dict
+        st.success(f"Platform: {detection.get('platform')} ({detection.get('confidence', 0):.0%} confidence)")
+
+    if c6.button("Run Patch Preview", key="ss_dl_preview", disabled=not st.session_state.get("download_dir")):
+        preview = run_patch_preview_analysis(st.session_state.download_dir)
+        if manifest_dict:
+            manifest_dict["preview"] = preview
+            st.session_state.download_manifest = manifest_dict
+        st.session_state.download_preview = preview
+        st.info(preview.get("message", "Partial preview only"))
+
+    preview = (manifest_dict or {}).get("preview") or st.session_state.get("download_preview")
+    if preview:
+        st.markdown("**Patch preview**")
+        pc1, pc2, pc3 = st.columns(3)
+        pc1.metric("Platform", preview.get("platform", "—"))
+        pc2.metric("Confidence", f"{preview.get('confidence', 0):.0%}")
+        pc3.metric("Files complete", f"{preview.get('n_complete', '—')}/{preview.get('n_total', '—')}")
+        if preview.get("tissue_hint"):
+            st.caption(preview["tissue_hint"])
+        if preview.get("coord_scatter"):
+            import plotly.express as px
+
+            cs = preview["coord_scatter"]
+            fig = px.scatter(x=cs["x"], y=cs["y"], labels={"x": "x", "y": "y"}, title="Coord preview patch")
+            fig.update_yaxes(autorange="reversed")
+            render_interactive_plot(fig, title="Download patch preview", module="study_setup", key="ss_dl_patch_scatter")
+
+    if manifest_dict and manifest_dict.get("urls"):
+        rows = []
+        for u in manifest_dict["urls"]:
+            total = u.get("bytes_total") or 0
+            done = u.get("bytes_downloaded") or 0
+            pct = f"{100 * done / total:.0f}%" if total else "—"
+            rows.append(
+                {
+                    "filename": u.get("filename"),
+                    "source": u.get("source"),
+                    "role": u.get("role"),
+                    "tech_hint": u.get("technology_hint"),
+                    "status": u.get("status"),
+                    "progress": pct,
+                    "bytes": f"{done:,}" + (f" / {total:,}" if total else ""),
+                    "warnings": u.get("error") or "",
+                }
+            )
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        status = manifest_dict.get("status", "—")
+        st.progress(
+            sum(1 for u in manifest_dict["urls"] if u.get("status") == "complete") / max(len(manifest_dict["urls"]), 1),
+            text=f"Job {manifest_dict.get('job_id', '—')}: {status}",
+        )
+        for w in manifest_dict.get("warnings") or []:
+            st.warning(w)
+
+    if st.button("Use Downloaded Dataset", key="ss_dl_ingest", disabled=not st.session_state.get("download_dir")):
+        result = load_dataset_from_manifest(st.session_state.download_dir, manifest_dict)
+        _store_ingestion(result)
+        st.session_state.dataset_platform = result.get("platform")
+        st.session_state.dataset_readiness = result.get("readiness")
+        st.session_state.dataset_compatibility = result.get("compatibility")
+        if result.get("adata") is not None:
+            st.success(f"Ingested {result['platform']}: {result['adata'].n_obs} observations")
+        else:
+            st.warning(
+                "Files inspected and readiness updated; full AnnData load may require a complete platform bundle."
+            )
+
+
 def _render_file_upload() -> None:
     st.markdown("#### File upload")
     st.caption("Upload spatial omics files and optional multimodal assets.")
@@ -386,7 +619,7 @@ def _render_file_upload() -> None:
         )
 
     st.divider()
-    if st.button("Load Advanced Demo Instead", key="ps_load_demo"):
+    if st.button("Load Demo Dataset (labeled demo)", key="ps_load_demo"):
         load_advanced_demo_into_session(force=True)
         st.session_state.using_synthetic_demo = True
         st.session_state.mbsi_platform = "demo"
@@ -412,6 +645,8 @@ def _uploaded_file_summary() -> List[str]:
         files.append("Mutation / CNV data")
     if st.session_state.get("ground_truth") is not None:
         files.append("Ground-truth reference")
+    if st.session_state.get("download_dir"):
+        files.append(f"Downloaded dataset ({st.session_state.download_dir})")
     return files
 
 
@@ -430,7 +665,8 @@ def _compute_project_completeness() -> Tuple[int, List[str]]:
         (bool(meta.get("disease_context", "").strip()) or bool(meta.get("therapeutic_context", "").strip()), 8, "disease or therapeutic context"),
         (bool(design.get("study_type")), 10, "study type"),
         (int(design.get("num_samples", 0)) >= 1, 8, "sample count"),
-        (bool(design.get("comparison_groups", "").strip()), 10, "comparison groups"),
+        (bool(design.get("primary_comparison", "").strip()), 5, "primary comparison"),
+        (bool(design.get("comparison_groups", "").strip()), 5, "comparison groups"),
         (bool(plat.get("platforms")), 12, "platform selection"),
         (bool(plat.get("modalities")), 8, "modality selection"),
     ]
@@ -523,6 +759,7 @@ def _build_compatibility_table() -> pd.DataFrame:
                 "Available": status,
                 "Reason": reason,
                 "Required missing items": ", ".join(dict.fromkeys(req)) if req else "—",
+                "Recommended next step": recommended_next_step_for_module(key, status, req, adata is not None),
             }
         )
     return pd.DataFrame(rows)

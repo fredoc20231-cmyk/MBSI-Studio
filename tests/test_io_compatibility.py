@@ -24,6 +24,8 @@ def test_compatibility_none():
     matrix = get_compatibility_matrix(None)
     assert matrix["qc"]["status"] == "unavailable"
     assert matrix["upload"]["status"] == "available"
+    assert matrix["discovery"]["status"] == "unavailable"
+    assert "recommended_next_step" in matrix["discovery"] or matrix["discovery"].get("reason")
 
 
 def test_compatibility_visium_ready():

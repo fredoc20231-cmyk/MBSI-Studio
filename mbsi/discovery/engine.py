@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 import anndata as ad
 
@@ -22,13 +23,38 @@ def run_discovery_engine(
     benchmark_methods: Optional[list] = None,
     readiness: Optional[Dict[str, Any]] = None,
     dataset_id: str = "default",
+    allow_demo: bool = False,
+    analysis_results: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run full Biopharma Discovery Engine v1 pipeline with graceful degradation."""
-    from mbsi.tme import make_tme_demo_adata
-
     warnings: List[str] = []
+    is_demo = False
+
     if adata is None:
+        if not allow_demo:
+            return {
+                "adata": None,
+                "benchmark_results": {},
+                "communication_results": {},
+                "tme_results": {},
+                "findings": [],
+                "evidence": [],
+                "discovery_graph": None,
+                "validation_recommendations": [],
+                "notebook_entry": {},
+                "run_id": None,
+                "actionable_findings": [],
+                "warnings": ["Discovery unavailable — upload real data first"],
+                "status": "unavailable",
+                "disclaimer": BIOMARKER_DISCLAIMER,
+                "report_text": "",
+                "is_demo": False,
+            }
+        from mbsi.tme import make_tme_demo_adata
+
         adata = make_tme_demo_adata(n_spots=100, seed=seed)
+        is_demo = True
+        warnings.append("Demo dataset — outputs are labeled synthetic")
 
     if readiness is None and adata is not None:
         readiness = adata.uns.get("mbsi_readiness")
@@ -53,8 +79,16 @@ def run_discovery_engine(
 
     try:
         from mbsi.communication import run_communication_analysis, make_communication_demo_adata
-        comm_adata = adata if "CXCL12" in adata.var_names else make_communication_demo_adata(n_spots=adata.n_obs, seed=seed)
-        communication = run_communication_analysis(comm_adata, k=6)
+        comm_adata = adata
+        if "CXCL12" not in adata.var_names:
+            if allow_demo or is_demo:
+                comm_adata = make_communication_demo_adata(n_spots=adata.n_obs, seed=seed)
+                warnings.append("Communication: demo gene panel substituted")
+            else:
+                warnings.append("Communication: CXCL12 panel genes missing — skipped pathway ranking")
+                comm_adata = None
+        if comm_adata is not None:
+            communication = run_communication_analysis(comm_adata, k=6)
     except Exception as exc:
         warnings.append(f"Communication analysis failed: {exc}")
 
@@ -64,7 +98,27 @@ def run_discovery_engine(
     except Exception as exc:
         warnings.append(f"TME analysis failed: {exc}")
 
-    store, graph = build_dos_findings(benchmark, communication, tme, readiness)
+    registry = ProjectRegistry()
+    run_id = str(uuid4())
+
+    store, graph = build_dos_findings(benchmark, communication, tme, readiness, run_id=run_id)
+
+    if analysis_results:
+        try:
+            from mbsi.discovery.seurat_evidence import build_seurat_evidence
+
+            seurat_store, seurat_warnings = build_seurat_evidence(analysis_results, readiness, run_id=run_id)
+            warnings.extend(seurat_warnings)
+            for ev in seurat_store.list_evidence():
+                store.add_evidence(ev)
+            for finding in seurat_store.list_findings():
+                store.add(finding)
+            from mbsi.graph.builder import build_discovery_graph
+
+            graph = build_discovery_graph(store.list_findings(), store.list_evidence())
+        except Exception as exc:
+            warnings.append(f"Seurat-like evidence merge failed: {exc}")
+
     findings = store.list_findings()
     evidence = store.list_evidence()
     validations = recommend_validations(findings)
@@ -72,14 +126,14 @@ def run_discovery_engine(
     notebook_entry = append_run(
         findings=findings,
         evidence=evidence,
-        summary=f"Discovery run seed={seed}, {len(findings)} findings",
+        summary=f"Discovery run seed={seed}, {len(findings)} findings{' (demo)' if is_demo else ''}",
     )
 
-    registry = ProjectRegistry()
     run_record = registry.register_run(
         dataset_id=dataset_id,
         finding_ids=[f.finding_id for f in findings],
-        metadata={"seed": seed, "status": "complete" if not warnings else "complete_with_warnings"},
+        run_id=run_id,
+        metadata={"seed": seed, "status": "complete" if not warnings else "complete_with_warnings", "is_demo": is_demo},
     )
 
     actionable = _build_actionable_findings(benchmark, communication, tme)
@@ -113,6 +167,7 @@ def run_discovery_engine(
         "status": status,
         "disclaimer": BIOMARKER_DISCLAIMER,
         "report_text": generate_biomarker_report_text(benchmark or None, communication or None, tme or None),
+        "is_demo": is_demo,
     }
 
 

@@ -50,8 +50,15 @@ def render():
     st.caption(
         f"Notebook: {len(entries)} entries — "
         f"{len(reg.get('figures', []))} figures, {len(reg.get('tables', []))} tables, "
-        f"{len(reg.get('findings', []))} findings"
+        f"{len(st.session_state.get('findings', []))} DOS findings"
     )
+
+    findings = st.session_state.get("findings") or []
+    if findings:
+        st.markdown("**Discovery findings included in report**")
+        top = sorted(findings, key=lambda f: f.get("confidence_score", 0), reverse=True)[:3]
+        for f in top:
+            st.caption(f"• {f.get('title')} [{f.get('confidence_level')}]")
 
     if analysis:
         st.markdown("**Spatial analysis included**")

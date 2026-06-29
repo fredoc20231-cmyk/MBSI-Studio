@@ -21,6 +21,9 @@ def _session_snapshot() -> Dict[str, Any]:
         "communication_results": st.session_state.get("communication_results"),
         "tme_results": st.session_state.get("tme_results"),
         "discovery_results": st.session_state.get("discovery_results"),
+        "findings": st.session_state.get("findings"),
+        "evidence": st.session_state.get("evidence"),
+        "validation_recommendations": st.session_state.get("discovery_results", {}).get("validation_recommendations"),
         "analysis_results": analysis,
         "marker_table": st.session_state.get("marker_table"),
         "spatial_stats": st.session_state.get("spatial_stats"),
@@ -49,12 +52,66 @@ def _notebook_html(entries: List[Dict[str, Any]]) -> str:
     return "<ul>" + "\n".join(rows) + "</ul>"
 
 
+def _findings_html(findings: List[Dict[str, Any]]) -> str:
+    if not findings:
+        return "<p>No structured findings.</p>"
+    rows = []
+    for f in sorted(findings, key=lambda x: x.get("confidence_score", 0), reverse=True):
+        badge = f.get("confidence_level", "Hypothesis")
+        rows.append(
+            f"<li><strong>{f.get('title')}</strong> "
+            f"<span class='badge'>{badge} ({f.get('confidence_score', 0):.0f})</span><br>"
+            f"<em>{f.get('summary', '')}</em><br>"
+            f"Type: {f.get('finding_type')} · Module: {f.get('module')}</li>"
+        )
+    return "<ul>" + "\n".join(rows) + "</ul>"
+
+
+def _evidence_html(evidence: List[Dict[str, Any]]) -> str:
+    if not evidence:
+        return "<p>No evidence linked.</p>"
+    rows = [f"<li>{e.get('title')} ({e.get('evidence_type')}, {e.get('source_module')})</li>" for e in evidence[:20]]
+    return "<ul>" + "\n".join(rows) + "</ul>"
+
+
+def _validation_html(validations: List[Dict[str, Any]]) -> str:
+    if not validations:
+        return "<p>No validation recommendations.</p>"
+    rows = []
+    for v in validations:
+        recs = v.get("recommendations", [])
+        rec_str = "<ul>" + "".join(f"<li>{r}</li>" for r in recs) + "</ul>"
+        rows.append(f"<li><strong>{v.get('title')}</strong> ({v.get('confidence_level')}){rec_str}</li>")
+    return "<ul>" + "\n".join(rows) + "</ul>"
+
+
+def _confidence_summary(findings: List[Dict[str, Any]]) -> str:
+    if not findings:
+        return "No findings scored."
+    levels = {}
+    for f in findings:
+        lvl = f.get("confidence_level", "Hypothesis")
+        levels[lvl] = levels.get(lvl, 0) + 1
+    return ", ".join(f"{k}: {v}" for k, v in sorted(levels.items()))
+
+
 def generate_final_html_report(output_dir: Path, snapshot: Optional[Dict[str, Any]] = None) -> Path:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     snap = snapshot or _session_snapshot()
     reg = snap.get("registered") or get_registered_outputs()
     notebook = snap.get("notebook") or get_notebook_entries()
+    findings = snap.get("findings") or []
+    evidence = snap.get("evidence") or []
+    validations = snap.get("validation_recommendations") or []
+    discovery = snap.get("discovery_results") or {}
+    if not findings and discovery.get("findings"):
+        findings = discovery["findings"]
+    if not evidence and discovery.get("evidence"):
+        evidence = discovery["evidence"]
+    if not validations and discovery.get("validation_recommendations"):
+        validations = discovery["validation_recommendations"]
+
     narrative = generate_biomarker_report_text(
         benchmark_results=snap.get("benchmark_results"),
         communication_results=snap.get("communication_results"),
@@ -62,6 +119,14 @@ def generate_final_html_report(output_dir: Path, snapshot: Optional[Dict[str, An
     )
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     path = output_dir / f"mbsi_final_report_{ts}.html"
+
+    top_finding = findings[0]["title"] if findings else "No findings yet"
+    exec_summary = (
+        f"MBSI Discovery Operating System report — {len(findings)} findings, "
+        f"confidence mix: {_confidence_summary(findings)}. "
+        f"Top finding: {top_finding}."
+    )
+
     fig_rows = "".join(
         f"<li>{f.get('module')}: {f.get('title')} ({f.get('timestamp', '')[:19]})</li>"
         for f in reg.get("figures", [])
@@ -69,10 +134,6 @@ def generate_final_html_report(output_dir: Path, snapshot: Optional[Dict[str, An
     tbl_rows = "".join(
         f"<li>{t.get('module')}: {t.get('title')} ({t.get('rows', 0)} rows)</li>"
         for t in reg.get("tables", [])
-    )
-    finding_rows = "".join(
-        f"<li>{f.get('module')}: {f.get('title')} — {f.get('text', '')}</li>"
-        for f in reg.get("findings", [])
     )
     analysis = snap.get("analysis_results")
     analysis_block = ""
@@ -91,22 +152,36 @@ def generate_final_html_report(output_dir: Path, snapshot: Optional[Dict[str, An
 <li>Marker rows: {len(markers) if markers is not None else 0}</li>
 <li>Spatial stats genes: {len(stats) if stats is not None else 0}</li>
 </ul>"""
+
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>MBSI Final Report</title>
 <style>
 body {{ font-family: Inter, sans-serif; background: #07111f; color: #f4f7fb; padding: 2rem; }}
 .disclaimer {{ background: #101d2e; border-left: 4px solid #ffb020; padding: 1rem; margin: 1rem 0; }}
+.badge {{ background: #1a3a5c; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; }}
 pre {{ white-space: pre-wrap; background: #0d1828; padding: 1rem; border-radius: 8px; }}
 .notebook {{ background: #0d1828; padding: 1rem; border-radius: 8px; }}
 </style></head><body>
 <h1>MBSI Studio — Final Report</h1>
 <div class="disclaimer">{BIOMARKER_DISCLAIMER}</div>
+<h2>Executive Summary</h2><p>{exec_summary}</p>
+<h2>Top Findings</h2>{_findings_html(findings)}
+<h2>Evidence Summary</h2>{_evidence_html(evidence)}
+<h2>Confidence Summary</h2><p>{_confidence_summary(findings)}</p>
+<h2>Pathways &amp; Biomarkers</h2>{_findings_html([f for f in findings if f.get('finding_type') in ('lr_pathway','pathway','biomarker','tme_program')])}
+<h2>Validation Recommendations</h2>{_validation_html(validations)}
 {analysis_block}
+<h2>Methods</h2><p>Discovery OS pipeline: benchmark hub, communication intelligence, TME analysis, confidence scoring.</p>
+<h2>Reproducibility</h2>
+<ul>
+<li>Run ID: {discovery.get('run_id', 'N/A')}</li>
+<li>Last run: {snap.get('last_run', 'N/A')}</li>
+<li>Notebook entries: {len(notebook)}</li>
+</ul>
 <h2>Results Notebook ({len(notebook)} entries)</h2>
 <div class="notebook">{_notebook_html(notebook)}</div>
 <h2>Registered Figures</h2><ul>{fig_rows or '<li>None</li>'}</ul>
 <h2>Registered Tables</h2><ul>{tbl_rows or '<li>None</li>'}</ul>
-<h2>Findings</h2><ul>{finding_rows or '<li>None</li>'}</ul>
 <h2>Narrative</h2><pre>{narrative}</pre>
 <p><em>Generated {ts} UTC</em></p>
 </body></html>"""

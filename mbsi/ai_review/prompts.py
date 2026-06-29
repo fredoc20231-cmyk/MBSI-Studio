@@ -6,11 +6,15 @@ GUARDRAIL = (
 )
 
 TEMPLATES = {
-    "benchmark": "Benchmark readiness: {readiness}. Top method: {top}.",
+    "benchmark": "Benchmark readiness: {readiness}. Top method: {top}. Benchmark support: {support}.",
     "communication": "Top communication pathway: {pathway}.",
     "tme": "TME niches detected: {count}.",
-    "discovery": "Discovery status: {status}.",
+    "discovery": "Discovery status: {status}. Findings: {n_findings}.",
     "warnings": "Recent warnings ({n}): {list}",
     "findings": "Top findings ({n}): {list}",
-    "default": "Last run: {last_run}. Registered outputs: {n_fig} figures, {n_tbl} tables.",
+    "confidence": "Confidence-ranked findings: {list}",
+    "evidence": "Evidence items ({n}): {list}",
+    "validation": "Validation recommendations: {list}",
+    "graph": "Finding path to outcome: {path}. Related findings: {related}.",
+    "default": "Last run: {last_run}. {n_findings} findings, {n_fig} figures, {n_tbl} tables.",
 }

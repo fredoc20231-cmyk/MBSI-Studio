@@ -16,6 +16,9 @@ def test_run_discovery_engine():
     assert "tme_results" in results
     assert "actionable_findings" in results
     assert results["disclaimer"] == BIOMARKER_DISCLAIMER
+    assert "findings" in results
+    assert len(results["findings"]) >= 1
+    assert "discovery_graph" in results
     assert len(results["actionable_findings"]) >= 1
 
 

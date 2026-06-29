@@ -6,16 +6,22 @@ from typing import Any, Dict, List, Optional
 
 import anndata as ad
 
+from mbsi.discovery.findings_builder import build_dos_findings
+from mbsi.notebook.notebook import append_run
+from mbsi.registry.registry import ProjectRegistry
 from mbsi.reports.biomarker_report import (
     generate_biomarker_report_text,
     BIOMARKER_DISCLAIMER,
 )
+from mbsi.validation.recommendations import recommend_validations
 
 
 def run_discovery_engine(
     adata: Optional[ad.AnnData] = None,
     seed: int = 42,
     benchmark_methods: Optional[list] = None,
+    readiness: Optional[Dict[str, Any]] = None,
+    dataset_id: str = "default",
 ) -> Dict[str, Any]:
     """Run full Biopharma Discovery Engine v1 pipeline with graceful degradation."""
     from mbsi.tme import make_tme_demo_adata
@@ -23,6 +29,9 @@ def run_discovery_engine(
     warnings: List[str] = []
     if adata is None:
         adata = make_tme_demo_adata(n_spots=100, seed=seed)
+
+    if readiness is None and adata is not None:
+        readiness = adata.uns.get("mbsi_readiness")
 
     benchmark: Dict[str, Any] = {}
     communication: Dict[str, Any] = {}
@@ -55,7 +64,37 @@ def run_discovery_engine(
     except Exception as exc:
         warnings.append(f"TME analysis failed: {exc}")
 
+    store, graph = build_dos_findings(benchmark, communication, tme, readiness)
+    findings = store.list_findings()
+    evidence = store.list_evidence()
+    validations = recommend_validations(findings)
+
+    notebook_entry = append_run(
+        findings=findings,
+        evidence=evidence,
+        summary=f"Discovery run seed={seed}, {len(findings)} findings",
+    )
+
+    registry = ProjectRegistry()
+    run_record = registry.register_run(
+        dataset_id=dataset_id,
+        finding_ids=[f.finding_id for f in findings],
+        metadata={"seed": seed, "status": "complete" if not warnings else "complete_with_warnings"},
+    )
+
     actionable = _build_actionable_findings(benchmark, communication, tme)
+    actionable.extend([
+        {
+            "type": f.finding_type,
+            "title": f.title,
+            "detail": f.summary,
+            "priority": "high" if f.confidence_level == "High" else "medium",
+            "confidence_score": f.confidence_score,
+            "confidence_level": f.confidence_level,
+        }
+        for f in findings[:5]
+    ])
+
     status = "complete" if not warnings else "complete_with_warnings"
 
     return {
@@ -63,6 +102,12 @@ def run_discovery_engine(
         "benchmark_results": benchmark,
         "communication_results": communication,
         "tme_results": tme,
+        "findings": [f.to_dict() for f in findings],
+        "evidence": [e.to_dict() for e in evidence],
+        "discovery_graph": graph,
+        "validation_recommendations": validations,
+        "notebook_entry": notebook_entry.to_dict(),
+        "run_id": run_record["run_id"],
         "actionable_findings": actionable,
         "warnings": warnings,
         "status": status,
@@ -107,6 +152,7 @@ def export_discovery_engine(results: Dict[str, Any], out_dir) -> None:
     import json
     import shutil
 
+    from mbsi.graph.export import export_graph_json
     from mbsi.reports.biomarker_report import generate_spatial_biomarker_report
 
     out_dir = Path(out_dir)
@@ -139,11 +185,21 @@ def export_discovery_engine(results: Dict[str, Any], out_dir) -> None:
         report_path = generate_spatial_biomarker_report(bench or None, comm or None, tme or None, out_dir)
         shutil.copy(report_path, out_dir / "biopharma_discovery_report.html")
 
+    if results.get("discovery_graph"):
+        export_graph_json(results["discovery_graph"], out_dir / "discovery_graph.json")
+
+    if results.get("findings"):
+        (out_dir / "findings.json").write_text(
+            json.dumps({"findings": results["findings"], "evidence": results.get("evidence", [])}, indent=2, default=str)
+        )
+
     (out_dir / "discovery_engine_summary.json").write_text(
         json.dumps({
             "disclaimer": results.get("disclaimer"),
             "status": results.get("status"),
             "warnings": results.get("warnings", []),
             "actionable_findings": results.get("actionable_findings", []),
+            "n_findings": len(results.get("findings", [])),
+            "run_id": results.get("run_id"),
         }, indent=2, default=str)
     )

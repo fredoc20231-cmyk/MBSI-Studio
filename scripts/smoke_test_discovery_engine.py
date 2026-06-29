@@ -41,7 +41,9 @@ def main():
     discovery = run_discovery_engine(adata=tme_adata, seed=42, benchmark_methods=["mbsi"])
     assert discovery["disclaimer"] == BIOMARKER_DISCLAIMER
     export_discovery_engine(discovery, OUTPUT)
-    print(f"   findings={len(discovery['actionable_findings'])}")
+    print(f"   findings={len(discovery['findings'])}")
+    assert len(discovery.get("findings", [])) >= 1
+    assert "discovery_graph" in discovery
 
     print("5. Unified biomarker report...")
     report_path = generate_spatial_biomarker_report(

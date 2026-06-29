@@ -1,6 +1,5 @@
-"""Extended validation suite."""
+"""Validation recommendations for Discovery OS."""
 
-from mbsi.validation.metrics import run_validation_suite, run_leakage_benchmark
+from mbsi.validation.recommendations import recommend_validations
 
-__all__ = ["run_validation_suite", "run_leakage_benchmark"]
-
+__all__ = ["recommend_validations"]

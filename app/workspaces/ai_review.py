@@ -18,6 +18,9 @@ def render():
         unsafe_allow_html=True,
     )
     st.markdown(DISCLAIMER)
+    findings = st.session_state.get("findings") or []
+    if findings:
+        st.caption(f"{len(findings)} grounded findings available for Q&A")
     if "ai_chat" not in st.session_state:
         st.session_state.ai_chat = []
     for msg in st.session_state.ai_chat:

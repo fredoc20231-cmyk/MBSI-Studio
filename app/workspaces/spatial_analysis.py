@@ -73,10 +73,42 @@ def render():
     else:
         st.caption("Using uploaded data for spatial analysis.")
 
+    platform = st.session_state.get("mbsi_platform", "unknown")
+    readiness = st.session_state.get("mbsi_readiness", {})
+    auto_run = st.session_state.pop("spatial_analysis_run_full", False)
+    qc_only = st.session_state.get("spatial_analysis_qc_only", False)
+    if platform and platform != "unknown":
+        score = readiness.get("score") or st.session_state.get("ingestion_result", {}).get("readiness_score")
+        cols = st.columns(3)
+        cols[0].metric("Platform", platform)
+        if score is not None:
+            cols[1].metric("Readiness", f"{score}/100", readiness.get("status", ""))
+        if auto_run:
+            st.info("Data just uploaded — running full analysis with default parameters.")
+        if qc_only:
+            st.caption("QC-only mode — review QC tab after running analysis.")
+
     st.markdown("### Spatial Transcriptomics Analysis")
     st.caption(ANALYSIS_GUARDRAIL)
 
     adata = _ensure_adata()
+
+    if auto_run:
+        _run_full_analysis(
+            adata,
+            dict(
+                min_counts=100,
+                min_genes=50,
+                max_mito=25.0,
+                n_top_genes=2000,
+                n_comps=30,
+                n_neighbors=30,
+                n_pcs=15,
+                resolution=1.0,
+                spatial_stats_top_n=200,
+            ),
+        )
+        adata = st.session_state.get("adata") or adata
     ctrl, main = st.columns([1, 3], gap="small")
 
     with ctrl:

@@ -36,7 +36,15 @@ def _run_discovery() -> None:
 
 
 def render():
-    demo_banner()
+    using_demo = st.session_state.get("using_synthetic_demo", True)
+    platform = st.session_state.get("mbsi_platform")
+    if using_demo:
+        demo_banner()
+        st.warning("Discovery runs on demo orchestration — upload real data for dataset-specific insights.")
+    elif platform:
+        readiness = st.session_state.get("mbsi_readiness", {})
+        st.success(f"Real data loaded ({platform}) — readiness: {readiness.get('status', 'unknown')}")
+
     action = st.session_state.pop("ribbon_action", None)
     if action == "run_discovery":
         _run_discovery()

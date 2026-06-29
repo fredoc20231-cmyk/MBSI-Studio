@@ -23,10 +23,18 @@ def _generate(kind: str) -> None:
 
 def render():
     using_demo = st.session_state.get("using_synthetic_demo", True)
+    platform = st.session_state.get("mbsi_platform")
+    readiness = st.session_state.get("mbsi_readiness", {})
     if using_demo:
         st.warning("Report includes demo/synthetic data — upload real data for production exports.")
     else:
-        st.success("Report will include uploaded real data and analysis outputs.")
+        st.success(
+            f"Report will include real data ({platform or 'uploaded'}) — "
+            f"{readiness.get('status', 'ready')}"
+        )
+    ingestion = st.session_state.get("ingestion_result")
+    if ingestion and ingestion.get("detection", {}).get("missing"):
+        st.caption(f"Ingestion gaps: {', '.join(ingestion['detection']['missing'])}")
 
     st.markdown(
         '<span class="saas-report-final-badge">Final deliverable</span>',

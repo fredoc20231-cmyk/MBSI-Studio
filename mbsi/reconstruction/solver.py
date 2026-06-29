@@ -19,6 +19,10 @@ from mbsi.transport.unbalanced_ot import solve_unbalanced_ot
 from mbsi.sheaf.graph_builder import build_cell_graph
 from mbsi.sheaf.sheaf_laplacian import build_graph_laplacian
 from mbsi.morphology.diffusion_tensor import build_tensor_field
+from mbsi.reconstruction.transport_sparse import (
+    apply_transport_to_expression,
+    compress_transport_plan,
+)
 
 
 def run_mbsi(
@@ -35,6 +39,8 @@ def run_mbsi(
     use_sheaf: bool = True,
     use_anisotropic: bool = True,
     k_graph: int = 8,
+    top_k_transport: int = 50,
+    sheaf_gene_batch: int = 32,
     random_state: Optional[int] = None
 ) -> ad.AnnData:
     """
@@ -66,6 +72,10 @@ def run_mbsi(
         If True, use anisotropic diffusion kernel
     k_graph : int
         Number of neighbors for cell graph
+    top_k_transport : int
+        Retain only top-k OT edges per spot in uns['transport_plan'] (sparse storage)
+    sheaf_gene_batch : int
+        Number of genes solved per sheaf linear-system batch
     random_state : int, optional
         Random seed for reproducibility
         
@@ -80,10 +90,18 @@ def run_mbsi(
     """
     if random_state is not None:
         np.random.seed(random_state)
-    
+
+    if "spatial" not in spot_adata.obsm:
+        raise ValueError(
+            "MBSI requires adata.obsm['spatial']. "
+            "Upload spatial coordinates or use mbsi/io ingestion."
+        )
+
     # Extract spot data
     spot_coords = spot_adata.obsm['spatial']
     spot_expression = spot_adata.X
+    if hasattr(spot_expression, "toarray"):
+        spot_expression = spot_expression.toarray()
     n_spots, n_genes = spot_expression.shape
     
     # Generate cell coordinates if not provided
@@ -123,9 +141,8 @@ def run_mbsi(
     )
     
     # Reconstruct cell expression using transport plan
-    # X_cells = T^T @ X_spots
-    reconstructed_expression = transport_plan.T @ spot_expression
-    
+    reconstructed_expression = apply_transport_to_expression(spot_expression, transport_plan)
+
     # Apply sheaf regularization if enabled
     if use_sheaf:
         graph = build_cell_graph(cell_coords, k=k_graph)
@@ -133,7 +150,8 @@ def run_mbsi(
             reconstructed_expression,
             graph,
             lambda_sheaf=lambda_sheaf,
-            max_iter=50
+            max_iter=50,
+            gene_batch=sheaf_gene_batch,
         )
     
     # Create output AnnData
@@ -156,12 +174,16 @@ def run_mbsi(
         'max_iter': max_iter,
         'use_sheaf': use_sheaf,
         'use_anisotropic': use_anisotropic,
-        'k_graph': k_graph
+        'k_graph': k_graph,
+        'top_k_transport': top_k_transport,
+        'sheaf_gene_batch': sheaf_gene_batch,
     }
-    
+
     reconstructed_adata.uns['convergence'] = ot_log
-    reconstructed_adata.uns['transport_plan'] = transport_plan
-    
+    reconstructed_adata.uns['transport_plan'] = compress_transport_plan(
+        transport_plan, top_k=top_k_transport
+    )
+
     return reconstructed_adata
 
 
@@ -218,25 +240,29 @@ def apply_sheaf_regularization(
     graph,
     lambda_sheaf: float = 0.1,
     max_iter: int = 50,
-    tol: float = 1e-5
+    tol: float = 1e-5,
+    gene_batch: int = 32,
 ) -> np.ndarray:
     """
     Minimize 0.5||X - X0||^2 + 0.5 * lambda * tr(X^T L X).
 
-    Solved as (I + lambda * L) X = X0 using the graph Laplacian.
+    Factorizes (I + lambda * L) once and solves gene RHS in batches.
     """
-    if hasattr(expression, 'toarray'):
+    if hasattr(expression, "toarray"):
         expression = expression.toarray()
 
     x0 = np.asarray(expression, dtype=np.float64)
     laplacian = build_graph_laplacian(graph).tocsr()
-    n_cells = x0.shape[0]
-    identity = scipy.sparse.eye(n_cells, format='csr')
-    system = identity + lambda_sheaf * laplacian
+    n_cells, n_genes = x0.shape
+    identity = scipy.sparse.eye(n_cells, format="csr")
+    system = (identity + lambda_sheaf * laplacian).tocsc()
+    lu = scipy.sparse.linalg.splu(system)
 
     smoothed = np.zeros_like(x0)
-    for gene_idx in range(x0.shape[1]):
-        smoothed[:, gene_idx] = scipy.sparse.linalg.spsolve(system, x0[:, gene_idx])
+    batch = max(1, int(gene_batch))
+    for start in range(0, n_genes, batch):
+        end = min(start + batch, n_genes)
+        smoothed[:, start:end] = lu.solve(x0[:, start:end])
 
     return smoothed.astype(np.float32)
 
@@ -268,6 +294,8 @@ def run_iterative_mbsi(
     use_sheaf: bool = True,
     use_anisotropic: bool = True,
     k_graph: int = 8,
+    top_k_transport: int = 50,
+    sheaf_gene_batch: int = 32,
     random_state: Optional[int] = None
 ) -> ad.AnnData:
     """
@@ -292,6 +320,12 @@ def run_iterative_mbsi(
     """
     if random_state is not None:
         np.random.seed(random_state)
+
+    if "spatial" not in spot_adata.obsm:
+        raise ValueError(
+            "MBSI requires adata.obsm['spatial']. "
+            "Upload spatial coordinates or use mbsi/io ingestion."
+        )
 
     spot_coords = spot_adata.obsm['spatial']
     spot_expression = spot_adata.X
@@ -333,13 +367,14 @@ def run_iterative_mbsi(
             rho2=rho2,
             max_iter=max_inner_iter
         )
-        reconstructed_expression = transport_plan.T @ spot_expression
+        reconstructed_expression = apply_transport_to_expression(spot_expression, transport_plan)
         if graph is not None:
             reconstructed_expression = apply_sheaf_regularization(
                 reconstructed_expression,
                 graph,
                 lambda_sheaf=lambda_sheaf,
-                max_iter=max_inner_iter
+                max_iter=max_inner_iter,
+                gene_batch=sheaf_gene_batch,
             )
 
     reconstructed_adata = ad.AnnData(
@@ -361,9 +396,14 @@ def run_iterative_mbsi(
         'use_sheaf': use_sheaf,
         'use_anisotropic': use_anisotropic and image is not None,
         'k_graph': k_graph,
+        'top_k_transport': top_k_transport,
+        'sheaf_gene_batch': sheaf_gene_batch,
         'iterative': True
     }
     reconstructed_adata.uns['convergence'] = ot_log
-    reconstructed_adata.uns['transport_plan'] = transport_plan
+    if transport_plan is not None:
+        reconstructed_adata.uns['transport_plan'] = compress_transport_plan(
+            transport_plan, top_k=top_k_transport
+        )
 
     return reconstructed_adata

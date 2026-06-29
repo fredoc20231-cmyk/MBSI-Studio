@@ -42,6 +42,15 @@ def render():
     if not results:
         st.info("Run benchmark to compare reconstruction methods.")
         return
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Benchmark mode", results.get("benchmark_mode", "unknown"))
+    c2.metric("Shared genes", results.get("n_shared_genes", "—"))
+    c3.metric("Cell labels", "Yes" if results.get("has_cell_type_labels") else "No")
+    c4.metric("Ground truth", "Yes" if results.get("has_ground_truth") else "No")
+    if results.get("n_dropped_genes") is not None:
+        st.caption(f"Dropped genes (truth − recon overlap): {results.get('n_dropped_genes', 0)}")
+
     lb = safe_get(results, "leaderboard")
     if lb is not None and hasattr(lb, "empty") and not lb.empty:
         safe_register_table("benchmark", "leaderboard", lb)

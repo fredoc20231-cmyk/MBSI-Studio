@@ -36,6 +36,11 @@ def export_benchmark_hub(
         hub_output.get("guardrail", ""),
         "",
         f"Platform: {hub_output.get('platform', 'unknown')}",
+        f"Benchmark mode: {hub_output.get('benchmark_mode', 'unknown')}",
+        f"Ground truth: {hub_output.get('has_ground_truth', False)}",
+        f"Cell type labels: {hub_output.get('has_cell_type_labels', False)}",
+        f"Shared genes: {hub_output.get('n_shared_genes', 'n/a')}",
+        f"Dropped genes: {hub_output.get('n_dropped_genes', 'n/a')}",
         f"Seed: {hub_output.get('seed', 42)}",
         "",
     ]
@@ -71,6 +76,11 @@ def export_benchmark_hub(
     meta = {
         "platform": hub_output.get("platform"),
         "seed": hub_output.get("seed"),
+        "benchmark_mode": hub_output.get("benchmark_mode"),
+        "has_ground_truth": hub_output.get("has_ground_truth"),
+        "has_cell_type_labels": hub_output.get("has_cell_type_labels"),
+        "n_shared_genes": hub_output.get("n_shared_genes"),
+        "n_dropped_genes": hub_output.get("n_dropped_genes"),
         "n_methods": len(results),
         "exports": {
             "csv": str(csv_path),

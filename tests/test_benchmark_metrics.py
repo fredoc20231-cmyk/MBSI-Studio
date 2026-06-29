@@ -17,6 +17,10 @@ def test_compute_benchmark_metrics():
     assert "rmse" in metrics
     assert metrics["runtime_sec"] == 1.5
     assert metrics["gene_pearson"] > 0.5
+    assert metrics["n_shared_genes"] == gt.n_vars
+    assert metrics["n_dropped_genes"] == 0
+    assert metrics["benchmark_mode"] == "synthetic"
+    assert metrics["has_cell_type_labels"] is True
 
 
 def test_compute_niche_preservation():

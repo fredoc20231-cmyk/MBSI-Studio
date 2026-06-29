@@ -10,7 +10,7 @@ import anndata as ad
 
 from mbsi.benchmarks.adapters import get_adapter, list_adapters
 from mbsi.benchmarks.leaderboard import build_leaderboard, leaderboard_summary
-from mbsi.benchmarks.metrics import compute_benchmark_metrics
+from mbsi.benchmarks.metrics import compute_benchmark_metrics, compute_benchmark_provenance
 from mbsi.benchmarks.pseudo_visium import generate_pseudo_visium, make_synthetic_ground_truth
 from mbsi.benchmarks.real_ground_truth import resolve_ground_truth_adata
 from mbsi.benchmarks.datasets import validate_single_cell_spatial_ground_truth
@@ -93,6 +93,7 @@ def run_benchmark_hub(
                 pseudo_spot_adata=pseudo_visium,
                 runtime_sec=runtime_sec,
                 peak_memory_mb=peak_memory_mb,
+                dataset_meta=dataset_meta,
             )
             row = {
                 "method": adapter_result.method,
@@ -102,6 +103,7 @@ def run_benchmark_hub(
                 **metrics,
             }
         else:
+            prov = compute_benchmark_provenance(ground_truth_adata, ground_truth_adata, dataset_meta)
             row = {
                 "method": name,
                 "method_type": getattr(adapter, "method_type", "unavailable"),
@@ -109,10 +111,12 @@ def run_benchmark_hub(
                 "error": error,
                 "runtime_sec": runtime_sec,
                 "peak_memory_mb": peak_memory_mb,
+                **prov,
             }
         results.append(row)
 
     leaderboard = build_leaderboard([r for r in results if r.get("status") == "ok"])
+    hub_provenance = compute_benchmark_provenance(ground_truth_adata, ground_truth_adata, dataset_meta)
 
     return {
         "ground_truth": ground_truth_adata,
@@ -122,6 +126,11 @@ def run_benchmark_hub(
         "platform": platform,
         "seed": seed,
         "dataset_mode": dataset_meta.get("mode", dataset_mode),
+        "benchmark_mode": hub_provenance["benchmark_mode"],
+        "has_ground_truth": hub_provenance["has_ground_truth"],
+        "has_cell_type_labels": hub_provenance["has_cell_type_labels"],
+        "n_shared_genes": hub_provenance["n_shared_genes"],
+        "n_dropped_genes": hub_provenance["n_dropped_genes"],
         "readiness_score": readiness.get("readiness_score", 0),
         "readiness": readiness,
         "dataset_meta": dataset_meta,

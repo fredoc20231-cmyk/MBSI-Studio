@@ -550,14 +550,70 @@ def compute_niche_preservation(
     return float(np.mean(corrs)) if corrs else 0.0
 
 
+def compute_gene_overlap_report(
+    true_adata: ad.AnnData,
+    reconstructed_adata: ad.AnnData,
+) -> Dict[str, int]:
+    """Report shared vs dropped genes between truth and reconstruction."""
+    true_genes = set(map(str, true_adata.var_names))
+    recon_genes = set(map(str, reconstructed_adata.var_names))
+    shared = true_genes & recon_genes
+    return {
+        "n_shared_genes": len(shared),
+        "n_dropped_genes": len(true_genes - recon_genes),
+        "n_recon_only_genes": len(recon_genes - true_genes),
+    }
+
+
+def infer_benchmark_mode(
+    true_adata: ad.AnnData,
+    dataset_meta: Optional[Dict[str, Any]] = None,
+) -> str:
+    """
+    Classify benchmark dataset mode: real | proxy | synthetic.
+
+    - synthetic: generated ground truth
+    - real: uploaded/session data with spatial + cell labels
+    - proxy: real-ish data missing labels or full validation
+    """
+    meta = dataset_meta or {}
+    mode = meta.get("mode", "synthetic")
+    if mode == "synthetic":
+        return "synthetic"
+    validation = meta.get("validation") or {}
+    has_labels = "cell_type" in true_adata.obs.columns or "label" in true_adata.obs.columns
+    if validation.get("ready") and has_labels and "spatial" in true_adata.obsm:
+        return "real"
+    return "proxy"
+
+
+def compute_benchmark_provenance(
+    true_adata: ad.AnnData,
+    reconstructed_adata: ad.AnnData,
+    dataset_meta: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Explicit benchmark reporting fields for hub export and UI."""
+    overlap = compute_gene_overlap_report(true_adata, reconstructed_adata)
+    has_cell_type_labels = "cell_type" in true_adata.obs.columns
+    has_ground_truth = infer_benchmark_mode(true_adata, dataset_meta) != "synthetic"
+    return {
+        **overlap,
+        "has_cell_type_labels": bool(has_cell_type_labels),
+        "has_ground_truth": bool(has_ground_truth),
+        "benchmark_mode": infer_benchmark_mode(true_adata, dataset_meta),
+    }
+
+
 def compute_benchmark_metrics(
     true_adata: ad.AnnData,
     reconstructed_adata: ad.AnnData,
     pseudo_spot_adata: Optional[ad.AnnData] = None,
     runtime_sec: float = 0.0,
     peak_memory_mb: float = 0.0,
+    dataset_meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Hub-facing metrics with standardized keys and runtime/memory."""
+    provenance = compute_benchmark_provenance(true_adata, reconstructed_adata, dataset_meta)
     base = compute_all_metrics(true_adata, reconstructed_adata, pseudo_spot_adata)
     if "error" in base:
         return {
@@ -567,6 +623,7 @@ def compute_benchmark_metrics(
             "error": base["error"],
             "runtime_sec": runtime_sec,
             "peak_memory_mb": peak_memory_mb,
+            **provenance,
         }
 
     boundary_leak = base.get("boundary_leakage")
@@ -589,6 +646,7 @@ def compute_benchmark_metrics(
         "spatial_correlation": base.get("spatial_correlation"),
         "runtime_sec": float(runtime_sec),
         "peak_memory_mb": float(peak_memory_mb),
+        **provenance,
     }
 
 

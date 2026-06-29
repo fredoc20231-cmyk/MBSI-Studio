@@ -15,11 +15,16 @@ from mbsi.reports.registry import get_notebook_entries, get_registered_outputs
 def _session_snapshot() -> Dict[str, Any]:
     import streamlit as st
 
+    analysis = st.session_state.get("analysis_results")
     return {
         "benchmark_results": st.session_state.get("benchmark_results"),
         "communication_results": st.session_state.get("communication_results"),
         "tme_results": st.session_state.get("tme_results"),
         "discovery_results": st.session_state.get("discovery_results"),
+        "analysis_results": analysis,
+        "marker_table": st.session_state.get("marker_table"),
+        "spatial_stats": st.session_state.get("spatial_stats"),
+        "using_synthetic_demo": st.session_state.get("using_synthetic_demo", True),
         "last_run": st.session_state.get("last_run"),
         "registered": get_registered_outputs(),
         "notebook": get_notebook_entries(),
@@ -69,6 +74,23 @@ def generate_final_html_report(output_dir: Path, snapshot: Optional[Dict[str, An
         f"<li>{f.get('module')}: {f.get('title')} — {f.get('text', '')}</li>"
         for f in reg.get("findings", [])
     )
+    analysis = snap.get("analysis_results")
+    analysis_block = ""
+    if analysis:
+        demo_label = " (demo data)" if snap.get("using_synthetic_demo") else " (uploaded data)"
+        adata = analysis.get("adata")
+        n_clusters = adata.obs["cluster"].nunique() if adata is not None and "cluster" in adata.obs else "—"
+        qc = analysis.get("qc_summary")
+        markers = snap.get("marker_table")
+        stats = snap.get("spatial_stats")
+        analysis_block = f"""
+<h2>Spatial Analysis{demo_label}</h2>
+<ul>
+<li>Clusters: {n_clusters}</li>
+<li>QC summary rows: {len(qc) if qc is not None else 0}</li>
+<li>Marker rows: {len(markers) if markers is not None else 0}</li>
+<li>Spatial stats genes: {len(stats) if stats is not None else 0}</li>
+</ul>"""
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>MBSI Final Report</title>
 <style>
@@ -79,6 +101,7 @@ pre {{ white-space: pre-wrap; background: #0d1828; padding: 1rem; border-radius:
 </style></head><body>
 <h1>MBSI Studio — Final Report</h1>
 <div class="disclaimer">{BIOMARKER_DISCLAIMER}</div>
+{analysis_block}
 <h2>Results Notebook ({len(notebook)} entries)</h2>
 <div class="notebook">{_notebook_html(notebook)}</div>
 <h2>Registered Figures</h2><ul>{fig_rows or '<li>None</li>'}</ul>

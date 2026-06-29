@@ -13,7 +13,6 @@ PLOTLY_CONFIG = {
     "displayModeBar": True,
     "displaylogo": False,
     "scrollZoom": True,
-    "modeBarButtonsToAdd": ["drawclosedpath", "eraseshape"],
     "toImageButtonOptions": {"format": "png", "filename": "mbsi_figure", "scale": 2},
 }
 

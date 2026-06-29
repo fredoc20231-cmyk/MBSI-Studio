@@ -2,15 +2,14 @@
 
 import streamlit as st
 from app.components.page_utils import OUTPUT_DIR
-from app.workspaces._helpers import demo_banner
 from mbsi.reports.final_report import create_data_bundle, generate_final_html_report, generate_final_pdf_report
 from mbsi.reports.registry import get_notebook_entries, get_registered_outputs
 
 
 def _generate(kind: str) -> None:
     entries = get_notebook_entries()
-    if not entries:
-        st.warning("Notebook is empty — run analyses first to auto-register outputs.")
+    if not entries and st.session_state.get("analysis_results") is None:
+        st.warning("Notebook is empty — run upload/analysis or discovery first.")
     if kind == "html":
         path = generate_final_html_report(OUTPUT_DIR)
         st.success(f"HTML report: {path}")
@@ -23,7 +22,12 @@ def _generate(kind: str) -> None:
 
 
 def render():
-    demo_banner()
+    using_demo = st.session_state.get("using_synthetic_demo", True)
+    if using_demo:
+        st.warning("Report includes demo/synthetic data — upload real data for production exports.")
+    else:
+        st.success("Report will include uploaded real data and analysis outputs.")
+
     st.markdown(
         '<span class="saas-report-final-badge">Final deliverable</span>',
         unsafe_allow_html=True,
@@ -31,11 +35,25 @@ def render():
     st.markdown("### Report & Export")
     reg = get_registered_outputs()
     entries = get_notebook_entries()
+    analysis = st.session_state.get("analysis_results")
+    markers = st.session_state.get("marker_table")
+    spatial_stats = st.session_state.get("spatial_stats")
+
     st.caption(
         f"Notebook: {len(entries)} entries — "
         f"{len(reg.get('figures', []))} figures, {len(reg.get('tables', []))} tables, "
-        f"{len(reg.get('findings', []))} findings (auto-included in export)"
+        f"{len(reg.get('findings', []))} findings"
     )
+
+    if analysis:
+        st.markdown("**Spatial analysis included**")
+        qc = analysis.get("qc_summary")
+        if qc is not None and hasattr(qc, "empty") and not qc.empty:
+            st.caption(f"QC summary: {len(qc)} rows")
+        if markers is not None and hasattr(markers, "empty") and not markers.empty:
+            st.caption(f"Markers: {len(markers)} rows")
+        if spatial_stats is not None and hasattr(spatial_stats, "empty") and not spatial_stats.empty:
+            st.caption(f"Spatial stats: {len(spatial_stats)} genes")
 
     action = st.session_state.pop("ribbon_action", None)
     if action == "gen_html":

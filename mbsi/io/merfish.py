@@ -8,4 +8,6 @@ import anndata as ad
 
 
 def load_merfish(path) -> Tuple[ad.AnnData, Dict[str, Any]]:
-    raise NotImplementedError("MERFISH ingestion is Phase 2")
+    raise NotImplementedError(
+        "MERFISH ingestion is partial support stub — provide counts h5ad with obsm['spatial']"
+    )

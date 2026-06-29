@@ -1,11 +1,15 @@
-"""Discovery workspace — Finding → Evidence → Confidence."""
+"""Unified Discovery Intelligence workspace."""
 
 import streamlit as st
+
 from app.components.interactive_figures import render_interactive_plot
 from app.components.page_utils import OUTPUT_DIR
 from app.components.safe import safe_get
 from app.workspaces._helpers import add_finding, demo_banner, safe_register_finding
+from app.workspaces._discovery_runners import run_communication, run_tme
 from mbsi.discovery import export_discovery_engine, run_discovery_engine
+from mbsi.schema.workflow import WORKFLOW_SUBSTEPS, WorkflowModule
+from mbsi.workflows.discover import run_discover_workflow
 
 
 def _confidence_badge(level: str) -> str:
@@ -22,45 +26,26 @@ def _confidence_badge(level: str) -> str:
 def _run_discovery() -> None:
     seed = int(st.session_state.get("ctx_discovery_seed", 42))
     readiness = st.session_state.get("mbsi_readiness")
-    try:
-        out = run_discovery_engine(seed=seed, readiness=readiness)
-        st.session_state.discovery_results = out
-        st.session_state.findings = out.get("findings", [])
-        st.session_state.evidence = out.get("evidence", [])
-        st.session_state.discovery_graph = out.get("discovery_graph")
-        st.session_state.benchmark_results = out.get("benchmark_results")
-        st.session_state.communication_results = out.get("communication_results")
-        st.session_state.tme_results = out.get("tme_results")
-        export_discovery_engine(out, OUTPUT_DIR)
-        st.session_state.last_run = "Discovery Engine"
-        for w in out.get("warnings", []):
-            st.session_state.setdefault("saas_warnings", []).append(w)
-        for f in out.get("findings", [])[:5]:
-            add_finding(f.get("title", "Finding"), f.get("summary", ""), module="discovery")
-            safe_register_finding(
-                f.get("summary", ""),
-                section="discovery",
-                module="discovery",
-                title=f.get("title", "Finding"),
-            )
-        safe_register_finding(
-            f"Discovery: {len(out.get('findings', []))} findings, status {out.get('status')}",
-            section="discovery",
-            module="discovery",
-            title="Pipeline complete",
-        )
-    except Exception as exc:
-        st.warning(f"Discovery failed: {exc}")
+    run = run_discover_workflow(readiness=readiness, seed=seed)
+    if run.status != "success":
+        st.warning(run.warnings[0] if run.warnings else "Discovery failed")
+        return
+    out = run.outputs.get("discovery_results", {})
+    st.session_state.discovery_results = out
+    st.session_state.findings = out.get("findings", [])
+    st.session_state.evidence = out.get("evidence", [])
+    st.session_state.discovery_graph = out.get("discovery_graph")
+    st.session_state.benchmark_results = out.get("benchmark_results")
+    st.session_state.communication_results = out.get("communication_results")
+    st.session_state.tme_results = out.get("tme_results")
+    export_discovery_engine(out, OUTPUT_DIR)
+    st.session_state.last_run = "Discovery Intelligence"
+    st.session_state.run_outputs["discovery"] = run.to_dict()
 
 
 def _render_top_findings(findings: list, evidence: list, benchmark: dict) -> None:
     st.markdown("### Top Findings")
     evidence_by_id = {e.get("evidence_id"): e for e in evidence}
-    bench_support = 0.0
-    lb = safe_get(benchmark, "leaderboard") if benchmark else None
-    if lb is not None and hasattr(lb, "empty") and not lb.empty:
-        bench_support = float(lb.iloc[0].get("gene_pearson", 0)) * 100
-
     sorted_findings = sorted(findings, key=lambda f: f.get("confidence_score", 0), reverse=True)
     for f in sorted_findings[:8]:
         level = f.get("confidence_level", "Hypothesis")
@@ -69,59 +54,68 @@ def _render_top_findings(findings: list, evidence: list, benchmark: dict) -> Non
             f"**{f.get('title')}** {_confidence_badge(level)} · {score:.0f}/100",
             unsafe_allow_html=True,
         )
-        st.caption(f"{f.get('finding_type')} · {f.get('module')}")
-        if bench_support > 0:
-            st.caption(f"Benchmark support: {bench_support:.0f}%")
         with st.expander("Evidence", expanded=False):
             for eid in f.get("evidence_ids", []):
                 ev = evidence_by_id.get(eid)
                 if ev:
-                    st.markdown(f"- **{ev.get('title')}** ({ev.get('evidence_type')}) — {ev.get('description', '')}")
+                    st.markdown(f"- **{ev.get('title')}** — {ev.get('description', '')}")
 
 
 def render():
-    using_demo = st.session_state.get("using_synthetic_demo", True)
-    platform = st.session_state.get("mbsi_platform")
-    if using_demo:
-        demo_banner()
-        st.warning("Discovery runs on demo orchestration — upload real data for dataset-specific insights.")
-    elif platform:
-        readiness = st.session_state.get("mbsi_readiness", {})
-        st.success(f"Real data loaded ({platform}) — readiness: {readiness.get('status', 'unknown')}")
+    demo_banner()
+    st.markdown("### Discovery Intelligence")
+    substeps = WORKFLOW_SUBSTEPS[WorkflowModule.DISCOVERY.value]
+    tab_labels = [s.replace("_", " ").title() for s in substeps]
+    tabs = st.tabs(tab_labels)
 
-    action = st.session_state.pop("ribbon_action", None)
-    if action == "run_discovery":
-        _run_discovery()
-    elif action == "export_discovery":
-        st.toast("Discovery summary added to notebook for export.")
+    with tabs[0]:
+        st.caption("L-R signaling and pathway communication")
+        if st.button("Run Communication", key="disc_run_comm"):
+            run_communication()
+        results = st.session_state.get("communication_results")
+        if results:
+            rankings = results.get("pathway_rankings")
+            if rankings is not None and hasattr(rankings, "empty") and not rankings.empty:
+                st.dataframe(rankings.head(10), use_container_width=True)
 
-    st.markdown("### Biopharma Discovery Engine")
-    st.caption("Finding → Evidence → Confidence → Report")
-    if st.button("Run Discovery Pipeline", type="primary", key="ws_run_discovery"):
-        _run_discovery()
+    with tabs[1]:
+        st.caption("TME niche detection")
+        if st.button("Run TME Niches", key="disc_run_tme"):
+            run_tme()
+        tme = st.session_state.get("tme_results")
+        if tme and tme.get("summary") is not None:
+            st.dataframe(tme["summary"], use_container_width=True)
 
-    results = st.session_state.get("discovery_results")
-    findings = st.session_state.get("findings") or (results or {}).get("findings", [])
-    if not results and not findings:
-        st.info("Run full discovery pipeline.")
-        return
+    niche_tabs = {
+        2: "Immune exclusion scoring (demo stub)",
+        3: "CAF barrier niches (demo stub)",
+        4: "TLS detection (demo stub)",
+        5: "Hypoxia niches (demo stub)",
+        6: "Angiogenesis fronts (demo stub)",
+        7: "Invasion fronts (demo stub)",
+    }
+    for idx, caption in niche_tabs.items():
+        with tabs[idx]:
+            st.info(caption)
 
-    st.metric("Status", results.get("status", "unknown") if results else "loaded")
-    st.metric("Findings", len(findings))
+    with tabs[8]:
+        st.caption("Spatial biomarker panels")
+        if st.button("Run full Discovery Engine", type="primary", key="disc_run_engine"):
+            _run_discovery()
 
-    evidence = st.session_state.get("evidence") or (results or {}).get("evidence", [])
-    benchmark = results.get("benchmark_results") if results else st.session_state.get("benchmark_results")
-    _render_top_findings(findings, evidence, benchmark)
+    with tabs[9]:
+        st.caption("Causal driver hypotheses from discovery graph")
 
-    validations = (results or {}).get("validation_recommendations", [])
-    if validations:
-        with st.expander("Validation recommendations"):
-            for v in validations[:5]:
-                st.markdown(f"**{v.get('title')}**")
-                for rec in v.get("recommendations", [])[:2]:
-                    st.caption(f"• {rec}")
+    with tabs[10]:
+        recs = safe_get(st.session_state.get("discovery_results"), "validation_recommendations")
+        if recs:
+            for r in recs[:5]:
+                st.markdown(f"- {r.get('title', r)}")
+        else:
+            st.info("Run Discovery Engine for validation recommendations.")
 
-    lb = safe_get(benchmark, "leaderboard") if benchmark else None
-    if lb is not None and hasattr(lb, "empty") and not lb.empty:
-        from mbsi.visualization.benchmark_plots import plot_leaderboard_bars
-        render_interactive_plot(plot_leaderboard_bars(lb), title="Discovery Benchmark", module="discovery", key="disc_bench")
+    findings = st.session_state.get("findings") or []
+    evidence = st.session_state.get("evidence") or []
+    if findings:
+        st.divider()
+        _render_top_findings(findings, evidence, st.session_state.get("benchmark_results"))

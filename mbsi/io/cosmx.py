@@ -8,4 +8,6 @@ import anndata as ad
 
 
 def load_cosmx(path) -> Tuple[ad.AnnData, Dict[str, Any]]:
-    raise NotImplementedError("CosMx ingestion is Phase 2")
+    raise NotImplementedError(
+        "CosMx ingestion is partial support stub — export flatFiles exprMat + FOV positions as h5ad"
+    )

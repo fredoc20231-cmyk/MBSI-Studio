@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+import anndata as ad
+import pandas as pd
 
 from mbsi.discovery_model.entities import Evidence, Finding
 from mbsi.discovery_model.ontology import FINDING_TYPE_LABELS
 
 
-NODE_TYPES = ("Cell", "Neighborhood", "Niche", "Pathway", "Biomarker", "Finding", "Outcome")
-EDGE_TYPES = ("participates_in", "associated_with", "enriched_in", "supported_by", "drives")
+NODE_TYPES = ("Bin", "Cell", "Region", "Neighborhood", "Niche", "Pathway", "Biomarker", "Finding", "Outcome")
+EDGE_TYPES = ("contained_in", "adjacent_to", "transition_to", "participates_in", "associated_with", "enriched_in", "supported_by", "drives")
 
 
 def _node_type_for_finding(finding_type: str) -> str:
@@ -28,9 +31,48 @@ def _node_type_for_finding(finding_type: str) -> str:
     return mapping.get(finding_type, "Finding")
 
 
+def populate_stereo_seq_spatial_graph(adata: ad.AnnData) -> Dict[str, Any]:
+    """
+    Populate Bin → Cell → Neighborhood → Niche graph from Stereo-seq AnnData obs/obsm.
+
+    Returns nodes/edges fragment to merge into discovery graph.
+    """
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
+    if "spatial" not in adata.obsm:
+        return {"nodes": nodes, "edges": edges}
+
+    scale = adata.obs.get("stereo_scale", "bin")
+    default_scale = str(scale.iloc[0]) if hasattr(scale, "iloc") else str(scale)
+
+    for i, obs_name in enumerate(adata.obs_names[: min(500, adata.n_obs)]):
+        node_type = "Bin" if default_scale == "bin" else "Cell"
+        if "cell_id" in adata.obs and pd.notna(adata.obs["cell_id"].iloc[i]):
+            node_type = "Cell"
+        nid = f"spatial:{obs_name}"
+        nodes.append({"id": nid, "type": node_type, "label": str(obs_name)})
+        if "region_id" in adata.obs:
+            rid = adata.obs["region_id"].iloc[i]
+            region_node = f"region:{rid}"
+            if not any(n["id"] == region_node for n in nodes):
+                nodes.append({"id": region_node, "type": "Region", "label": str(rid)})
+            edges.append({"source": nid, "target": region_node, "type": "contained_in"})
+
+    if "cluster" in adata.obs:
+        for cl in adata.obs["cluster"].astype(str).unique()[:20]:
+            niche_id = f"niche:{cl}"
+            nodes.append({"id": niche_id, "type": "Niche", "label": f"Niche {cl}"})
+            members = adata.obs_names[adata.obs["cluster"].astype(str) == cl][:50]
+            for obs_name in members:
+                edges.append({"source": f"spatial:{obs_name}", "target": niche_id, "type": "contained_in"})
+
+    return {"nodes": nodes, "edges": edges}
+
+
 def build_discovery_graph(
     findings: List[Finding],
     evidence_list: List[Evidence],
+    adata: Optional[ad.AnnData] = None,
 ) -> Dict[str, Any]:
     """Build nodes/edges dict for visualization and AI grounding."""
     evidence_by_id = {e.evidence_id: e for e in evidence_list}
@@ -84,6 +126,27 @@ def build_discovery_graph(
                     "type": "enriched_in",
                 })
 
+    stereo_fragment: Dict[str, Any] = {"nodes": [], "edges": []}
+    if adata is not None and adata.uns.get("mbsi_platform") == "stereo_seq":
+        stereo_fragment = populate_stereo_seq_spatial_graph(adata)
+        nodes.extend(stereo_fragment["nodes"])
+        edges.extend(stereo_fragment["edges"])
+        for finding in findings:
+            if finding.finding_type in ("biomarker", "niche", "lr_pathway"):
+                biom_node = f"biomarker:{finding.finding_id}"
+                nodes.append({
+                    "id": biom_node,
+                    "type": "Biomarker",
+                    "label": finding.title,
+                })
+                niche_nodes = [n["id"] for n in stereo_fragment["nodes"] if n["type"] == "Niche"]
+                if niche_nodes:
+                    edges.append({
+                        "source": niche_nodes[0],
+                        "target": biom_node,
+                        "type": "transition_to",
+                    })
+
     return {
         "nodes": nodes,
         "edges": edges,
@@ -92,5 +155,6 @@ def build_discovery_graph(
             "n_evidence": len(evidence_list),
             "node_types": list(NODE_TYPES),
             "edge_types": list(EDGE_TYPES),
+            "stereo_seq_spatial_nodes": len(stereo_fragment.get("nodes", [])),
         },
     }

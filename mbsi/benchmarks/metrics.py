@@ -550,6 +550,89 @@ def compute_niche_preservation(
     return float(np.mean(corrs)) if corrs else 0.0
 
 
+def boundary_preservation_score(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+) -> float:
+    """Boundary preservation from label mismatch rate (higher = better)."""
+    leak = compute_boundary_leakage(true_adata, recon_adata) if "label" in true_adata.obs else None
+    if leak is None and "cell_type" in true_adata.obs.columns:
+        acc = compute_cell_type_accuracy(true_adata, recon_adata)
+        return float(acc)
+    if leak is not None:
+        return float(1.0 - leak)
+    return 0.0
+
+
+def communication_preservation_score(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+    ligand_genes: Optional[list] = None,
+) -> float:
+    """Compare spatial autocorrelation of ligand expression patterns."""
+    genes = ligand_genes or [g for g in ("CXCL12", "TGFB1", "VEGFA") if g in true_adata.var_names]
+    if not genes:
+        return 0.0
+    true_subset, recon_subset = align_reconstruction_to_truth(true_adata, recon_adata, genes)
+    coords = true_adata.obsm["spatial"]
+    return compute_spatial_correlation_aligned(true_subset, recon_subset, coords, genes)
+
+
+def gradient_preservation_score(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+    genes: Optional[list] = None,
+) -> float:
+    """Preserve spatial expression gradients along x/y axes."""
+    if "spatial" not in true_adata.obsm:
+        return 0.0
+    common = list(set(true_adata.var_names) & set(recon_adata.var_names))
+    if not common:
+        return 0.0
+    if genes:
+        common = [g for g in genes if g in common]
+    else:
+        X = true_adata[:, common].X
+        if hasattr(X, "toarray"):
+            X = X.toarray()
+        var = np.var(X, axis=0)
+        top = np.argsort(var)[-min(5, len(common)) :][::-1]
+        common = [common[i] for i in top]
+    true_subset, recon_subset = align_reconstruction_to_truth(true_adata, recon_adata, common)
+    coords = true_adata.obsm["spatial"]
+    corrs = []
+    for gi, gene in enumerate(common):
+        gx_t, _ = pearsonr(coords[:, 0], true_subset[:, gi])
+        gx_r, _ = pearsonr(coords[:, 0], recon_subset[:, gi])
+        if not np.isnan(gx_t) and not np.isnan(gx_r):
+            corrs.append(1.0 - abs(gx_t - gx_r))
+    return float(np.mean(corrs)) if corrs else 0.0
+
+
+def micro_niche_accuracy(
+    true_adata: ad.AnnData,
+    recon_adata: ad.AnnData,
+    k: int = 8,
+) -> float:
+    """Local composition similarity — alias extension of niche preservation."""
+    return compute_niche_preservation(true_adata, recon_adata, k=k)
+
+
+def compute_stereo_seq_benchmark_metrics(
+    true_adata: ad.AnnData,
+    reconstructed_adata: ad.AnnData,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    """Stereo-seq Evidence-compatible benchmark metrics."""
+    base = compute_benchmark_metrics(true_adata, reconstructed_adata, **kwargs)
+    base["boundary_preservation_score"] = boundary_preservation_score(true_adata, reconstructed_adata)
+    base["niche_preservation_score"] = compute_niche_preservation(true_adata, reconstructed_adata)
+    base["communication_preservation_score"] = communication_preservation_score(true_adata, reconstructed_adata)
+    base["gradient_preservation_score"] = gradient_preservation_score(true_adata, reconstructed_adata)
+    base["micro_niche_accuracy"] = micro_niche_accuracy(true_adata, reconstructed_adata)
+    return base
+
+
 def compute_gene_overlap_report(
     true_adata: ad.AnnData,
     reconstructed_adata: ad.AnnData,

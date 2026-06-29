@@ -15,21 +15,36 @@ from mbsi.morphology.segmentation import segment_cells
 def segment_nuclei(
     image: np.ndarray,
     min_size: int = 30,
-    method: str = "watershed",
+    method: str = "cellpose",
 ) -> np.ndarray:
     """
     Segment nuclei from tissue image.
 
     Returns labeled nuclei mask (H x W).
     """
+    method = (method or "cellpose").lower()
+    if method == "cellpose":
+        from mbsi.segmentation.adapters import segment_nuclei_cellpose
+        labels = segment_nuclei_cellpose(image)
+        if labels is not None and labels.max() > 0:
+            return labels
+        method = "watershed"
+
+    if method == "stardist":
+        from mbsi.segmentation.adapters import segment_nuclei_stardist
+        labels = segment_nuclei_stardist(image)
+        if labels is not None and labels.max() > 0:
+            return labels
+        method = "watershed"
+
+    if method == "cells":
+        return segment_cells(image, min_size=min_size, method="watershed")
+
     if image.ndim == 3:
         gray = np.dot(image[..., :3], [0.299, 0.587, 0.114])
     else:
         gray = image.astype(np.float64)
     gray = (gray - gray.min()) / (gray.max() - gray.min() + 1e-10)
-
-    if method == "cells":
-        return segment_cells(image, min_size=min_size, method="watershed")
 
     thresh = threshold_otsu(gray)
     binary = gray > thresh

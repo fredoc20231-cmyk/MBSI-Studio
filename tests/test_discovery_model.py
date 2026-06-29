@@ -57,5 +57,22 @@ def test_finding_store_session():
     assert restored.list_findings()[0].title == "Hypoxia"
 
 
+def test_finding_sample_context_fields():
+    f = Finding.create(
+        title="Sample-linked finding",
+        summary="Condition-specific signal",
+        finding_type=FindingType.NICHE.value,
+        module="tme",
+        sample_id="S1",
+        condition="Case",
+        replicate_id="R1",
+        platform="10x Visium",
+        comparison_group="Responder vs non-responder",
+    )
+    restored = Finding.from_dict(f.to_dict())
+    assert restored.sample_id == "S1"
+    assert restored.comparison_group == "Responder vs non-responder"
+
+
 def test_ontology_labels():
     assert FINDING_TYPE_LABELS[FindingType.LR_PATHWAY] == "Ligand-Receptor Pathway"

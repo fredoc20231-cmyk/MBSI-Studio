@@ -3,7 +3,6 @@
 from typing import Optional
 
 import numpy as np
-from scipy.spatial import Voronoi
 from skimage.segmentation import find_boundaries
 
 
@@ -28,15 +27,11 @@ def infer_cell_boundaries(
     raise ValueError("Provide nuclei_mask or image for boundary inference")
 
 
-def voronoi_cell_regions(coords: np.ndarray) -> np.ndarray:
+def voronoi_cell_regions(coords: np.ndarray, clip_mask: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Assign Voronoi-like cell regions from spatial coordinates.
 
     Returns integer region label per point (n_points,).
     """
-    if len(coords) < 4:
-        return np.arange(len(coords))
-
-    vor = Voronoi(coords)
-    # Assign each point its own index as region id (Voronoi cell owner)
-    return np.arange(len(coords))
+    from mbsi.segmentation.cells import generate_voronoi_cells
+    return generate_voronoi_cells(coords, clip_mask=clip_mask)

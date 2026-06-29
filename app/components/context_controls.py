@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app.components.module_registry import get_module
+from app.components.module_registry import get_module, resolve_module
 from app.components.page_utils import OUTPUT_DIR
 
 
@@ -125,22 +125,16 @@ def render_report_ribbon() -> None:
 
 
 def render_context_controls(active_module: str) -> None:
+    active_module = resolve_module(active_module)
     mod = get_module(active_module)
     if active_module == "benchmark":
         render_benchmark_ribbon()
     elif active_module == "discovery":
         render_discovery_ribbon()
-    elif active_module == "communication":
-        render_communication_ribbon()
-    elif active_module == "tme":
-        render_tme_ribbon()
-    elif active_module == "report":
+    elif active_module in ("report_export", "report", "notebook"):
         render_report_ribbon()
-    elif active_module == "ml_learning":
-        st.caption("Recommendations and feedback from prior runs")
+        st.caption("Notebook, HTML/PDF export, and data bundle")
     elif active_module == "ai_review":
         st.caption("Grounded Q&A — no external LLM")
-    elif active_module == "notebook":
-        st.caption("All registered outputs from this session")
     else:
         st.caption(mod.get("description", ""))

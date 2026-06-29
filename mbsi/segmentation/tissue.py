@@ -3,15 +3,19 @@
 from typing import Optional
 
 import numpy as np
-from scipy.spatial import Voronoi, voronoi_plot_2d
 from sklearn.cluster import KMeans
 
-from mbsi.morphology.image_features import compute_tissue_mask
+from mbsi.segmentation.adapters import (
+    segment_tissue_adaptive,
+    segment_tissue_otsu,
+    segment_tissue_sam,
+)
 
 
 def segment_tissue(
     image: Optional[np.ndarray] = None,
     coords: Optional[np.ndarray] = None,
+    method: str = "otsu",
     smoothing: float = 1.0,
     min_size: int = 100,
 ) -> np.ndarray:
@@ -21,10 +25,18 @@ def segment_tissue(
     Returns binary tissue mask (H x W) or region labels per spot/cell index.
     """
     if image is not None:
-        mask = compute_tissue_mask(image)
+        method = (method or "otsu").lower()
+        if method == "adaptive":
+            mask = segment_tissue_adaptive(image, min_size=min_size)
+        elif method == "sam":
+            mask = segment_tissue_sam(image)
+            if mask is None:
+                mask = segment_tissue_otsu(image, min_size=min_size)
+        else:
+            mask = segment_tissue_otsu(image, min_size=min_size)
         if smoothing > 1.0:
             from scipy import ndimage
-            mask = ndimage.binary_opening(mask, iterations=int(smoothing))
+            mask = ndimage.binary_opening(mask.astype(bool), iterations=int(smoothing))
         return mask.astype(np.uint8)
 
     if coords is None:

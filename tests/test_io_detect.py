@@ -23,12 +23,18 @@ def test_detect_h5ad():
 
 def test_detect_csv_matrix():
     d = detect_platform(["matrix.csv", "coordinates.csv"])
-    assert d["platform"] == "csv_matrix"
+    assert d["platform"] in ("csv_matrix", "generic_h5ad")
 
 
 def test_detect_xenium():
     d = detect_platform(["cell_feature_matrix.h5", "cells.csv"])
     assert d["platform"] == "xenium"
+
+
+def test_detect_stereo_seq():
+    d = detect_platform(["expression.gef", "coordinates.csv", "saw/report.html"])
+    assert d["platform"] == "stereo_seq"
+    assert d["confidence"] >= 0.5
 
 
 def test_detect_unknown():

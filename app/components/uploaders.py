@@ -1,6 +1,4 @@
-"""
-File upload components — delegates ingestion to mbsi.io.
-"""
+"""File upload components — delegates ingestion to mbsi.io."""
 
 from __future__ import annotations
 
@@ -17,6 +15,7 @@ from mbsi.io.compatibility import get_compatibility_matrix
 from mbsi.io.detect import detect_platform
 from mbsi.io.generic import ingest_csv_matrix_coords, ingest_h5ad
 from mbsi.io.ingest import ingest_upload, save_upload_to_temp
+from mbsi.io.stereo_seq import load_stereo_seq_dataset
 from mbsi.io.validators import compute_readiness
 
 
@@ -141,13 +140,38 @@ def segmentation_uploader() -> Optional[np.ndarray]:
         return None
 
 
+def stereo_seq_uploader() -> Optional[Dict[str, Any]]:
+    uploaded = st.file_uploader(
+        "Upload Stereo-seq folder as ZIP (GEF/CGEF, SAW, or CSV exports)",
+        type=["zip"],
+        key="stereo_seq_zip_uploader",
+    )
+    if uploaded is None:
+        return None
+    try:
+        temp_path = save_upload_to_temp(uploaded, ".zip")
+        result = ingest_upload(stereo_seq_path=temp_path, file_names=[uploaded.name])
+        if result.get("adata") is None:
+            st.error("Could not load Stereo-seq bundle from ZIP")
+            return None
+        adata = result["adata"]
+        lim = result.get("limitations") or result.get("stereo_seq", {}).get("limitations", [])
+        st.success(f"Stereo-seq loaded: {adata.n_obs:,} obs × {adata.n_vars} genes")
+        if lim:
+            st.warning("Partial load: " + "; ".join(lim))
+        return result
+    except Exception as exc:
+        st.error(f"Stereo-seq load failed: {exc}")
+        return None
+
+
 def upload_panel() -> dict:
     """Complete upload panel with platform detection and mbsi.io ingestion."""
     st.subheader("Data Upload")
 
     data: Dict[str, Any] = {}
-    tab_h5, tab_visium, tab_csv, tab_coords, tab_img, tab_seg = st.tabs(
-        ["h5ad", "Visium ZIP", "CSV Matrix", "Coordinates", "Image", "Segmentation"]
+    tab_h5, tab_visium, tab_stereo, tab_csv, tab_coords, tab_img, tab_seg = st.tabs(
+        ["h5ad", "Visium ZIP", "Stereo-seq ZIP", "CSV Matrix", "Coordinates", "Image", "Segmentation"]
     )
 
     with tab_h5:
@@ -159,6 +183,11 @@ def upload_panel() -> dict:
         visium_result = visium_uploader()
         if visium_result:
             data.update(visium_result)
+
+    with tab_stereo:
+        stereo_result = stereo_seq_uploader()
+        if stereo_result:
+            data.update(stereo_result)
 
     with tab_csv:
         data["count_matrix"] = csv_matrix_uploader()

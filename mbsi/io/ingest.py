@@ -13,12 +13,14 @@ from mbsi.io.compatibility import get_compatibility_matrix
 from mbsi.io.detect import detect_platform
 from mbsi.io.generic import ingest_csv_matrix_coords, ingest_h5ad
 from mbsi.io.visium import load_space_ranger
+from mbsi.io.stereo_seq import load_stereo_seq_dataset
 
 
 def ingest_upload(
     *,
     h5ad_path: Optional[Path] = None,
     visium_path: Optional[Path] = None,
+    stereo_seq_path: Optional[Path] = None,
     count_matrix: Optional[pd.DataFrame] = None,
     coordinates: Optional[pd.DataFrame] = None,
     file_names: Optional[list[str]] = None,
@@ -34,6 +36,9 @@ def ingest_upload(
 
     if visium_path is not None:
         adata, meta = load_space_ranger(visium_path)
+        detection = meta.get("detection", detection)
+    elif stereo_seq_path is not None:
+        adata, meta = load_stereo_seq_dataset(stereo_seq_path)
         detection = meta.get("detection", detection)
     elif h5ad_path is not None:
         adata, meta = ingest_h5ad(h5ad_path)
@@ -56,7 +61,7 @@ def ingest_upload(
     readiness = meta.get("readiness", adata.uns.get("mbsi_readiness", {}))
     compatibility = get_compatibility_matrix(adata, detection)
 
-    return {
+    result = {
         "adata": adata,
         "detection": detection,
         "readiness_score": score,
@@ -65,6 +70,12 @@ def ingest_upload(
         "platform": platform,
         "source": meta.get("source"),
     }
+    if platform == "stereo_seq":
+        result["stereo_seq_readiness"] = meta.get("stereo_seq_readiness", readiness)
+        result["stereo_seq"] = meta.get("stereo_seq", {})
+        result["limitations"] = meta.get("limitations", [])
+        result["platform_metadata"] = meta.get("stereo_seq", {})
+    return result
 
 
 def save_upload_to_temp(uploaded_file, suffix: str) -> Path:

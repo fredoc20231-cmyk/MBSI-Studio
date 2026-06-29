@@ -5,11 +5,62 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 
 from mbsi.confidence.engine import score_finding
-from mbsi.discovery_model.entities import Evidence, Finding
+from mbsi.schema.finding import finding_with_sample_context
+from mbsi.schema.project import ProjectMetadata
+from mbsi.schema.sample import SampleRecord
+from mbsi.discovery_model.entities import Finding
 from mbsi.discovery_model.evidence import create_evidence
 from mbsi.discovery_model.finding_store import FindingStore
 from mbsi.discovery_model.ontology import FindingType
 from mbsi.graph.builder import build_discovery_graph
+
+
+def _sample_context(readiness: Optional[Dict[str, Any]]) -> Dict[str, Optional[str]]:
+    """Extract primary sample context from project setup readiness payload."""
+    if not readiness:
+        return {}
+    samples = readiness.get("sample_metadata")
+    if not samples:
+        return {}
+    row: Dict[str, Any]
+    if isinstance(samples, list) and samples:
+        row = samples[0] if isinstance(samples[0], dict) else {}
+    elif hasattr(samples, "iloc"):
+        row = samples.iloc[0].to_dict()
+    else:
+        return {}
+
+    design = readiness.get("experimental_design") or {}
+    comparison = design.get("comparison_groups") or row.get("condition")
+    return {
+        "sample_id": row.get("sample_id"),
+        "condition": row.get("condition"),
+        "replicate_id": row.get("replicate_id"),
+        "platform": row.get("platform") or (readiness.get("platform_metadata") or {}).get("platforms", [None])[0]
+        if (readiness.get("platform_metadata") or {}).get("platforms")
+        else None,
+        "comparison_group": comparison,
+    }
+
+
+def _attach_sample_context(finding: Finding, readiness: Optional[Dict[str, Any]]) -> Finding:
+    ctx = _sample_context(readiness)
+    if not ctx or not ctx.get("sample_id"):
+        for field in ("sample_id", "condition", "replicate_id", "platform", "comparison_group"):
+            val = ctx.get(field)
+            if val is not None:
+                setattr(finding, field, val)
+        return finding
+    sample = SampleRecord.from_dict(
+        {
+            "sample_id": str(ctx.get("sample_id", "")),
+            "condition": str(ctx.get("condition", "")),
+            "replicate_id": str(ctx.get("replicate_id", "")),
+            "platform": str(ctx.get("platform", "")),
+            "comparison_group": str(ctx.get("comparison_group", "")),
+        }
+    )
+    return finding_with_sample_context(finding, sample=sample, comparison_group=ctx.get("comparison_group"))
 
 
 def _niche_finding_type(niche_type: str) -> str:
@@ -51,7 +102,7 @@ def build_dos_findings(
                 metadata={"method": top["method"], "gene_pearson": float(top.get("gene_pearson", 0))},
             )
             score_finding(finding, [ev], benchmark, readiness)
-            store.add(finding)
+            store.add(_attach_sample_context(finding, readiness))
 
     if isinstance(communication, dict):
         top_pathway = communication.get("top_pathway")
@@ -70,7 +121,7 @@ def build_dos_findings(
                 evidence_ids=[ev.evidence_id],
             )
             score_finding(finding, [ev], benchmark, readiness)
-            store.add(finding)
+            store.add(_attach_sample_context(finding, readiness))
 
         rankings = communication.get("pathway_rankings")
         if rankings is not None and hasattr(rankings, "head"):
@@ -89,7 +140,7 @@ def build_dos_findings(
                     evidence_ids=[ev.evidence_id],
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(finding)
+                store.add(_attach_sample_context(finding, readiness))
 
     if isinstance(tme, dict):
         summary = tme.get("summary")
@@ -113,7 +164,7 @@ def build_dos_findings(
                     metadata={"n_spots": n_spots},
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(finding)
+                store.add(_attach_sample_context(finding, readiness))
 
         prog = tme.get("program_summary")
         if prog is not None and hasattr(prog, "head"):
@@ -133,7 +184,7 @@ def build_dos_findings(
                     evidence_ids=[ev.evidence_id],
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(finding)
+                store.add(_attach_sample_context(finding, readiness))
 
         biomarkers = tme.get("biomarkers")
         if biomarkers is None:
@@ -154,7 +205,7 @@ def build_dos_findings(
                     evidence_ids=[ev.evidence_id],
                 )
                 score_finding(finding, [ev], benchmark, readiness)
-                store.add(finding)
+                store.add(_attach_sample_context(finding, readiness))
 
     graph = build_discovery_graph(store.list_findings(), store.list_evidence())
     return store, graph

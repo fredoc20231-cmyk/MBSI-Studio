@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 MODULE_ORDER = [
-    "project",
-    "upload",
+    "project_setup",
     "preprocess",
     "reconstruction",
     "spatial_analysis",
@@ -18,8 +17,7 @@ MODULE_ORDER = [
 ]
 
 NEXT_MAP = {
-    "project": ["upload", "discovery"],
-    "upload": ["preprocess", "reconstruction"],
+    "project_setup": ["preprocess", "reconstruction"],
     "preprocess": ["reconstruction", "spatial_analysis"],
     "reconstruction": ["spatial_analysis", "benchmark"],
     "spatial_analysis": ["benchmark", "communication"],
@@ -30,7 +28,7 @@ NEXT_MAP = {
     "report": ["ai_review", "ml_learning"],
     "ml_learning": ["discovery", "benchmark"],
     "ai_review": ["report", "ml_learning"],
-    "settings": ["project"],
+    "settings": ["project_setup"],
 }
 
 

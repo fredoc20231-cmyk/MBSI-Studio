@@ -8,7 +8,14 @@ from collections import defaultdict
 import streamlit as st
 
 from app.components.context_controls import render_context_controls
-from app.components.module_registry import MODULES, SECTION_ORDER, get_module, module_show_drawer
+from app.components.module_registry import (
+    LEGACY_MODULE_ALIASES,
+    MODULES,
+    SECTION_ORDER,
+    get_module,
+    module_show_drawer,
+    resolve_module,
+)
 from app.components.page_utils import init_session
 from app.components.results_drawer import render_right_results_drawer
 from app.components.statusbar import render_statusbar
@@ -16,29 +23,31 @@ from app.components.theme import init_theme_state, inject_theme_styles, render_t
 
 
 WORKSPACE_ROUTES = {
-    "project": "app.workspaces.project",
-    "upload": "app.workspaces.upload",
-    "preprocess": "app.workspaces.preprocess",
-    "segmentation": "app.workspaces.segmentation",
-    "reconstruction": "app.workspaces.reconstruction",
+    "study_setup": "app.workspaces.study_setup",
+    "qc_preprocess": "app.workspaces.qc_preprocess",
+    "segment_register": "app.workspaces.segment_register",
     "spatial_analysis": "app.workspaces.spatial_analysis",
+    "reconstruction": "app.workspaces.reconstruction",
     "benchmark": "app.workspaces.benchmark",
-    "communication": "app.workspaces.communication",
-    "tme": "app.workspaces.tme",
     "discovery": "app.workspaces.discovery",
-    "ml_learning": "app.workspaces.ml_learning",
     "ai_review": "app.workspaces.ai_review",
-    "notebook": "app.workspaces.notebook",
-    "report": "app.workspaces.report",
+    "report_export": "app.workspaces.report_export",
     "settings": "app.workspaces.settings",
 }
+
+# Legacy route redirects
+for _legacy, _canonical in LEGACY_MODULE_ALIASES.items():
+    WORKSPACE_ROUTES[_legacy] = WORKSPACE_ROUTES[_canonical]
 
 
 def init_saas_state() -> None:
     """Initialize session keys used by the SaaS shell."""
     init_session()
     init_theme_state()
-    st.session_state.setdefault("active_module", "project")
+    active = st.session_state.get("active_module", "study_setup")
+    st.session_state["active_module"] = resolve_module(active)
+    st.session_state.setdefault("active_module", "study_setup")
+    st.session_state.setdefault("selected_technology", "")
     st.session_state.setdefault("saas_warnings", [])
     st.session_state.setdefault("saas_findings", [])
     st.session_state.setdefault("run_outputs", {})
@@ -87,7 +96,7 @@ def render_project_panel() -> None:
         st.session_state.active_module = "discovery"
         st.rerun()
     if st.button("Generate report", key="saas_go_report", use_container_width=True):
-        st.session_state.active_module = "report"
+        st.session_state.active_module = "report_export"
         st.rerun()
 
 
@@ -124,7 +133,7 @@ def render_left_main_nav() -> None:
 
 def render_top_context_bar() -> None:
     """Ribbon controls — styled via .saas-top-bar-anchor on parent row."""
-    active_key = st.session_state.get("active_module", "project")
+    active_key = resolve_module(st.session_state.get("active_module", "study_setup"))
     mod = get_module(active_key)
     st.markdown('<span class="saas-top-bar-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
     title_col, control_col = st.columns([1.4, 4.6], gap="small")
@@ -142,8 +151,8 @@ def render_top_context_bar() -> None:
 
 def render_main_workspace() -> None:
     """Route selected module — styled via .saas-workspace-anchor on parent column."""
-    key = st.session_state.get("active_module", "project")
-    mod_path = WORKSPACE_ROUTES.get(key, WORKSPACE_ROUTES["project"])
+    key = resolve_module(st.session_state.get("active_module", "study_setup"))
+    mod_path = WORKSPACE_ROUTES.get(key, WORKSPACE_ROUTES["study_setup"])
     full_width = not module_show_drawer(key)
     anchor_cls = "saas-workspace-anchor saas-shell-anchor"
     if full_width:
@@ -174,7 +183,7 @@ def render_saas_app() -> None:
 
     with content_col:
         render_top_context_bar()
-        active_key = st.session_state.get("active_module", "project")
+        active_key = resolve_module(st.session_state.get("active_module", "study_setup"))
         if module_show_drawer(active_key):
             main_col, right_col = st.columns([4.55, 1.45], gap="small")
             with main_col:

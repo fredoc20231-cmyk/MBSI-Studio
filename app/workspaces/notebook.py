@@ -1,7 +1,5 @@
-"""Results Notebook workspace."""
+"""Deprecated — redirects to report_export."""
 
-from app.components.results_notebook import render_results_notebook
+from app.workspaces.report_export import render
 
-
-def render():
-    render_results_notebook(compact=False)
+__all__ = ["render"]

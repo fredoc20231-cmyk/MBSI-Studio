@@ -22,13 +22,13 @@ def render():
             run_name=st.session_state.last_run,
             metadata={"demo": True},
         )
-    recs = recommend_next_analysis(st.session_state.get("active_module", "project"))
+    recs = recommend_next_analysis(st.session_state.get("active_module", "project_setup"))
     if recs:
         st.markdown("**Suggested next steps**")
         for r in recs:
             st.write(f"- {r}")
     rating = st.select_slider("Was this helpful?", options=[1, 2, 3, 4, 5], value=3)
     if st.button("Submit feedback"):
-        record_user_feedback(st.session_state.get("active_module", "project"), rating)
+        record_user_feedback(st.session_state.get("active_module", "project_setup"), rating)
         add_finding("ML feedback", f"Recorded rating {rating}")
         st.toast("Feedback saved (local store).")

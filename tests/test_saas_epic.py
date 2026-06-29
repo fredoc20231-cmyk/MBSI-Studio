@@ -5,12 +5,15 @@ import pytest
 
 
 def test_module_registry():
-    from app.components.module_registry import MODULES, MODULE_KEYS, get_module
+    from app.components.module_registry import MODULES, MODULE_KEYS, get_module, resolve_module
 
-    assert len(MODULES) == 15
+    assert len(MODULES) == 10
     assert "discovery" in MODULE_KEYS
-    assert get_module("discovery")["label"] == "Discovery"
-    assert get_module("missing")["key"] == "project"
+    assert "study_setup" in MODULE_KEYS
+    assert get_module("discovery")["label"] == "Discovery Intelligence"
+    assert get_module("missing")["key"] == "study_setup"
+    assert resolve_module("project_setup") == "study_setup"
+    assert resolve_module("preprocess") == "qc_preprocess"
 
 
 def test_report_registry():
@@ -102,14 +105,29 @@ def test_saas_shell_imports():
 
 def test_workspace_imports():
     keys = [
-        "project", "upload", "preprocess", "segmentation", "reconstruction",
-        "spatial_analysis", "benchmark", "communication", "tme", "discovery",
-        "ml_learning", "ai_review", "notebook", "report", "settings",
+        "study_setup",
+        "qc_preprocess",
+        "segment_register",
+        "reconstruction",
+        "spatial_analysis",
+        "benchmark",
+        "discovery",
+        "ai_review",
+        "report_export",
+        "settings",
     ]
     import importlib
 
     for k in keys:
         mod = importlib.import_module(f"app.workspaces.{k}")
+        assert callable(mod.render)
+
+
+def test_legacy_workspace_redirects():
+    import importlib
+
+    for legacy in ("project_setup", "preprocess", "notebook", "report", "communication", "tme"):
+        mod = importlib.import_module(f"app.workspaces.{legacy}")
         assert callable(mod.render)
 
 

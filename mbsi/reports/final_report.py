@@ -10,13 +10,27 @@ from typing import Any, Dict, List, Optional
 
 from mbsi.reports.biomarker_report import BIOMARKER_DISCLAIMER, generate_biomarker_report_text
 from mbsi.reports.registry import get_notebook_entries, get_registered_outputs
+from mbsi.schema.report import ReportMetadata
 
 
 def _session_snapshot() -> Dict[str, Any]:
     import streamlit as st
 
     analysis = st.session_state.get("analysis_results")
+    sample_meta = st.session_state.get("sample_metadata")
+    if hasattr(sample_meta, "to_dict"):
+        sample_meta = sample_meta.to_dict("records")
     return {
+        "project_metadata": st.session_state.get("project_metadata"),
+        "experimental_design": st.session_state.get("experimental_design"),
+        "platform_metadata": st.session_state.get("platform_metadata"),
+        "sample_metadata": sample_meta,
+        "project_completeness": st.session_state.get("project_completeness"),
+        "dataset_readiness": st.session_state.get("dataset_readiness"),
+        "mbsi_platform": st.session_state.get("mbsi_platform"),
+        "stereo_seq_readiness": st.session_state.get("stereo_seq_readiness"),
+        "stereo_seq_profile": st.session_state.get("stereo_seq_profile"),
+        "uploaded_files_summary": _uploaded_files_from_session(),
         "benchmark_results": st.session_state.get("benchmark_results"),
         "communication_results": st.session_state.get("communication_results"),
         "tme_results": st.session_state.get("tme_results"),
@@ -27,6 +41,11 @@ def _session_snapshot() -> Dict[str, Any]:
         "analysis_results": analysis,
         "marker_table": st.session_state.get("marker_table"),
         "spatial_stats": st.session_state.get("spatial_stats"),
+        "segmentation_qc": st.session_state.get("segmentation_qc"),
+        "tissue_mask_present": st.session_state.get("tissue_mask") is not None,
+        "cell_mask_present": st.session_state.get("cell_mask") is not None,
+        "compartment_labels_present": st.session_state.get("compartment_labels") is not None,
+        "boundary_map_present": st.session_state.get("boundary_map") is not None,
         "using_synthetic_demo": st.session_state.get("using_synthetic_demo", True),
         "last_run": st.session_state.get("last_run"),
         "registered": get_registered_outputs(),
@@ -95,10 +114,134 @@ def _confidence_summary(findings: List[Dict[str, Any]]) -> str:
     return ", ".join(f"{k}: {v}" for k, v in sorted(levels.items()))
 
 
+def _uploaded_files_from_session() -> List[str]:
+    import streamlit as st
+
+    files: List[str] = []
+    if st.session_state.get("adata") is not None:
+        files.append("AnnData (spatial counts)")
+    if st.session_state.get("uploaded_image") is not None:
+        files.append("Histology image")
+    if st.session_state.get("uploaded_segmentation") is not None:
+        files.append("Segmentation mask")
+    if st.session_state.get("clinical_metadata") is not None:
+        files.append("Clinical metadata CSV")
+    if st.session_state.get("atac_data") is not None:
+        files.append("ATAC data")
+    if st.session_state.get("protein_data") is not None:
+        files.append("Protein / CODEX data")
+    if st.session_state.get("mutation_data") is not None:
+        files.append("Mutation / CNV data")
+    if st.session_state.get("ground_truth") is not None:
+        files.append("Ground-truth reference")
+    return files
+
+
+def _project_setup_html(snap: Dict[str, Any]) -> str:
+    meta = snap.get("project_metadata") or {}
+    design = snap.get("experimental_design") or {}
+    plat = snap.get("platform_metadata") or {}
+    samples = snap.get("sample_metadata") or []
+    n_samples = len(samples) if isinstance(samples, list) else "—"
+    files = snap.get("uploaded_files_summary") or []
+    if not meta and not design:
+        return "<p>No project setup metadata captured.</p>"
+    return f"""
+<h2>Project Setup</h2>
+<ul>
+<li><strong>Title:</strong> {meta.get('project_title') or '—'}</li>
+<li><strong>Biological question:</strong> {meta.get('biological_question') or '—'}</li>
+<li><strong>Study objective:</strong> {meta.get('study_objective') or '—'}</li>
+<li><strong>Organism:</strong> {meta.get('organism') or '—'}</li>
+<li><strong>Disease context:</strong> {meta.get('disease_context') or '—'}</li>
+<li><strong>Therapeutic context:</strong> {meta.get('therapeutic_context') or '—'}</li>
+<li><strong>Study type:</strong> {design.get('study_type') or '—'}</li>
+<li><strong>Samples:</strong> {n_samples}</li>
+<li><strong>Replicates:</strong> {design.get('has_replicates', '—')} ({design.get('replicate_type', '—')})</li>
+<li><strong>Comparison groups:</strong> {design.get('comparison_groups') or '—'}</li>
+<li><strong>Platforms:</strong> {', '.join(plat.get('platforms') or []) or '—'}</li>
+<li><strong>Modalities:</strong> {', '.join(plat.get('modalities') or []) or '—'}</li>
+<li><strong>Files used:</strong> {', '.join(files) or '—'}</li>
+<li><strong>Project completeness:</strong> {snap.get('project_completeness', '—')}/100</li>
+<li><strong>Dataset readiness:</strong> {snap.get('dataset_readiness', '—')}/100</li>
+</ul>"""
+
+
+def _stereo_seq_report_html(snap: Dict[str, Any]) -> str:
+    plat = snap.get("platform_metadata") or {}
+    platforms = plat.get("platforms") or []
+    mbsi_platform = snap.get("mbsi_platform") or ""
+    if mbsi_platform != "stereo_seq" and not any("Stereo-seq" in p for p in platforms):
+        return ""
+
+    stereo_ready = snap.get("stereo_seq_readiness") or {}
+    profile = snap.get("stereo_seq_profile") or {}
+    adata_summary = ""
+    analysis = snap.get("analysis_results") or {}
+    adata = analysis.get("adata")
+    if adata is not None:
+        n_bins = int((adata.obs.get("stereo_scale", "bin") == "bin").sum()) if "stereo_scale" in adata.obs else adata.n_obs
+        n_cells = int(adata.obs["cell_id"].notna().sum()) if "cell_id" in adata.obs else "—"
+        n_regions = adata.obs["region_id"].nunique() if "region_id" in adata.obs else "—"
+        adata_summary = f"""
+<ul>
+<li>Bins / observations: {adata.n_obs:,}</li>
+<li>Genes: {adata.n_vars:,}</li>
+<li>Cell-level obs: {n_cells}</li>
+<li>Regions: {n_regions}</li>
+<li>Readiness score: {stereo_ready.get('score', snap.get('dataset_readiness', '—'))}</li>
+<li>Analysis scale: {profile.get('active_scale', 'bin')}</li>
+</ul>"""
+
+    discovery = snap.get("discovery_results") or {}
+    stereo_findings = [f for f in (snap.get("findings") or []) if f.get("platform") == "stereo_seq"]
+    findings_block = _findings_html(stereo_findings) if stereo_findings else "<p>No Stereo-seq-specific discovery findings yet.</p>"
+
+    return f"""
+<h2>STOmics Stereo-seq</h2>
+<h3>Platform Summary</h3>
+<p>Ultra-high-resolution spatial transcriptomics with multi-scale bin/cell/region analysis.</p>
+<h3>Resolution Profile</h3>
+<p>Resolution class: ultra_high · Default scale: {profile.get('active_scale', 'bin')}</p>
+<h3>Bin / Cell Statistics</h3>
+{adata_summary or '<p>Upload Stereo-seq data to populate statistics.</p>'}
+<h3>Discovery Findings</h3>
+{findings_block}
+<h3>Confidence &amp; Validation</h3>
+<p>{_confidence_summary(stereo_findings or snap.get('findings') or [])}</p>
+<p>Validation: {_validation_html(snap.get('validation_recommendations') or discovery.get('validation_recommendations') or [])}</p>
+"""
+
+
+def _segmentation_report_html(snap: Dict[str, Any]) -> str:
+    qc = snap.get("segmentation_qc") or {}
+    metrics = qc.get("metrics", {}) if isinstance(qc, dict) else {}
+    warnings = qc.get("warnings", []) if isinstance(qc, dict) else []
+    if not qc and not snap.get("tissue_mask_present"):
+        return ""
+    warn_html = "<ul>" + "".join(f"<li>{w}</li>" for w in warnings) + "</ul>" if warnings else "<p>No warnings.</p>"
+    return f"""
+<h2>Segmentation &amp; Registration</h2>
+<ul>
+<li>Tissue mask: {'yes' if snap.get('tissue_mask_present') else 'no'}</li>
+<li>Cell mask: {'yes' if snap.get('cell_mask_present') else 'no'}</li>
+<li>Compartments: {'yes' if snap.get('compartment_labels_present') else 'no'}</li>
+<li>Boundary map: {'yes' if snap.get('boundary_map_present') else 'no'}</li>
+<li>QC pass: {qc.get('qc_pass', '—')}</li>
+<li>Confidence: {metrics.get('segmentation_confidence', '—')}</li>
+<li>Tissue coverage: {metrics.get('percent_tissue_covered', '—')}%</li>
+<li>Spots in tissue: {metrics.get('percent_spots_inside_tissue', '—')}%</li>
+</ul>
+<h3>Warnings</h3>
+{warn_html}
+<p><em>Downstream: spatial analysis filtering, TME boundaries, discovery findings.</em></p>"""
+
+
 def generate_final_html_report(output_dir: Path, snapshot: Optional[Dict[str, Any]] = None) -> Path:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     snap = snapshot or _session_snapshot()
+    report_meta = ReportMetadata.from_session_snapshot(snap)
     reg = snap.get("registered") or get_registered_outputs()
     notebook = snap.get("notebook") or get_notebook_entries()
     findings = snap.get("findings") or []
@@ -165,11 +308,14 @@ pre {{ white-space: pre-wrap; background: #0d1828; padding: 1rem; border-radius:
 <h1>MBSI Studio — Final Report</h1>
 <div class="disclaimer">{BIOMARKER_DISCLAIMER}</div>
 <h2>Executive Summary</h2><p>{exec_summary}</p>
+{_project_setup_html(snap)}
 <h2>Top Findings</h2>{_findings_html(findings)}
 <h2>Evidence Summary</h2>{_evidence_html(evidence)}
 <h2>Confidence Summary</h2><p>{_confidence_summary(findings)}</p>
 <h2>Pathways &amp; Biomarkers</h2>{_findings_html([f for f in findings if f.get('finding_type') in ('lr_pathway','pathway','biomarker','tme_program')])}
 <h2>Validation Recommendations</h2>{_validation_html(validations)}
+{_stereo_seq_report_html(snap)}
+{_segmentation_report_html(snap)}
 {analysis_block}
 <h2>Methods</h2><p>Discovery OS pipeline: benchmark hub, communication intelligence, TME analysis, confidence scoring.</p>
 <h2>Reproducibility</h2>
@@ -177,6 +323,8 @@ pre {{ white-space: pre-wrap; background: #0d1828; padding: 1rem; border-radius:
 <li>Run ID: {discovery.get('run_id', 'N/A')}</li>
 <li>Last run: {snap.get('last_run', 'N/A')}</li>
 <li>Notebook entries: {len(notebook)}</li>
+<li>Report traceability: {len(report_meta.finding_ids)} findings, {len(report_meta.evidence_ids)} evidence, {len(report_meta.samples)} samples</li>
+<li>Project: {report_meta.project.title or '—'}</li>
 </ul>
 <h2>Results Notebook ({len(notebook)} entries)</h2>
 <div class="notebook">{_notebook_html(notebook)}</div>

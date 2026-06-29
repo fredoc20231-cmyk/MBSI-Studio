@@ -1,11 +1,5 @@
-"""Segmentation workspace."""
+"""Deprecated — redirects to segment_register."""
 
-import streamlit as st
-from app.workspaces._helpers import ensure_demo, demo_banner
+from app.workspaces.segment_register import render
 
-
-def render():
-    demo_banner()
-    ensure_demo()
-    st.markdown("### Segmentation")
-    st.info("Segmentation uses demo histology boundaries. Open legacy page for full controls.")
+__all__ = ["render"]

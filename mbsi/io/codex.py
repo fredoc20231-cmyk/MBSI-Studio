@@ -8,4 +8,6 @@ import anndata as ad
 
 
 def load_codex(path) -> Tuple[ad.AnnData, Dict[str, Any]]:
-    raise NotImplementedError("CODEX ingestion is Phase 3")
+    raise NotImplementedError(
+        "CODEX ingestion is partial support stub — export cell intensity matrix + coordinates as CSV/h5ad"
+    )

@@ -233,7 +233,7 @@ def _qc_and_stats_html(snap: Dict[str, Any]) -> str:
     qc = snap.get("qc_settings") or {}
     pre = (snap.get("preprocess_settings") or {}).get("preprocess", {}).get("outputs", {})
     if not qc and not pre:
-        return "<p>No QC or statistical settings recorded — run QC & Preprocessing.</p>"
+        return "<p>No QC or statistical settings recorded — run QC & Transformation.</p>"
     return f"""
 <h2>QC Criteria &amp; Statistical Settings</h2>
 <ul>
@@ -262,7 +262,8 @@ def _methods_html(snap: Dict[str, Any]) -> str:
 <li>Clustering: {qc.get('clustering_method', 'Leiden')}</li>
 <li>Segmentation method: {seg_method}</li>
 <li>Discovery pipeline: benchmark hub, communication intelligence, TME analysis, confidence scoring</li>
-<li>Spatial analysis: PCA, kNN graph, marker ranking, Moran's I / Geary's C</li>
+<li>Spatial workflow: Study & Data → QC & Transformation → Visualization → SVG → Gene Sets → Domains → Phenotyping → DE → Gradients → MBSI moat modules</li>
+<li>Spatial analysis: PCA, kNN graph, marker ranking, Moran's I / Geary's C, spatial GSEA, domain detection</li>
 </ul>
 """
 
@@ -463,12 +464,13 @@ def generate_final_html_report(output_dir: Path, snapshot: Optional[Dict[str, An
         markers = snap.get("marker_table")
         stats = snap.get("spatial_stats")
         analysis_block = f"""
-<h2>Spatial Analysis{demo_label}</h2>
+<h2>SpatialGE Workflow Summary{demo_label}</h2>
 <ul>
 <li>Clusters: {n_clusters}</li>
 <li>QC summary rows: {len(qc) if qc is not None else 0}</li>
 <li>Marker rows: {len(markers) if markers is not None else 0}</li>
-<li>Spatial stats genes: {len(stats) if stats is not None else 0}</li>
+<li>Spatial variable genes: {len(stats) if stats is not None else 0}</li>
+<li>Modules: visualization, SVG, gene sets, domains, phenotyping, differential, gradients</li>
 </ul>"""
 
     html = f"""<!DOCTYPE html>

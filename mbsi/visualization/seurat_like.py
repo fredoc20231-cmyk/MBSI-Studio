@@ -112,3 +112,49 @@ def plot_marker_map(adata: ad.AnnData, genes: List[str]) -> go.Figure:
             vals = vals.toarray().flatten()
         fig.add_trace(go.Scatter(x=coords[:, 0], y=coords[:, 1], mode="markers", marker=dict(color=vals, colorscale="Viridis", size=4), name=gene), row=1, col=i + 1)
     return _apply(fig)
+
+
+def plot_quilt(
+    adata: ad.AnnData,
+    features: Optional[List[str]] = None,
+    n_cols: int = 3,
+) -> go.Figure:
+    """Interactive spatial QC quilt — counts, genes, mito, condition, cluster, region."""
+    if "spatial" not in adata.obsm:
+        return _apply(go.Figure())
+    default_obs = ["total_counts", "n_genes_by_counts", "pct_counts_mt", "condition", "sample_id", "cluster"]
+    if features is None:
+        features = [f for f in default_obs if f in adata.obs.columns][:6]
+        if not features and adata.n_vars:
+            features = list(adata.var_names[:3])
+    if not features:
+        return _apply(go.Figure())
+
+    n = len(features)
+    n_rows = (n + n_cols - 1) // n_cols
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=features)
+    coords = adata.obsm["spatial"]
+    for i, feat in enumerate(features):
+        row, col = i // n_cols + 1, i % n_cols + 1
+        if feat in adata.obs.columns:
+            vals = adata.obs[feat].values
+        elif feat in adata.var_names:
+            idx = list(adata.var_names).index(feat)
+            vals = adata.X[:, idx]
+            if hasattr(vals, "toarray"):
+                vals = vals.toarray().flatten()
+        else:
+            continue
+        fig.add_trace(
+            go.Scatter(
+                x=coords[:, 0],
+                y=coords[:, 1],
+                mode="markers",
+                marker=dict(color=vals, colorscale="Viridis", size=3, showscale=(i == 0)),
+                showlegend=False,
+            ),
+            row=row,
+            col=col,
+        )
+    fig.update_layout(title="Spatial QC quilt", height=280 * n_rows)
+    return _apply(fig)

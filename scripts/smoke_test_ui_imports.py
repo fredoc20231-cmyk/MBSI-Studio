@@ -31,9 +31,9 @@ def main() -> int:
     assert callable(render_statusbar)
     assert callable(render_analysis_subtabs)
     assert len(NAV_PAGES) == 14
-    assert len(MODULES) == 10
+    assert len(MODULES) == 16
     assert module_show_drawer("benchmark") is True
-    assert module_show_drawer("study_setup") is False
+    assert module_show_drawer("study_data") is False
     assert callable(render_saas_app)
     assert callable(init_saas_state)
     assert callable(init_theme_state)

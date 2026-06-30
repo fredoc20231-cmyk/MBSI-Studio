@@ -23,10 +23,16 @@ from app.components.theme import init_theme_state, inject_theme_styles, render_t
 
 
 WORKSPACE_ROUTES = {
-    "study_setup": "app.workspaces.study_setup",
-    "qc_preprocess": "app.workspaces.qc_preprocess",
+    "study_data": "app.workspaces.study_data",
+    "qc_transformation": "app.workspaces.qc_transformation",
+    "visualization": "app.workspaces.visualization",
+    "spatial_variable_genes": "app.workspaces.spatial_variable_genes",
+    "spatial_gene_sets": "app.workspaces.spatial_gene_sets",
+    "spatial_domains": "app.workspaces.spatial_domains",
+    "phenotyping": "app.workspaces.phenotyping",
+    "differential_analysis": "app.workspaces.differential_analysis",
+    "spatial_gradients": "app.workspaces.spatial_gradients",
     "segment_register": "app.workspaces.segment_register",
-    "spatial_analysis": "app.workspaces.spatial_analysis",
     "reconstruction": "app.workspaces.reconstruction",
     "benchmark": "app.workspaces.benchmark",
     "discovery": "app.workspaces.discovery",
@@ -35,7 +41,6 @@ WORKSPACE_ROUTES = {
     "settings": "app.workspaces.settings",
 }
 
-# Legacy route redirects
 for _legacy, _canonical in LEGACY_MODULE_ALIASES.items():
     WORKSPACE_ROUTES[_legacy] = WORKSPACE_ROUTES[_canonical]
 
@@ -44,9 +49,9 @@ def init_saas_state() -> None:
     """Initialize session keys used by the SaaS shell."""
     init_session()
     init_theme_state()
-    active = st.session_state.get("active_module", "study_setup")
+    active = st.session_state.get("active_module", "study_data")
     st.session_state["active_module"] = resolve_module(active)
-    st.session_state.setdefault("active_module", "study_setup")
+    st.session_state.setdefault("active_module", "study_data")
     st.session_state.setdefault("selected_technology", "")
     st.session_state.setdefault("saas_warnings", [])
     st.session_state.setdefault("saas_findings", [])
@@ -67,9 +72,9 @@ def render_product_header() -> None:
             </div>
           </div>
           <div class="saas-product-meta">
-            <span class="saas-pill saas-pill-green">Demo Mode</span>
+            <span class="saas-pill saas-pill-green">Real Data First</span>
             <span class="saas-pill">Research Use</span>
-            <span class="saas-pill">v2.0</span>
+            <span class="saas-pill">v2.1</span>
           </div>
         </div>
         """,
@@ -79,22 +84,28 @@ def render_product_header() -> None:
 
 def render_project_panel() -> None:
     """Static project card — buttons render as sibling Streamlit widgets below."""
+    project_name = st.session_state.get("project_name") or "No project loaded"
+    data_status = "Loaded" if st.session_state.get("adata") is not None else "Awaiting upload"
     st.markdown(
-        """
+        f"""
         <div class="saas-side-card">
           <div class="saas-side-title">Project</div>
-          <div class="saas-project-name">Ovarian Cancer — HGSOC</div>
+          <div class="saas-project-name">{project_name}</div>
           <div class="saas-mini-grid">
-            <div><span>Data</span><strong>Demo</strong></div>
-            <div><span>Status</span><strong>Ready</strong></div>
+            <div><span>Data</span><strong>{data_status}</strong></div>
+            <div><span>Status</span><strong>Guided</strong></div>
           </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
     if st.button("Run next step", key="saas_run_next", type="primary", use_container_width=True):
-        st.session_state.active_module = "discovery"
-        st.rerun()
+        from app.components.module_registry import next_module
+
+        nxt = next_module(st.session_state.get("active_module", "study_data"))
+        if nxt:
+            st.session_state.active_module = nxt
+            st.rerun()
     if st.button("Generate report", key="saas_go_report", use_container_width=True):
         st.session_state.active_module = "report_export"
         st.rerun()
@@ -113,9 +124,9 @@ def render_left_main_nav() -> None:
         if not mods:
             continue
         st.markdown(f'<div class="saas-nav-section">{section}</div>', unsafe_allow_html=True)
-        if section == "Intelligence":
+        if section == "MBSI Intelligence":
             st.markdown(
-                '<div class="saas-workflow-hint">Review outcomes → export final report</div>',
+                '<div class="saas-workflow-hint">Reconstruction → benchmark → discovery → AI review</div>',
                 unsafe_allow_html=True,
             )
         for mod in mods:
@@ -133,7 +144,7 @@ def render_left_main_nav() -> None:
 
 def render_top_context_bar() -> None:
     """Ribbon controls — styled via .saas-top-bar-anchor on parent row."""
-    active_key = resolve_module(st.session_state.get("active_module", "study_setup"))
+    active_key = resolve_module(st.session_state.get("active_module", "study_data"))
     mod = get_module(active_key)
     st.markdown('<span class="saas-top-bar-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
     title_col, control_col = st.columns([1.4, 4.6], gap="small")
@@ -151,8 +162,8 @@ def render_top_context_bar() -> None:
 
 def render_main_workspace() -> None:
     """Route selected module — styled via .saas-workspace-anchor on parent column."""
-    key = resolve_module(st.session_state.get("active_module", "study_setup"))
-    mod_path = WORKSPACE_ROUTES.get(key, WORKSPACE_ROUTES["study_setup"])
+    key = resolve_module(st.session_state.get("active_module", "study_data"))
+    mod_path = WORKSPACE_ROUTES.get(key, WORKSPACE_ROUTES["study_data"])
     full_width = not module_show_drawer(key)
     anchor_cls = "saas-workspace-anchor saas-shell-anchor"
     if full_width:
@@ -183,7 +194,7 @@ def render_saas_app() -> None:
 
     with content_col:
         render_top_context_bar()
-        active_key = resolve_module(st.session_state.get("active_module", "study_setup"))
+        active_key = resolve_module(st.session_state.get("active_module", "study_data"))
         if module_show_drawer(active_key):
             main_col, right_col = st.columns([4.55, 1.45], gap="small")
             with main_col:

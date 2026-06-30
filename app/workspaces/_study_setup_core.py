@@ -51,20 +51,25 @@ MODALITY_OPTIONS = [
 ]
 SAMPLE_COLUMNS = [
     "sample_id",
+    "sample_name",
     "patient_id",
     "condition",
     "timepoint",
     "replicate_id",
+    "batch_id",
     "technology",
-    "platform",
     "file_name",
     "tissue_region",
     "notes",
 ]
 ANALYSIS_ROWS = [
-    ("Study Setup", WorkflowModule.STUDY_SETUP.value),
-    ("QC & Preprocessing", WorkflowModule.QC_PREPROCESS.value),
-    ("Spatial Analysis", WorkflowModule.SPATIAL_ANALYSIS.value),
+    ("Study & Data", WorkflowModule.STUDY_DATA.value),
+    ("QC & Transformation", WorkflowModule.QC_TRANSFORMATION.value),
+    ("Visualization", WorkflowModule.VISUALIZATION.value),
+    ("Spatial Variable Genes", WorkflowModule.SPATIAL_VARIABLE_GENES.value),
+    ("Spatial Domains", WorkflowModule.SPATIAL_DOMAINS.value),
+    ("Differential Analysis", WorkflowModule.DIFFERENTIAL_ANALYSIS.value),
+    ("Segmentation & Registration", WorkflowModule.SEGMENT_REGISTER.value),
     ("MBSI Reconstruction", WorkflowModule.RECONSTRUCTION.value),
     ("Benchmark", WorkflowModule.BENCHMARK.value),
     ("Discovery Intelligence", WorkflowModule.DISCOVERY.value),
@@ -78,8 +83,11 @@ def _init_project_state() -> None:
         "project_metadata",
         {
             "project_title": "",
+            "sample_name": "",
             "disease_context": "",
             "biological_question": "",
+            "experimental_target": "",
+            "hypothesis": "",
             "study_objective": "",
             "organism": "Human",
             "therapeutic_context": "",
@@ -98,6 +106,9 @@ def _init_project_state() -> None:
             "primary_comparison": "",
             "secondary_comparisons": "",
             "patient_ids": "",
+            "batch_ids": "",
+            "paired_design": "No",
+            "controls": "",
         },
     )
     st.session_state.setdefault("platform_metadata", {"platforms": [], "modalities": []})
@@ -119,12 +130,13 @@ def _default_sample_rows(num_samples: int) -> pd.DataFrame:
         rows.append(
             {
                 "sample_id": f"S{i}",
+                "sample_name": f"Sample {i}",
                 "patient_id": f"P{i:03d}",
                 "condition": "Case" if i % 2 else "Control",
                 "timepoint": "Baseline",
                 "replicate_id": "R1",
+                "batch_id": "batch1",
                 "technology": tech_label,
-                "platform": tech_label,
                 "file_name": "",
                 "tissue_region": "Tumor core",
                 "notes": "",
@@ -171,6 +183,19 @@ def _render_project_description() -> None:
         value=meta.get("biological_question", ""),
         placeholder="What spatial biology question does this study address?",
         key="ps_biological_question",
+    )
+    meta["experimental_target"] = st.text_input(
+        "Experimental target",
+        value=meta.get("experimental_target", ""),
+        placeholder="e.g. PARP1, PD-L1, TME remodeling",
+        key="ps_experimental_target",
+        help="Critical for AI review grounding",
+    )
+    meta["hypothesis"] = st.text_area(
+        "Hypothesis",
+        value=meta.get("hypothesis", ""),
+        placeholder="Primary hypothesis for spatial analysis and AI review",
+        key="ps_hypothesis",
     )
     meta["study_objective"] = st.text_area(
         "Study objective",
@@ -255,6 +280,26 @@ def _render_experimental_design() -> None:
         placeholder="e.g. P001, P002, P003 — or leave blank and fill sample table",
         key="ps_patient_ids",
     )
+    c10, c11 = st.columns(2)
+    design["batch_ids"] = c10.text_input(
+        "Batch IDs (comma-separated)",
+        value=design.get("batch_ids", ""),
+        placeholder="e.g. batch1, batch2",
+        key="ps_batch_ids",
+    )
+    paired_opts = ["No", "Yes — patient-matched", "Yes — sample-matched"]
+    design["paired_design"] = c11.selectbox(
+        "Paired design",
+        paired_opts,
+        index=paired_opts.index(design.get("paired_design", "No")) if design.get("paired_design") in paired_opts else 0,
+        key="ps_paired_design",
+    )
+    design["controls"] = st.text_input(
+        "Controls",
+        value=design.get("controls", ""),
+        placeholder="e.g. Vehicle, untreated, normal tissue",
+        key="ps_controls",
+    )
     st.session_state.experimental_design = design
 
 
@@ -269,12 +314,13 @@ def _render_sample_table() -> None:
         key="ps_sample_editor",
         column_config={
             "sample_id": st.column_config.TextColumn("Sample ID", required=True),
+            "sample_name": st.column_config.TextColumn("Sample name"),
             "patient_id": st.column_config.TextColumn("Patient ID"),
             "condition": st.column_config.TextColumn("Condition"),
             "timepoint": st.column_config.TextColumn("Timepoint"),
             "replicate_id": st.column_config.TextColumn("Replicate"),
+            "batch_id": st.column_config.TextColumn("Batch ID"),
             "technology": st.column_config.SelectboxColumn("Technology", options=PLATFORM_OPTIONS),
-            "platform": st.column_config.SelectboxColumn("Platform", options=PLATFORM_OPTIONS),
             "file_name": st.column_config.TextColumn("File name"),
             "tissue_region": st.column_config.TextColumn("Tissue region"),
             "notes": st.column_config.TextColumn("Notes"),

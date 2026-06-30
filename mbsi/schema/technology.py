@@ -11,6 +11,7 @@ class TechnologySpec:
     key: str
     label: str
     required_files: List[str] = field(default_factory=list)
+    optional_files: List[str] = field(default_factory=list)
     compatible_analyses: List[str] = field(default_factory=list)
     qc_metrics: List[str] = field(default_factory=list)
     normalization_strategy: str = ""
@@ -25,6 +26,7 @@ class TechnologySpec:
             "key": self.key,
             "label": self.label,
             "required_files": list(self.required_files),
+            "optional_files": list(self.optional_files),
             "compatible_analyses": list(self.compatible_analyses),
             "qc_metrics": list(self.qc_metrics),
             "normalization_strategy": self.normalization_strategy,
@@ -37,9 +39,16 @@ class TechnologySpec:
 
 
 _COMMON_ANALYSES = [
-    "qc_preprocess",
+    "study_data",
+    "qc_transformation",
+    "visualization",
+    "spatial_variable_genes",
+    "spatial_gene_sets",
+    "spatial_domains",
+    "phenotyping",
+    "differential_analysis",
+    "spatial_gradients",
     "segment_register",
-    "spatial_analysis",
     "reconstruction",
     "discovery",
     "report_export",
@@ -52,8 +61,11 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         required_files=[
             "filtered_feature_bc_matrix.h5 or matrix.mtx",
             "spatial/tissue_positions_list.csv",
-            "spatial/scalefactors_json.json (recommended)",
-            "spatial/tissue_hires_image.png (optional)",
+        ],
+        optional_files=[
+            "spatial/scalefactors_json.json",
+            "spatial/tissue_hires_image.png",
+            "spatial/tissue_lowres_image.png",
         ],
         compatible_analyses=_COMMON_ANALYSES + ["benchmark"],
         qc_metrics=["spots_under_tissue", "total_counts", "n_genes", "mito_pct", "ribo_pct"],
@@ -174,8 +186,8 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
             "cell intensity matrix (csv)",
             "cell coordinates / segmentation",
             "channel marker panel definition",
-            "tissue image (optional)",
         ],
+        optional_files=["tissue image (tif/ome)", "cell masks (tiff/png)"],
         compatible_analyses=["qc_preprocess", "segment_register", "spatial_analysis", "discovery", "report_export"],
         qc_metrics=["signal-to-noise per channel", "cell segmentation quality", "background staining"],
         normalization_strategy="Arcsinh or percentile normalization per marker",
@@ -202,6 +214,28 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         benchmark_eligibility="Limited — requires matched scATAC reference",
         report_sections=["peak accessibility map", "gene activity", "motif enrichment"],
         notes="Loader stub — partial support",
+    ),
+    "slide_seq": TechnologySpec(
+        key="slide_seq",
+        label="Slide-seq",
+        required_files=[
+            "bead-by-gene matrix (csv/h5ad/mtx)",
+            "bead locations (csv with x/y or puck coordinates)",
+            "puck layout / array coordinates",
+        ],
+        optional_files=[
+            "H&E histology image",
+            "registered histology overlay",
+            "barcode-to-location mapping file",
+        ],
+        compatible_analyses=_COMMON_ANALYSES,
+        qc_metrics=["beads_under_tissue", "UMI per bead", "gene diversity", "puck coverage", "saturation"],
+        normalization_strategy="SCTransform or log-normalization on bead counts",
+        clustering_choices=["Leiden on beads", "Puck-aware spatial clustering"],
+        segmentation_logic="Bead-level (10 µm); histology-guided puck registration",
+        benchmark_eligibility="Limited — requires matched scRNA reference",
+        report_sections=["puck QC map", "bead saturation", "spatial gene expression", "SVG"],
+        notes="Slide-seq / Slide-seqV2 puck data; parser partial support",
     ),
     "generic_h5ad": TechnologySpec(
         key="generic_h5ad",
@@ -230,6 +264,7 @@ UI_TECHNOLOGY_OPTIONS = [
     ("NanoString CosMx", "cosmx"),
     ("STOmics Stereo-seq", "stereo_seq"),
     ("CODEX / multiplex IF", "codex"),
+    ("Slide-seq", "slide_seq"),
     ("Spatial ATAC", "spatial_atac"),
     ("Generic AnnData / CSV", "generic_h5ad"),
 ]
@@ -345,6 +380,7 @@ def _technology_entry(key: str, spec: TechnologySpec) -> Dict[str, Any]:
         "supports_regions": caps.get("supports_regions", False),
         "supports_ground_truth_benchmarking": caps.get("supports_ground_truth_benchmarking", False),
         "required_files": list(spec.required_files),
+        "optional_files": list(spec.optional_files),
         "compatible_analyses": list(spec.compatible_analyses),
         "qc_metrics": list(spec.qc_metrics),
         "normalization": spec.normalization_strategy,

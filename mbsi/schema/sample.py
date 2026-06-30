@@ -19,6 +19,9 @@ class SampleRecord:
     tissue_region: str = ""
     notes: str = ""
     comparison_group: str = ""
+    project_id: str = ""
+    dataset_id: str = ""
+    run_id: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -33,6 +36,9 @@ class SampleRecord:
             "tissue_region": self.tissue_region,
             "notes": self.notes,
             "comparison_group": self.comparison_group,
+            "project_id": self.project_id,
+            "dataset_id": self.dataset_id,
+            "run_id": self.run_id,
         }
 
     @classmethod
@@ -49,6 +55,9 @@ class SampleRecord:
             tissue_region=str(data.get("tissue_region", "")),
             notes=str(data.get("notes", "")),
             comparison_group=str(data.get("comparison_group", "")),
+            project_id=str(data.get("project_id", "")),
+            dataset_id=str(data.get("dataset_id", "")),
+            run_id=str(data.get("run_id", "")),
         )
 
     @classmethod

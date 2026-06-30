@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from mbsi.schema.traceability import TraceabilityFields
+
 
 @dataclass
 class DatasetRecord:
@@ -15,6 +17,8 @@ class DatasetRecord:
     gene_names_present: bool = False
     technology_key: str = ""
     detection: Dict[str, Any] = field(default_factory=dict)
+    adata_path: str = ""
+    traceability: TraceabilityFields = field(default_factory=TraceabilityFields)
 
     @property
     def project_readiness(self) -> float:
@@ -23,6 +27,10 @@ class DatasetRecord:
     @property
     def dataset_readiness(self) -> float:
         return float(self.readiness_scores.get("dataset", 0))
+
+    @property
+    def dataset_id(self) -> str:
+        return self.traceability.dataset_id
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -33,7 +41,28 @@ class DatasetRecord:
             "gene_names_present": self.gene_names_present,
             "technology_key": self.technology_key,
             "detection": dict(self.detection),
+            "adata_path": self.adata_path,
+            **self.traceability.to_dict(),
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DatasetRecord":
+        trace = TraceabilityFields.from_dict(data)
+        if not trace.dataset_id:
+            trace.dataset_id = str(data.get("dataset_id", ""))
+        if not trace.technology:
+            trace.technology = str(data.get("technology_key", ""))
+        return cls(
+            files_uploaded=list(data.get("files_uploaded", [])),
+            modalities=list(data.get("modalities", [])),
+            readiness_scores=dict(data.get("readiness_scores", {})),
+            spatial_coords_present=bool(data.get("spatial_coords_present", False)),
+            gene_names_present=bool(data.get("gene_names_present", False)),
+            technology_key=str(data.get("technology_key", "")),
+            detection=dict(data.get("detection", {})),
+            adata_path=str(data.get("adata_path", "")),
+            traceability=trace,
+        )
 
     @classmethod
     def from_session(

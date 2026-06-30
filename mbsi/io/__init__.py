@@ -17,6 +17,7 @@ from mbsi.io.stereo_seq import (
 from mbsi.io.generic import load_h5ad, load_csv_matrix_coords, ingest_h5ad, ingest_csv_matrix_coords
 from mbsi.io.compatibility import get_compatibility_matrix
 from mbsi.io.ingest import ingest_upload, save_upload_to_temp
+from mbsi.io.ingest_universal import IngestionResult, ingest_dataset
 from mbsi.io.stereo_seq import detect_stereo_seq_assets, load_stereo_qc_html
 
 # Backward-compatible loaders module re-exports
@@ -41,6 +42,8 @@ __all__ = [
     "ingest_csv_matrix_coords",
     "ingest_upload",
     "save_upload_to_temp",
+    "ingest_dataset",
+    "IngestionResult",
     "get_compatibility_matrix",
     "detect_stereo_seq_assets",
     "load_stereo_qc_html",

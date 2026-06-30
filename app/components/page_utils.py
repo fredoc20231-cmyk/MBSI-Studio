@@ -66,8 +66,8 @@ def init_session():
         "dataset_compatibility": [],
         "using_synthetic_demo": False,
         "backend_online": None,
-        "project_name": "Advanced Spatial Demo",
-        "last_run": "Demo loaded",
+        "project_name": "No project loaded",
+        "last_run": "",
         "demo_loaded": False,
     }
     for k, v in defaults.items():
@@ -191,7 +191,7 @@ def run_local_pipeline(quick: bool = True) -> None:
     from mbsi.reconstruction.solver import run_mbsi
 
     if st.session_state.adata is None:
-        ensure_advanced_demo(show_info=False)
+        raise RuntimeError("No dataset loaded — upload real data first")
     st.session_state.reconstructed = run_mbsi(
         st.session_state.adata,
         n_cells_per_spot=3 if quick else 5,
@@ -205,37 +205,26 @@ def run_local_pipeline(quick: bool = True) -> None:
 
 
 def ensure_adata(show_warning: bool = True) -> bool:
-    """Ensure spot-level data is loaded; use demo or synthetic fallback."""
+    """Return True when real or explicitly loaded demo AnnData is in session."""
     if st.session_state.adata is not None:
         return True
-    if ensure_advanced_demo(show_info=False):
-        if show_warning:
-            st.info("Loaded advanced demo dataset automatically.")
-        return True
-    if load_demo_into_session():
-        if show_warning:
-            st.info("Loaded demo dataset automatically.")
-        return True
-    generate_synthetic_demo()
     if show_warning:
-        st.warning("Using synthetic demo data.")
-    return True
+        st.warning("No dataset loaded — upload spatial data in Study & Data, or use a labeled demo button.")
+    return False
 
 
 def ensure_reconstructed(show_warning: bool = True, quick: bool = False) -> bool:
-    """Ensure reconstructed data exists; run MBSI or load from demo."""
-    ensure_adata(show_warning=False)
+    """Ensure reconstructed data exists; requires uploaded adata."""
     if st.session_state.reconstructed is not None:
         return True
-    if load_demo_into_session() and st.session_state.reconstructed is not None:
-        return True
-    if st.session_state.spatial_demo and st.session_state.spatial_demo.get("reconstructed") is not None:
-        st.session_state.reconstructed = st.session_state.spatial_demo["reconstructed"]
-        return True
+    if st.session_state.adata is None:
+        if show_warning:
+            st.warning("Reconstruction unavailable — upload real data first.")
+        return False
     try:
         run_local_pipeline(quick=quick or True)
         if show_warning:
-            st.info("Generated reconstruction automatically.")
+            st.info("Generated reconstruction from uploaded data.")
         return True
     except Exception as exc:
         if show_warning:
@@ -260,18 +249,14 @@ def save_metrics(name: str = "metrics.json") -> Path:
 
 
 def require_adata():
-    """Legacy: ensure data with fallback instead of hard stop."""
+    """Require uploaded data — no silent demo fallback."""
     if not ensure_adata():
-        if st.button("Go to Upload"):
-            st.switch_page("pages/02_Upload_Data.py")
         st.stop()
 
 
 def require_reconstructed():
-    """Legacy: ensure reconstruction with fallback."""
+    """Require reconstruction from uploaded data."""
     if not ensure_reconstructed():
-        if st.button("Go to Run MBSI"):
-            st.switch_page("pages/05_Run_MBSI.py")
         st.stop()
 
 

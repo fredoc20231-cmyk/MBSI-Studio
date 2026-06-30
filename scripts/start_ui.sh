@@ -4,7 +4,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PYTHON="${PYTHON:-/Users/afadiel01/miniforge3/bin/python3}"
+if [[ -n "${PYTHON:-}" ]]; then
+  PY="$PYTHON"
+elif [[ -x "/Users/afadiel01/miniforge3/bin/python3" ]]; then
+  PY="/Users/afadiel01/miniforge3/bin/python3"
+else
+  PY="$(command -v python3 || command -v python)"
+fi
 PORT="${PORT:-8501}"
 HOST="${HOST:-127.0.0.1}"
 HEADLESS="${HEADLESS:-false}"
@@ -44,7 +50,7 @@ echo "  Open in browser: ${URL}"
 echo "  Entry: ${APP}"
 echo "============================================"
 
-exec "$PYTHON" -m streamlit run "$APP" \
+exec "$PY" -m streamlit run "$APP" \
   --server.address="$HOST" \
   --server.port="$PORT" \
   --server.headless="$HEADLESS" \

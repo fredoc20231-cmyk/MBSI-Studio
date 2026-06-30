@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import traceback
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -27,5 +28,5 @@ try:
 except Exception as exc:
     st.title("MBSI Studio — Safe Launch Mode")
     st.error("The main app shell failed, but Streamlit is running.")
-    st.write(str(exc))
-    st.info("Run the launch import smoke test, then restart Streamlit.")
+    st.code("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)), language="python")
+    st.info("Run: python scripts/smoke_test_launch_imports.py, then restart Streamlit.")

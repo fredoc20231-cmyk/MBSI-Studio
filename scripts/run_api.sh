@@ -3,7 +3,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PYTHON="${PYTHON:-/Users/afadiel01/miniforge3/bin/python3}"
+if [[ -n "${PYTHON:-}" ]]; then
+  PY="$PYTHON"
+elif [[ -x "/Users/afadiel01/miniforge3/bin/python3" ]]; then
+  PY="/Users/afadiel01/miniforge3/bin/python3"
+else
+  PY="$(command -v python3 || command -v python)"
+fi
 PORT="${PORT:-8000}"
 HOST="${HOST:-127.0.0.1}"
 
@@ -15,7 +21,7 @@ echo "  MBSI Studio API"
 echo "  Open: http://${HOST}:${PORT}/docs"
 echo "============================================"
 
-exec "$PYTHON" -m uvicorn mbsi.api.app:app \
+exec "$PY" -m uvicorn mbsi.api.app:app \
   --host "$HOST" \
   --port "$PORT" \
   --reload

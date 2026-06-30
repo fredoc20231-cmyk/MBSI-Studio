@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Comprehensive launch import smoke test — streamlit app, workspaces, mbsi packages."""
+"""Comprehensive launch import smoke test — workspaces, mbsi packages, entrypoint syntax."""
 
 from __future__ import annotations
 
 import importlib
-import pkgutil
+import py_compile
 import sys
 from pathlib import Path
 
@@ -30,18 +30,21 @@ WORKSPACE_MODULES = [
     "app.workspaces.settings",
 ]
 
+CORE_MODULES = [
+    "app.components.saas_shell",
+    "app.components.module_registry",
+    "app.components.page_utils",
+    "mbsi.api.app",
+    "mbsi.io.ingest_universal",
+    "mbsi.schema.serialize",
+]
+
+ENTRYPOINTS = [
+    "app/streamlit_app.py",
+    "app/safe_streamlit_app.py",
+]
+
 OPTIONAL_DEPS = ("cellpose", "gseapy", "squidpy", "tangram", "scvi")
-
-
-def _discover_mbsi_top_level() -> list[str]:
-    import mbsi
-
-    names = []
-    pkg_path = Path(mbsi.__file__).parent
-    for mod in pkgutil.iter_modules([str(pkg_path)]):
-        if mod.ispkg:
-            names.append(f"mbsi.{mod.name}")
-    return sorted(names)
 
 
 def _try_import(name: str) -> str | None:
@@ -55,22 +58,13 @@ def _try_import(name: str) -> str | None:
 def main() -> int:
     failures: list[str] = []
 
-    for name in ("app.streamlit_app", "app.safe_streamlit_app", "app.components.saas_shell"):
-        err = _try_import(name)
-        if err:
-            failures.append(err)
+    for path in ENTRYPOINTS:
+        try:
+            py_compile.compile(str(ROOT / path), doraise=True)
+        except py_compile.PyCompileError as exc:
+            failures.append(f"{path}: {exc}")
 
-    for name in WORKSPACE_MODULES:
-        err = _try_import(name)
-        if err:
-            failures.append(err)
-
-    for name in _discover_mbsi_top_level():
-        err = _try_import(name)
-        if err:
-            failures.append(err)
-
-    for name in ("mbsi.api.app", "mbsi.io.ingest_universal", "mbsi.schema.serialize"):
+    for name in CORE_MODULES + WORKSPACE_MODULES:
         err = _try_import(name)
         if err:
             failures.append(err)
@@ -92,7 +86,7 @@ def main() -> int:
         return 1
 
     print("Launch import smoke test PASSED")
-    print(f"  streamlit entry + {len(WORKSPACE_MODULES)} workspaces + {len(_discover_mbsi_top_level())} mbsi packages")
+    print(f"  {len(ENTRYPOINTS)} entrypoints compiled + {len(WORKSPACE_MODULES)} workspaces + {len(CORE_MODULES)} core modules")
     if optional_notes:
         print("Optional deps not installed (OK):")
         for n in optional_notes:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.workspaces._helpers import safe_register_table
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.differential import run_de
 from mbsi.discovery.spatial_workflow_evidence import de_to_evidence
 
@@ -17,7 +17,11 @@ def _merge_session_findings(store) -> None:
 
 
 def render() -> None:
-    st.markdown("### Differential Analysis")
+    render_page_header(
+        "Differential Analysis",
+        "Compare expression across clusters, domains, regions, or conditions.",
+        icon="📈",
+    )
     if not require_adata("differential_analysis"):
         return
 

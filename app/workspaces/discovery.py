@@ -3,6 +3,7 @@
 import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
+from app.components.page_header import render_page_header
 from app.components.page_utils import OUTPUT_DIR, load_advanced_demo_into_session
 from app.components.safe import safe_get
 from app.workspaces._discovery_runners import run_communication, run_tme
@@ -80,7 +81,11 @@ def _render_top_findings(findings: list, evidence: list) -> None:
 
 
 def render():
-    st.markdown("### Discovery Intelligence")
+    render_page_header(
+        "Discovery Intelligence",
+        "Integrate findings, communication, TME niches, and causal hypotheses.",
+        icon="💡",
+    )
     adata = st.session_state.get("adata")
 
     if not _has_real_adata() and adata is None:

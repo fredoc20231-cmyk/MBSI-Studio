@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.workspaces._helpers import safe_register_table
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.discovery.spatial_workflow_evidence import phenotype_to_evidence
 from mbsi.phenotyping import map_atlas, score_marker_panel, score_tme
 from mbsi.references.atlas_registry import list_atlases
@@ -19,7 +19,11 @@ def _merge_session_findings(store) -> None:
 
 
 def render() -> None:
-    st.markdown("### Phenotyping")
+    render_page_header(
+        "Phenotyping",
+        "Score marker panels, map atlases, and quantify TME composition.",
+        icon="🔍",
+    )
     if not require_adata("phenotyping"):
         return
 

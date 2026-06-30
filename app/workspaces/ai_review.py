@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from app.components.page_header import render_page_header
 from app.workspaces._helpers import demo_banner
 from mbsi.ai_review.reviewer import answer_outcome_question
 
@@ -13,7 +14,11 @@ DISCLAIMER = (
 
 def render():
     demo_banner()
-    st.markdown("### AI Outcome Review")
+    render_page_header(
+        "AI Outcome Review",
+        "Ask grounded questions about registered analysis outputs.",
+        icon="🤖",
+    )
     st.markdown(
         '<div class="saas-workflow-hint">Next step: open <strong>Report & Export</strong> to generate the final deliverable.</div>',
         unsafe_allow_html=True,

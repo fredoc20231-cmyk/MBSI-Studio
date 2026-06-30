@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 
 from app.components.interactive_figures import render_interactive_plot
+from app.components.page_header import render_page_header
 from app.components.uploaders import data_readiness_score, upload_panel
 from app.components.page_utils import load_advanced_demo_into_session
 from app.workspaces._helpers import add_finding, safe_register_finding
@@ -126,8 +127,11 @@ def _render_post_upload_actions() -> None:
 
 
 def render():
-    st.markdown("### Upload & Data")
-    st.caption("Universal spatial omics ingestion — Visium, h5ad, CSV matrix + coordinates.")
+    render_page_header(
+        "Upload & Data",
+        "Universal spatial omics ingestion — Visium, h5ad, CSV matrix + coordinates.",
+        icon="⬆️",
+    )
 
     result = upload_panel()
     if result.get("adata") is not None or result.get("detection"):

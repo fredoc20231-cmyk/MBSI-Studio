@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.workspaces._helpers import safe_register_table
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.discovery.spatial_workflow_evidence import enrichment_to_evidence
 from mbsi.enrichment import run_custom_enrichment, run_enrichment, run_spatial_gsea
 
@@ -17,7 +17,11 @@ def _merge_session_findings(store) -> None:
 
 
 def render() -> None:
-    st.markdown("### Spatial Gene Sets")
+    render_page_header(
+        "Spatial Gene Sets",
+        "Run enrichment and spatial GSEA on variable gene rankings.",
+        icon="📚",
+    )
     if not require_adata("spatial_gene_sets"):
         return
 

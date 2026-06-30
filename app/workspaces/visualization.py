@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.analysis.clustering import run_pca, run_umap
 from mbsi.visualization.seurat_like import (
     plot_dotplot,
@@ -18,7 +18,11 @@ from mbsi.visualization.seurat_like import (
 
 
 def render() -> None:
-    st.markdown("### Visualization")
+    render_page_header(
+        "Visualization",
+        "Spatial maps, quilt plots, reductions, violin, dot, and heatmap views.",
+        icon="📊",
+    )
     if not require_adata("visualization"):
         return
 

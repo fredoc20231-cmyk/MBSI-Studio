@@ -1,6 +1,7 @@
 """ML Learning workspace."""
 
 import streamlit as st
+from app.components.page_header import render_page_header
 from app.workspaces._helpers import demo_banner, add_finding
 from mbsi.ml_learning.recommender import recommend_next_analysis, record_user_feedback
 from mbsi.ml_learning.run_store import log_analysis_run
@@ -14,7 +15,11 @@ DISCLAIMER = (
 
 def render():
     demo_banner()
-    st.markdown("### ML Learning")
+    render_page_header(
+        "ML Learning",
+        "Heuristic recommendations and feedback for next analyses.",
+        icon="🧠",
+    )
     st.markdown(DISCLAIMER)
     if st.session_state.get("last_run"):
         log_analysis_run(

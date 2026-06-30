@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.workspaces._helpers import safe_register_table
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.discovery.spatial_workflow_evidence import svg_to_evidence
 from mbsi.spatial_stats import spatial_autocorrelation_table
 
@@ -17,7 +17,11 @@ def _merge_session_findings(store) -> None:
 
 
 def render() -> None:
-    st.markdown("### Spatial Variable Genes")
+    render_page_header(
+        "Spatial Variable Genes",
+        "Detect spatially autocorrelated genes with Moran's I and kNN graphs.",
+        icon="🧬",
+    )
     if not require_adata("spatial_variable_genes"):
         return
 

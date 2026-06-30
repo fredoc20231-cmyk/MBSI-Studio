@@ -7,6 +7,10 @@ from typing import Optional
 import streamlit as st
 
 from app.components.module_registry import get_module, next_module
+from app.components.page_header import render_page_header
+
+
+__all__ = ["require_adata", "render_continue", "render_page_header"]
 
 
 def require_adata(module_key: str) -> bool:

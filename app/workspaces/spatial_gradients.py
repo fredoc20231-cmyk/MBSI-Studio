@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.workspaces._helpers import safe_register_table
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.discovery.spatial_workflow_evidence import gradient_to_evidence
 from mbsi.gradients import compute_gradient
 
@@ -17,7 +17,11 @@ def _merge_session_findings(store) -> None:
 
 
 def render() -> None:
-    st.markdown("### Spatial Gradients")
+    render_page_header(
+        "Spatial Gradients",
+        "Model expression gradients from anchors, margins, and boundaries.",
+        icon="🌊",
+    )
     if not require_adata("spatial_gradients"):
         return
 

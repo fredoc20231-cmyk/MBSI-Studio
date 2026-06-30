@@ -7,6 +7,7 @@ from typing import List
 import pandas as pd
 import streamlit as st
 
+from app.components.page_header import render_page_header
 from app.workspaces._study_setup_core import (
     ANALYSIS_ROWS,
     SAMPLE_COLUMNS,
@@ -82,8 +83,11 @@ def _schema_samples() -> List[SampleRecord]:
 
 def render() -> None:
     _init_project_state()
-    st.markdown("### Study & Data")
-    st.caption("Define project, experimental design, samples, upload files, review readiness.")
+    render_page_header(
+        "Study & Data",
+        "Define project, experimental design, samples, upload files, review readiness.",
+        icon="📁",
+    )
 
     tech_key = _render_technology_selection()
     st.divider()

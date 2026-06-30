@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from app.components.page_header import render_page_header
 from app.workspaces._helpers import ensure_demo
 
 
@@ -15,8 +16,11 @@ def render_dashboard_summary() -> None:
     adata = st.session_state.get("adata")
     using_demo = st.session_state.get("using_synthetic_demo", True)
 
-    st.markdown("### Project Dashboard")
-    st.caption("Read-only summary — edit study design in **Project Setup & Data Upload**.")
+    render_page_header(
+        "Project Dashboard",
+        "Read-only summary — edit study design in Project Setup & Data Upload.",
+        icon="📋",
+    )
 
     if meta.get("project_title"):
         st.markdown(f"**{meta['project_title']}**")

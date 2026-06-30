@@ -6,7 +6,7 @@ import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
 from app.workspaces._helpers import safe_register_table
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.preprocessing import normalize
 from mbsi.pseudobulk import run_pca_heatmap
 from mbsi.qc import compute_original_summary, filter_data
@@ -16,7 +16,11 @@ from mbsi.visualization.seurat_like import plot_quilt
 
 
 def render() -> None:
-    st.markdown("### QC & Transformation")
+    render_page_header(
+        "QC & Transformation",
+        "Filter spots, normalize expression, pseudobulk, and review quality metrics.",
+        icon="🔬",
+    )
     if not require_adata("qc_transformation"):
         return
 

@@ -10,34 +10,39 @@ import streamlit.components.v1 as components
 THEME_KEY = "mbsi_theme"
 VALID_THEMES = ("dark", "light")
 
+# Professional biotech palette — deep teal accent, neutral grays
 THEME_PALETTES: Dict[str, Dict[str, str]] = {
     "dark": {
-        "bg": "#07111f",
-        "panel": "#0d1828",
-        "panel2": "#101d2e",
-        "border": "#22314a",
-        "text": "#f4f7fb",
-        "muted": "#9aa7b8",
-        "blue": "#4f7cff",
-        "green": "#39d98a",
-        "orange": "#ffb020",
-        "red": "#ff5c7a",
-        "purple": "#9b6cff",
-        "cyan": "#30d5c8",
-        "pink": "#ff5c9c",
-        "plot_paper": "#0d1828",
-        "plot_bg": "#101d2e",
-        "plot_font": "#f4f7fb",
-        "plot_grid": "#22314a",
+        "bg": "#0c1117",
+        "panel": "#151b24",
+        "panel2": "#1c2430",
+        "border": "#2d3848",
+        "text": "#eef2f7",
+        "muted": "#8b9cb0",
+        "accent": "#2dd4bf",
+        "nav_bg": "#121820",
+        "blue": "#6366f1",
+        "green": "#34d399",
+        "orange": "#fbbf24",
+        "red": "#f87171",
+        "purple": "#a78bfa",
+        "cyan": "#22d3ee",
+        "pink": "#f472b6",
+        "plot_paper": "#151b24",
+        "plot_bg": "#1c2430",
+        "plot_font": "#eef2f7",
+        "plot_grid": "#2d3848",
     },
     "light": {
-        "bg": "#f4f7fb",
+        "bg": "#f8fafc",
         "panel": "#ffffff",
-        "panel2": "#eef2f8",
-        "border": "#c8d4e3",
-        "text": "#1a2332",
-        "muted": "#5a6b7d",
-        "blue": "#2563eb",
+        "panel2": "#f1f5f9",
+        "border": "#e2e8f0",
+        "text": "#0f172a",
+        "muted": "#64748b",
+        "accent": "#0d9488",
+        "nav_bg": "#f1f5f9",
+        "blue": "#4f46e5",
         "green": "#059669",
         "orange": "#d97706",
         "red": "#dc2626",
@@ -46,25 +51,37 @@ THEME_PALETTES: Dict[str, Dict[str, str]] = {
         "pink": "#db2777",
         "plot_paper": "#ffffff",
         "plot_bg": "#f8fafc",
-        "plot_font": "#1a2332",
+        "plot_font": "#0f172a",
         "plot_grid": "#e2e8f0",
     },
 }
 
+# Semantic aliases consumed by CSS (--mbsi-*)
+_MBSI_VAR_MAP = {
+    "mbsi-bg": "bg",
+    "mbsi-surface": "panel",
+    "mbsi-surface-alt": "panel2",
+    "mbsi-text": "text",
+    "mbsi-muted": "muted",
+    "mbsi-accent": "accent",
+    "mbsi-border": "border",
+    "mbsi-nav-bg": "nav_bg",
+}
+
 
 def init_theme_state() -> None:
-    """Initialize theme from session, query params, or default dark."""
+    """Initialize theme from session, query params, or default light."""
     qp = getattr(st, "query_params", None)
     if qp is not None and "theme" in qp:
         raw = str(qp.get("theme", "")).lower()
         if raw in VALID_THEMES:
             st.session_state[THEME_KEY] = raw
-    st.session_state.setdefault(THEME_KEY, "dark")
+    st.session_state.setdefault(THEME_KEY, "light")
 
 
 def get_theme() -> str:
-    theme = st.session_state.get(THEME_KEY, "dark")
-    return theme if theme in VALID_THEMES else "dark"
+    theme = st.session_state.get(THEME_KEY, "light")
+    return theme if theme in VALID_THEMES else "light"
 
 
 def set_theme(theme: str) -> None:
@@ -108,6 +125,9 @@ def _css_vars_block(selector: str, palette: Dict[str, str]) -> str:
         if key.startswith("plot_"):
             continue
         lines.append(f"  --{key}: {val};")
+    for mbsi_key, src_key in _MBSI_VAR_MAP.items():
+        if src_key in palette:
+            lines.append(f"  --{mbsi_key}: {palette[src_key]};")
     lines.append("}")
     return "\n".join(lines)
 
@@ -117,8 +137,8 @@ def _light_mode_widget_css() -> str:
     return """
 .stApp[data-mbsi-theme="light"],
 [data-mbsi-theme="light"] .stApp {
-  background: var(--bg) !important;
-  color: var(--text) !important;
+  background: var(--mbsi-bg) !important;
+  color: var(--mbsi-text) !important;
 }
 .stApp[data-mbsi-theme="light"] p,
 .stApp[data-mbsi-theme="light"] span,
@@ -136,17 +156,17 @@ def _light_mode_widget_css() -> str:
 .stApp[data-mbsi-theme="light"] div[data-testid="stCaptionContainer"] p,
 .stApp[data-mbsi-theme="light"] div[data-testid="stMetricValue"],
 .stApp[data-mbsi-theme="light"] div[data-testid="stMetricLabel"] {
-  color: var(--text) !important;
+  color: var(--mbsi-text) !important;
 }
 .stApp[data-mbsi-theme="light"] div[data-testid="stMetricLabel"],
 .stApp[data-mbsi-theme="light"] small,
 .stApp[data-mbsi-theme="light"] .stCaption {
-  color: var(--muted) !important;
+  color: var(--mbsi-muted) !important;
 }
 .stApp[data-mbsi-theme="light"] .stButton > button {
-  color: var(--text) !important;
-  background-color: var(--panel2) !important;
-  border: 1px solid var(--border) !important;
+  color: var(--mbsi-text) !important;
+  background-color: var(--mbsi-surface-alt) !important;
+  border: 1px solid var(--mbsi-border) !important;
 }
 .stApp[data-mbsi-theme="light"] .stButton > button[kind="primary"],
 .stApp[data-mbsi-theme="light"] .stButton > button[data-testid="baseButton-primary"] {
@@ -158,41 +178,41 @@ def _light_mode_widget_css() -> str:
 .stApp[data-mbsi-theme="light"] div[data-baseweb="input"] > div,
 .stApp[data-mbsi-theme="light"] input,
 .stApp[data-mbsi-theme="light"] textarea {
-  background-color: var(--panel) !important;
-  color: var(--text) !important;
-  border-color: var(--border) !important;
+  background-color: var(--mbsi-surface) !important;
+  color: var(--mbsi-text) !important;
+  border-color: var(--mbsi-border) !important;
 }
 .stApp[data-mbsi-theme="light"] div[data-baseweb="select"] span,
 .stApp[data-mbsi-theme="light"] div[data-baseweb="input"] input {
-  color: var(--text) !important;
+  color: var(--mbsi-text) !important;
 }
 .stApp[data-mbsi-theme="light"] [data-testid="stDataFrame"],
 .stApp[data-mbsi-theme="light"] [data-testid="stTable"] {
-  color: var(--text) !important;
+  color: var(--mbsi-text) !important;
 }
 .stApp[data-mbsi-theme="light"] [data-testid="stChatMessage"],
 .stApp[data-mbsi-theme="light"] [data-testid="stChatMessageContent"] {
-  color: var(--text) !important;
-  background: var(--panel2) !important;
+  color: var(--mbsi-text) !important;
+  background: var(--mbsi-surface-alt) !important;
 }
 .stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-left-nav-anchor),
 .stApp[data-mbsi-theme="light"] .saas-app div[data-testid="stHorizontalBlock"]:has(.saas-top-bar-anchor),
 .stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-workspace-anchor),
 .stApp[data-mbsi-theme="light"] .saas-app div[data-testid="column"]:has(.saas-drawer-anchor) {
-  color: var(--text) !important;
+  color: var(--mbsi-text) !important;
 }
 .stApp[data-mbsi-theme="light"] .saas-context-module {
-  color: var(--text) !important;
+  color: var(--mbsi-text) !important;
 }
 .stApp[data-mbsi-theme="light"] div[data-testid="stRadio"] label,
 .stApp[data-mbsi-theme="light"] div[data-testid="stCheckbox"] label,
 .stApp[data-mbsi-theme="light"] div[data-testid="stSelectbox"] label,
 .stApp[data-mbsi-theme="light"] div[data-testid="stSlider"] label {
-  color: var(--text) !important;
+  color: var(--mbsi-text) !important;
 }
 .stApp[data-mbsi-theme="light"] [data-testid="stAlert"],
 .stApp[data-mbsi-theme="light"] [data-baseweb="notification"] {
-  color: var(--text) !important;
+  color: var(--mbsi-text) !important;
 }
 """
 
@@ -239,18 +259,18 @@ def render_theme_quick_toggle(compact: bool = False) -> None:
     theme = get_theme()
     if compact:
         icon = "☀️" if theme == "dark" else "🌙"
-        label = "Day mode" if theme == "dark" else "Night mode"
+        label = "Light" if theme == "dark" else "Dark"
         if st.button(f"{icon} {label}", key="theme_quick_toggle", use_container_width=True):
             set_theme("light" if theme == "dark" else "dark")
             st.rerun()
     else:
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("☀️ Day", key="theme_day_btn", type="primary" if theme == "light" else "secondary"):
+            if st.button("☀️ Light", key="theme_day_btn", type="primary" if theme == "light" else "secondary"):
                 set_theme("light")
                 st.rerun()
         with c2:
-            if st.button("🌙 Night", key="theme_night_btn", type="primary" if theme == "dark" else "secondary"):
+            if st.button("🌙 Dark", key="theme_night_btn", type="primary" if theme == "dark" else "secondary"):
                 set_theme("dark")
                 st.rerun()
 
@@ -261,9 +281,9 @@ def render_theme_settings() -> None:
     st.markdown("#### Appearance")
     choice = st.radio(
         "Color theme",
-        options=["dark", "light"],
-        format_func=lambda x: "🌙 Night — dark background (default)" if x == "dark" else "☀️ Day — light background",
-        index=0 if theme == "dark" else 1,
+        options=["light", "dark"],
+        format_func=lambda x: "☀️ Light — professional default" if x == "light" else "🌙 Dark — low-glare viewing",
+        index=0 if theme == "light" else 1,
         key="settings_theme_radio",
         horizontal=True,
     )
@@ -271,6 +291,6 @@ def render_theme_settings() -> None:
         set_theme(choice)
         st.rerun()
     if theme == "light":
-        st.caption("Day mode uses light panels and dark text for bright environments.")
+        st.caption("Light mode uses clean white panels and high-contrast text.")
     else:
-        st.caption("Night mode uses dark panels and light text for low-glare viewing.")
+        st.caption("Dark mode uses refined dark panels for extended sessions.")

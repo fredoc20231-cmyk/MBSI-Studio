@@ -6,7 +6,7 @@ import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
 from app.workspaces._helpers import safe_register_table
-from app.workspaces._spatial_page import render_continue, require_adata
+from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
 from mbsi.discovery.spatial_workflow_evidence import domain_to_finding
 from mbsi.domains import detect_domains
 from mbsi.visualization.seurat_like import plot_spatial_feature
@@ -19,7 +19,11 @@ def _merge_session_findings(store) -> None:
 
 
 def render() -> None:
-    st.markdown("### Spatial Domains")
+    render_page_header(
+        "Spatial Domains",
+        "Cluster tissue regions with graph-based domain detection methods.",
+        icon="🗺️",
+    )
     if not require_adata("spatial_domains"):
         return
 

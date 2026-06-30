@@ -6,6 +6,7 @@ import numpy as np
 import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
+from app.components.page_header import render_page_header
 from app.components.page_utils import OUTPUT_DIR, init_session
 from app.workspaces._helpers import add_finding, demo_banner, safe_register_finding, safe_register_table
 from mbsi.analysis.demo import make_synthetic_visium_adata
@@ -93,8 +94,12 @@ def render():
     plan = get_technology_segmentation_plan(tech_key)
     backends = available_backends()
 
-    st.markdown("### Segmentation & Registration")
-    st.caption(f"Platform: {spec.label if spec else tech_key or 'generic'} · {plan.get('notes', '')}")
+    platform_label = spec.label if spec else tech_key or "generic"
+    render_page_header(
+        "Segmentation & Registration",
+        f"Platform: {platform_label} · {plan.get('notes', '')}",
+        icon="🔲",
+    )
 
     col1, col2 = st.columns(2)
     with col1:

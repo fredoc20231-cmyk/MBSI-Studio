@@ -2,6 +2,7 @@
 
 import streamlit as st
 from app.components.interactive_figures import render_interactive_plot
+from app.components.page_header import render_page_header
 from app.components.safe import safe_get
 from app.workspaces._helpers import add_finding, add_warning, demo_banner, safe_register_table
 
@@ -34,7 +35,11 @@ def render():
     elif action == "export_benchmark":
         st.toast("Benchmark summary queued for report export.")
 
-    st.markdown("### Benchmark Hub")
+    render_page_header(
+        "Benchmark Hub",
+        "Compare reconstruction methods on shared gene panels and readiness scores.",
+        icon="⚖️",
+    )
     if st.button("Run Benchmark (demo)", type="primary", key="ws_run_benchmark"):
         _run_benchmark()
 

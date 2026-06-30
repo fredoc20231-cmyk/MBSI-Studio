@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from app.components.page_header import render_page_header
 from app.components.page_utils import OUTPUT_DIR
 from app.components.results_notebook import render_results_notebook
 from mbsi.reports.final_report import create_data_bundle, generate_final_html_report, generate_final_pdf_report
@@ -32,7 +33,11 @@ def render():
         '<span class="saas-report-final-badge">Final deliverable</span>',
         unsafe_allow_html=True,
     )
-    st.markdown("### Report & Export")
+    render_page_header(
+        "Report & Export",
+        "Generate notebooks, HTML/PDF reports, and downloadable data bundles.",
+        icon="📄",
+    )
     substeps = WORKFLOW_SUBSTEPS[WorkflowModule.REPORT_EXPORT.value]
     tabs = st.tabs([s.replace("_", " ").title() for s in substeps])
 

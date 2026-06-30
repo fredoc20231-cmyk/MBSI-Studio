@@ -19,7 +19,7 @@ from app.components.module_registry import (
 from app.components.page_utils import init_session
 from app.components.results_drawer import render_right_results_drawer
 from app.components.statusbar import render_statusbar
-from app.components.theme import init_theme_state, inject_theme_styles, render_theme_quick_toggle
+from app.components.theme import get_theme, init_theme_state, inject_theme_styles, render_theme_quick_toggle
 
 
 WORKSPACE_ROUTES = {
@@ -44,6 +44,13 @@ WORKSPACE_ROUTES = {
 for _legacy, _canonical in LEGACY_MODULE_ALIASES.items():
     WORKSPACE_ROUTES[_legacy] = WORKSPACE_ROUTES[_canonical]
 
+SECTION_SHORT: dict[str, str] = {
+    "Setup": "Setup",
+    "Core Spatial Analysis": "Core Analysis",
+    "MBSI Intelligence": "MBSI Intelligence",
+    "Export": "Export",
+}
+
 
 def init_saas_state() -> None:
     """Initialize session keys used by the SaaS shell."""
@@ -60,26 +67,60 @@ def init_saas_state() -> None:
     st.session_state.setdefault("table_registry", {})
 
 
+def _is_section_open(section: str, active_key: str, mods: list[dict]) -> bool:
+    mod_keys = {m["key"] for m in mods}
+    return active_key in mod_keys
+
+
 def render_product_header() -> None:
-    st.markdown(
-        """
-        <div class="saas-product-header">
-          <div class="saas-product-brand">
-            <div class="saas-logo-mark">M</div>
-            <div>
-              <div class="saas-product-title">MBSI Studio</div>
-              <div class="saas-product-subtitle">Physics-Aware Spatial Biology Intelligence</div>
+    project_name = st.session_state.get("project_name") or "No project loaded"
+    data_loaded = st.session_state.get("adata") is not None
+    data_label = "Data loaded" if data_loaded else "Awaiting upload"
+    data_cls = "saas-status-ok" if data_loaded else "saas-status-warn"
+    theme_label = "Dark" if get_theme() == "dark" else "Light"
+
+    brand_col, meta_col, toggle_col = st.columns([2.4, 2.8, 0.8], gap="small")
+    with brand_col:
+        st.markdown(
+            """
+            <div class="saas-product-header">
+              <div class="saas-product-brand">
+                <div class="saas-logo-mark">M</div>
+                <div>
+                  <div class="saas-product-title">MBSI Studio</div>
+                  <div class="saas-product-subtitle">Physics-Aware Spatial Biology Intelligence</div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="saas-product-meta">
-            <span class="saas-pill saas-pill-green">Real Data First</span>
-            <span class="saas-pill">Research Use</span>
-            <span class="saas-pill">v2.1</span>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
+    with meta_col:
+        st.markdown(
+            f"""
+            <div class="saas-top-meta">
+              <div class="saas-top-meta-item">
+                <span class="saas-top-meta-label">Project</span>
+                <span class="saas-top-meta-value">{project_name}</span>
+              </div>
+              <div class="saas-top-meta-item">
+                <span class="saas-top-meta-label">Data</span>
+                <span class="saas-top-meta-value {data_cls}">{data_label}</span>
+              </div>
+              <div class="saas-top-meta-item">
+                <span class="saas-top-meta-label">Theme</span>
+                <span class="saas-top-meta-value">{theme_label}</span>
+              </div>
+              <div class="saas-top-meta-item">
+                <span class="saas-top-meta-label">Version</span>
+                <span class="saas-top-meta-value">v2.1</span>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with toggle_col:
+        render_theme_quick_toggle(compact=True)
 
 
 def render_project_panel() -> None:
@@ -88,12 +129,12 @@ def render_project_panel() -> None:
     data_status = "Loaded" if st.session_state.get("adata") is not None else "Awaiting upload"
     st.markdown(
         f"""
-        <div class="saas-side-card">
-          <div class="saas-side-title">Project</div>
+        <div class="saas-side-card mbsi-card">
+          <div class="saas-side-title">Quick actions</div>
           <div class="saas-project-name">{project_name}</div>
           <div class="saas-mini-grid">
             <div><span>Data</span><strong>{data_status}</strong></div>
-            <div><span>Status</span><strong>Guided</strong></div>
+            <div><span>Mode</span><strong>Guided</strong></div>
           </div>
         </div>
         """,
@@ -112,8 +153,9 @@ def render_project_panel() -> None:
 
 
 def render_left_main_nav() -> None:
-    """Grouped module nav — styled via .saas-left-nav-anchor on parent column."""
+    """Grouped module nav — four collapsible sections with clear headers."""
     render_project_panel()
+    active_key = resolve_module(st.session_state.get("active_module", "study_data"))
 
     grouped: dict[str, list[dict]] = defaultdict(list)
     for mod in MODULES:
@@ -123,23 +165,28 @@ def render_left_main_nav() -> None:
         mods = grouped.get(section, [])
         if not mods:
             continue
-        st.markdown(f'<div class="saas-nav-section">{section}</div>', unsafe_allow_html=True)
-        if section == "MBSI Intelligence":
-            st.markdown(
-                '<div class="saas-workflow-hint">Reconstruction → benchmark → discovery → AI review</div>',
-                unsafe_allow_html=True,
-            )
-        for mod in mods:
-            key = mod["key"]
-            active = st.session_state.get("active_module") == key
-            btn_type = "primary" if active else "secondary"
-            label = f"{mod.get('icon', '')} {mod['label']}".strip()
-            if st.button(label, key=f"saas_nav_{key}", type=btn_type, use_container_width=True):
-                st.session_state.active_module = key
-                st.rerun()
 
-    st.divider()
-    render_theme_quick_toggle(compact=True)
+        section_open = _is_section_open(section, active_key, mods)
+        short = SECTION_SHORT.get(section, section)
+        count = len(mods)
+        header = f"{short}  ·  {count} modules"
+
+        with st.expander(header, expanded=section_open):
+            if section == "MBSI Intelligence":
+                st.markdown(
+                    '<div class="saas-workflow-hint">Reconstruction → benchmark → discovery → AI review</div>',
+                    unsafe_allow_html=True,
+                )
+            for mod in mods:
+                key = mod["key"]
+                active = active_key == key
+                btn_type = "primary" if active else "secondary"
+                icon = mod.get("icon", "")
+                label = mod["label"]
+                btn_label = f"{icon}  {label}" if icon else label
+                if st.button(btn_label, key=f"saas_nav_{key}", type=btn_type, use_container_width=True):
+                    st.session_state.active_module = key
+                    st.rerun()
 
 
 def render_top_context_bar() -> None:
@@ -147,12 +194,15 @@ def render_top_context_bar() -> None:
     active_key = resolve_module(st.session_state.get("active_module", "study_data"))
     mod = get_module(active_key)
     st.markdown('<span class="saas-top-bar-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
-    title_col, control_col = st.columns([1.4, 4.6], gap="small")
+    title_col, control_col = st.columns([1.2, 4.8], gap="small")
     with title_col:
+        icon = mod.get("icon", "")
         st.markdown(
             f"""
-            <div class="saas-module-title">{mod.get('icon', '')} {mod['label']}</div>
-            <div class="saas-module-description">{mod.get('description', '')}</div>
+            <div class="saas-module-header">
+              <div class="saas-module-title">{icon} {mod['label']}</div>
+              <div class="saas-module-description">{mod.get('description', '')}</div>
+            </div>
             """,
             unsafe_allow_html=True,
         )
@@ -187,7 +237,7 @@ def render_saas_app() -> None:
     st.markdown('<div class="saas-app">', unsafe_allow_html=True)
     render_product_header()
 
-    left_col, content_col = st.columns([1.12, 5.88], gap="small")
+    left_col, content_col = st.columns([1.15, 5.85], gap="small")
     with left_col:
         st.markdown('<span class="saas-left-nav-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
         render_left_main_nav()

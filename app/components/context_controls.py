@@ -127,6 +127,7 @@ def render_report_ribbon() -> None:
 def render_context_controls(active_module: str) -> None:
     active_module = resolve_module(active_module)
     mod = get_module(active_module)
+    st.markdown('<div class="saas-context-row">', unsafe_allow_html=True)
     if active_module == "benchmark":
         render_benchmark_ribbon()
     elif active_module == "discovery":
@@ -138,3 +139,4 @@ def render_context_controls(active_module: str) -> None:
         st.caption("Grounded Q&A — no external LLM")
     else:
         st.caption(mod.get("description", ""))
+    st.markdown("</div>", unsafe_allow_html=True)

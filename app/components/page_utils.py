@@ -87,6 +87,8 @@ def init_session():
         "discovery_graph": None,
         "workflow_status": {},
         "job_status": {},
+        "saas_notifications": [],
+        "mbsi_settings": {},
     }
     for k, v in defaults.items():
         if k not in st.session_state:

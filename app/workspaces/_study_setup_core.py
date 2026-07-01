@@ -586,6 +586,14 @@ def _render_download_section() -> None:
         st.session_state.dataset_compatibility = result.get("compatibility")
         if result.get("adata") is not None:
             st.success(f"Ingested {result['platform']}: {result['adata'].n_obs} observations")
+            from app.components.notification_center import push_notification
+
+            push_notification(
+                f"Ingested {result['adata'].n_obs:,} observations from downloaded bundle.",
+                title="Download ingest complete",
+                level="success",
+                source="study_data",
+            )
         else:
             st.warning(
                 "Files inspected and readiness updated; full AnnData load may require a complete platform bundle."
@@ -670,6 +678,14 @@ def _render_file_upload() -> None:
         st.session_state.using_synthetic_demo = True
         st.session_state.mbsi_platform = "demo"
         st.session_state.mbsi_readiness = {"status": "Synthetic demo data"}
+        from app.components.notification_center import push_notification
+
+        push_notification(
+            "Sample demo dataset loaded for exploration.",
+            title="Sample dataset loaded",
+            level="info",
+            source="study_data",
+        )
         st.rerun()
 
 

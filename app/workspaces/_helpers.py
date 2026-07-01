@@ -40,4 +40,5 @@ def safe_register_table(module: str, title: str, df, section: str = "tables") ->
 
 
 def demo_banner():
-    st.caption("Demo mode — computational outputs for research use only.")
+    """Deprecated — demo labeling is scoped to Study & Data workspace only."""
+    return

@@ -151,6 +151,62 @@ footer { visibility: hidden !important; height: 0 !important; }
 .saas-top-meta-value { font-size: 0.78rem; font-weight: 600; color: var(--mbsi-text); }
 .saas-status-ok { color: var(--green) !important; }
 .saas-status-warn { color: var(--orange) !important; }
+.saas-status-error { color: var(--red) !important; }
+.saas-status-neutral { color: var(--mbsi-muted) !important; }
+
+/* ── Production header bar ── */
+.saas-app div[data-testid="stHorizontalBlock"]:has(.saas-header-anchor) {
+  background: var(--mbsi-surface);
+  border: 1px solid var(--mbsi-border);
+  border-radius: var(--mbsi-radius);
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  box-shadow: var(--mbsi-shadow);
+  align-items: center;
+}
+
+.saas-header-brand .saas-product-brand { gap: 10px; }
+.saas-header-brand .saas-product-title { font-size: 0.95rem; margin: 0; }
+
+.saas-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2px 0;
+}
+
+.saas-header-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 64px;
+}
+
+.saas-header-chip-label {
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mbsi-muted);
+  font-weight: 600;
+}
+
+.saas-header-chip-value {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--mbsi-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.saas-app div[data-testid="column"]:has(.saas-header-actions-anchor) .stButton > button {
+  font-size: 0.72rem !important;
+  padding: 0.2rem 0.35rem !important;
+  min-height: 1.75rem !important;
+}
 
 /* ── Left navigation ── */
 .saas-shell-anchor { display: none !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }

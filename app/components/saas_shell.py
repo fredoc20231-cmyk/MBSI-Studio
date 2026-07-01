@@ -8,6 +8,13 @@ from collections import defaultdict
 import streamlit as st
 
 from app.components.context_controls import render_context_controls
+from app.components.header_status import (
+    get_dataset_status,
+    get_project_label,
+    get_run_status,
+    get_technology_label,
+)
+from app.components.help_panel import render_help_drawer
 from app.components.module_registry import (
     LEGACY_MODULE_ALIASES,
     MODULES,
@@ -16,10 +23,14 @@ from app.components.module_registry import (
     module_show_drawer,
     resolve_module,
 )
+from app.components.notification_center import render_notification_center
+from app.components.notification_center import init_notifications
 from app.components.page_utils import init_session
 from app.components.results_drawer import render_right_results_drawer
+from app.components.settings_panel import init_settings, render_settings_panel
 from app.components.statusbar import render_statusbar
-from app.components.theme import get_theme, init_theme_state, inject_theme_styles, render_theme_quick_toggle
+from app.components.theme import inject_theme_styles, init_theme_state
+from app.components.user_menu import render_user_menu
 
 
 WORKSPACE_ROUTES = {
@@ -56,6 +67,8 @@ def init_saas_state() -> None:
     """Initialize session keys used by the SaaS shell."""
     init_session()
     init_theme_state()
+    init_settings()
+    init_notifications()
     active = st.session_state.get("active_module", "study_data")
     st.session_state["active_module"] = resolve_module(active)
     st.session_state.setdefault("active_module", "study_data")
@@ -72,68 +85,72 @@ def _is_section_open(section: str, active_key: str, mods: list[dict]) -> bool:
     return active_key in mod_keys
 
 
-def render_product_header() -> None:
-    project_name = st.session_state.get("project_name") or "No project loaded"
-    data_loaded = st.session_state.get("adata") is not None
-    data_label = "Data loaded" if data_loaded else "Awaiting upload"
-    data_cls = "saas-status-ok" if data_loaded else "saas-status-warn"
-    theme_label = "Dark" if get_theme() == "dark" else "Light"
+def _header_chip(label: str, value: str, css_class: str = "") -> str:
+    cls = f"saas-header-chip-value {css_class}".strip()
+    return (
+        f'<div class="saas-header-chip">'
+        f'<span class="saas-header-chip-label">{label}</span>'
+        f'<span class="{cls}">{value}</span>'
+        f"</div>"
+    )
 
-    brand_col, meta_col, toggle_col = st.columns([2.4, 2.8, 0.8], gap="small")
+
+def render_product_header() -> None:
+    """Compact production header: brand, context chips, action controls."""
+    project = get_project_label()
+    technology = get_technology_label()
+    dataset_label, dataset_cls = get_dataset_status()
+    run_label, run_cls = get_run_status()
+
+    st.markdown('<span class="saas-header-anchor saas-shell-anchor"></span>', unsafe_allow_html=True)
+
+    brand_col, meta_col, actions_col = st.columns([1.6, 4.2, 2.2], gap="small")
     with brand_col:
         st.markdown(
             """
-            <div class="saas-product-header">
+            <div class="saas-product-header saas-header-brand">
               <div class="saas-product-brand">
                 <div class="saas-logo-mark">M</div>
-                <div>
-                  <div class="saas-product-title">MBSI Studio</div>
-                  <div class="saas-product-subtitle">Physics-Aware Spatial Biology Intelligence</div>
-                </div>
+                <div class="saas-product-title">MBSI Studio</div>
               </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
     with meta_col:
-        st.markdown(
-            f"""
-            <div class="saas-top-meta">
-              <div class="saas-top-meta-item">
-                <span class="saas-top-meta-label">Project</span>
-                <span class="saas-top-meta-value">{project_name}</span>
-              </div>
-              <div class="saas-top-meta-item">
-                <span class="saas-top-meta-label">Data</span>
-                <span class="saas-top-meta-value {data_cls}">{data_label}</span>
-              </div>
-              <div class="saas-top-meta-item">
-                <span class="saas-top-meta-label">Theme</span>
-                <span class="saas-top-meta-value">{theme_label}</span>
-              </div>
-              <div class="saas-top-meta-item">
-                <span class="saas-top-meta-label">Version</span>
-                <span class="saas-top-meta-value">v2.1</span>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        chips = "".join(
+            [
+                _header_chip("Project", project),
+                _header_chip("Technology", technology),
+                _header_chip("Dataset", dataset_label, dataset_cls),
+                _header_chip("Run", run_label, run_cls),
+            ]
         )
-    with toggle_col:
-        render_theme_quick_toggle(compact=True)
+        st.markdown(f'<div class="saas-header-meta">{chips}</div>', unsafe_allow_html=True)
+    with actions_col:
+        st.markdown('<div class="saas-header-actions-anchor"></div>', unsafe_allow_html=True)
+        a1, a2, a3, a4 = st.columns(4, gap="small")
+        with a1:
+            render_notification_center()
+        with a2:
+            render_help_drawer()
+        with a3:
+            render_settings_panel()
+        with a4:
+            render_user_menu()
 
 
 def render_project_panel() -> None:
     """Static project card — buttons render as sibling Streamlit widgets below."""
-    project_name = st.session_state.get("project_name") or "No project loaded"
-    data_status = "Loaded" if st.session_state.get("adata") is not None else "Awaiting upload"
+    project_name = get_project_label()
+    data_status, _ = get_dataset_status()
     st.markdown(
         f"""
         <div class="saas-side-card mbsi-card">
           <div class="saas-side-title">Quick actions</div>
           <div class="saas-project-name">{project_name}</div>
           <div class="saas-mini-grid">
-            <div><span>Data</span><strong>{data_status}</strong></div>
+            <div><span>Dataset</span><strong>{data_status}</strong></div>
             <div><span>Mode</span><strong>Guided</strong></div>
           </div>
         </div>

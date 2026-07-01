@@ -89,10 +89,7 @@ def render_topnav(active: str | None = None) -> None:
             unsafe_allow_html=True,
         )
     with brand_right:
-        st.markdown(
-            '<div class="mbsi-nav-right-inline"><span class="mbsi-demo-btn">Demo Mode</span></div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<div class="mbsi-nav-right-inline"></div>', unsafe_allow_html=True)
 
     st.markdown('<div class="mbsi-nav-row-start"></div>', unsafe_allow_html=True)
 

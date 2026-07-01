@@ -8,6 +8,7 @@ import pandas as pd
 from app.components.interactive_figures import render_interactive_plot
 from app.components.page_header import render_page_header
 from app.components.uploaders import data_readiness_score, upload_panel
+from app.components.notification_center import push_notification
 from app.components.page_utils import load_advanced_demo_into_session
 from app.workspaces._helpers import add_finding, safe_register_finding
 from mbsi.visualization.analysis_plots import plot_qc_spatial
@@ -51,6 +52,24 @@ def _store_ingestion(result: dict) -> None:
         st.session_state.uploaded_image = result["image"]
     if result.get("segmentation") is not None:
         st.session_state.uploaded_segmentation = result["segmentation"]
+
+    platform_label = platform or "unknown"
+    if adata is not None:
+        push_notification(
+            f"Loaded {adata.n_obs:,} observations ({platform_label}).",
+            title="Upload complete",
+            level="success",
+            source="ingestion",
+            dedupe=True,
+        )
+    elif detection:
+        push_notification(
+            f"Files detected for {platform_label}.",
+            title="Upload received",
+            level="info",
+            source="ingestion",
+            dedupe=True,
+        )
 
 
 def _render_detection_panel(detection: dict) -> None:

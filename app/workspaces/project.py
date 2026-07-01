@@ -14,7 +14,12 @@ def render_dashboard_summary() -> None:
     design = st.session_state.get("experimental_design", {})
     plat = st.session_state.get("platform_metadata", {})
     adata = st.session_state.get("adata")
-    using_demo = st.session_state.get("using_synthetic_demo", True)
+    adata_loaded = adata is not None
+    using_sample = bool(st.session_state.get("using_synthetic_demo")) and adata_loaded
+    if adata_loaded:
+        data_mode = "Sample dataset" if using_sample else "Uploaded"
+    else:
+        data_mode = "Not loaded"
 
     render_page_header(
         "Project Dashboard",
@@ -30,7 +35,7 @@ def render_dashboard_summary() -> None:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Study type", design.get("study_type", "—"))
     c2.metric("Samples", design.get("num_samples", "—"))
-    c3.metric("Data mode", "Demo" if using_demo else "Uploaded")
+    c3.metric("Data mode", data_mode)
     c4.metric("Completeness", f"{st.session_state.get('project_completeness', 0)}/100")
 
     if adata is not None:

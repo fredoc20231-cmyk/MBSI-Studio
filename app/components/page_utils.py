@@ -314,7 +314,7 @@ def render_status_panel():
 
     items = [
         ("Backend", "online" if backend else "offline (local)", status_color(backend, partial=not backend)),
-        ("Demo data", "loaded" if demo_ok else "fallback", status_color(demo_ok, partial=not demo_ok)),
+        ("Dataset bundle", "available" if demo_ok else "missing", status_color(demo_ok, partial=not demo_ok)),
         ("MBSI engine", "ready" if mbsi_ok else "error", status_color(mbsi_ok)),
         ("Segmentation", "ready" if seg_ok else "error", status_color(seg_ok)),
         ("Validation", "ready" if val_ok else "error", status_color(val_ok)),

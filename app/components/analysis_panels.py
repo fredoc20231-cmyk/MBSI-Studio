@@ -57,7 +57,7 @@ def render_cell_types_panel(demo: Dict[str, Any]) -> None:
 
 
 def render_clusters_panel(demo: Dict[str, Any]) -> None:
-    st.markdown("### Spatial Clusters (demo)")
+    st.markdown("### Spatial Clusters")
     rng = np.random.default_rng(42)
     n = 120
     df = pd.DataFrame({
@@ -78,7 +78,7 @@ def render_neighborhoods_panel(demo: Dict[str, Any]) -> None:
 
 
 def render_boundaries_panel(demo: Dict[str, Any]) -> None:
-    st.markdown("### Boundary & Invasion (demo)")
+    st.markdown("### Boundary & Invasion")
     safe_plotly(invasion_heatmap(demo["invasion_field"], title="Invasion & Boundary Analysis"))
 
 
@@ -91,10 +91,10 @@ def render_pathways_panel(demo: Dict[str, Any]) -> None:
 
 
 def render_3d_panel(demo: Dict[str, Any]) -> None:
-    st.markdown("### 3D Tissue View (demo proxy)")
+    st.markdown("### 3D Tissue View")
     cells = demo.get("cells", [])
     if not cells:
-        st.info("3D view requires cell coordinates — load demo data.")
+        st.info("3D view requires cell coordinates — load spatial data.")
         return
     xs = [c["x"] for c in cells[:400]]
     ys = [c["y"] for c in cells[:400]]
@@ -102,6 +102,6 @@ def render_3d_panel(demo: Dict[str, Any]) -> None:
     colors = [CELL_TYPE_COLORS.get(c.get("type", "Other"), "#b8c1cc") for c in cells[:400]]
     fig = go.Figure(data=[go.Scatter3d(x=xs, y=ys, z=zs, mode="markers", marker=dict(size=2, color=colors))])
     fig.update_layout(
-        title="3D Cell Cloud (demo)", paper_bgcolor="#0d1828", scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False),
+        title="3D Cell Cloud", paper_bgcolor="#0d1828", scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False),
     )
     safe_plotly(fig)

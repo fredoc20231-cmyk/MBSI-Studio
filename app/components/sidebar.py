@@ -34,7 +34,7 @@ def render_analysis_sidebar() -> None:
     """Project panel, data summary, modalities, readiness, pipeline controls."""
     with st.sidebar:
         st.markdown("### Project")
-        project = st.text_input("Project name", value=st.session_state.get("project_name", "Advanced Spatial Demo"))
+        project = st.text_input("Project name", value=st.session_state.get("project_name", "Untitled project"))
         st.session_state.project_name = project
 
         demo = st.session_state.get("spatial_demo") or {}

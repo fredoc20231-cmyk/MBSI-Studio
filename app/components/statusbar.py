@@ -29,7 +29,7 @@ def render_statusbar(show_actions: bool = True) -> None:
     except Exception:
         mem_mb = platform.system()
 
-    last_run = st.session_state.get("last_run", "Demo loaded")
+    last_run = st.session_state.get("last_run") or "None"
     dot = "online" if backend_ok else "offline"
 
     st.markdown(

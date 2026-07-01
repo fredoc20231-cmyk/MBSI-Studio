@@ -38,7 +38,7 @@ def render_results_drawer() -> None:
     if bench:
         st.caption(f"Benchmark readiness: {safe_get(bench, 'readiness_score', default='—')}")
 
-    last = st.session_state.get("last_run", "Demo loaded")
+    last = st.session_state.get("last_run") or "None"
     st.caption(f"Last run: {last}")
 
     st.divider()

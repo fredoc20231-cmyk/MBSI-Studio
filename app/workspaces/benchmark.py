@@ -2,9 +2,10 @@
 
 import streamlit as st
 from app.components.interactive_figures import render_interactive_plot
+from app.components.notification_center import push_notification
 from app.components.page_header import render_page_header
 from app.components.safe import safe_get
-from app.workspaces._helpers import add_finding, add_warning, demo_banner, safe_register_table
+from app.workspaces._helpers import add_finding, add_warning, safe_register_table
 
 
 def _run_benchmark() -> None:
@@ -22,25 +23,37 @@ def _run_benchmark() -> None:
             module="benchmark",
             title="Benchmark complete",
         )
+        push_notification(
+            f"Readiness score {out.get('readiness_score', 0)}/100.",
+            title="Benchmark complete",
+            level="success",
+            source="benchmark",
+        )
     except Exception as exc:
         add_warning(str(exc))
+        push_notification(str(exc), title="Benchmark failed", level="error", source="benchmark")
         st.warning(f"Benchmark failed: {exc}")
 
 
 def render():
-    demo_banner()
     action = st.session_state.pop("ribbon_action", None)
     if action == "run_benchmark":
         _run_benchmark()
     elif action == "export_benchmark":
         st.toast("Benchmark summary queued for report export.")
+        push_notification(
+            "Benchmark summary queued for report export.",
+            title="Export queued",
+            level="info",
+            source="benchmark",
+        )
 
     render_page_header(
         "Benchmark Hub",
         "Compare reconstruction methods on shared gene panels and readiness scores.",
         icon="⚖️",
     )
-    if st.button("Run Benchmark (demo)", type="primary", key="ws_run_benchmark"):
+    if st.button("Run Benchmark", type="primary", key="ws_run_benchmark"):
         _run_benchmark()
 
     results = st.session_state.get("benchmark_results")

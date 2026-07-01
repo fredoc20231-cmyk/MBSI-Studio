@@ -2,9 +2,9 @@
 
 import streamlit as st
 
-from app.components.interactive_figures import render_interactive_plot
+from app.components.notification_center import push_notification
 from app.components.page_header import render_page_header
-from app.components.page_utils import OUTPUT_DIR, load_advanced_demo_into_session
+from app.components.page_utils import OUTPUT_DIR
 from app.components.safe import safe_get
 from app.workspaces._discovery_runners import run_communication, run_tme
 from mbsi.discovery import export_discovery_engine
@@ -39,11 +39,11 @@ def _run_discovery(allow_demo: bool = False) -> None:
         analysis_results=st.session_state.get("analysis_results"),
     )
     if run.status != "success":
-        st.warning(run.warnings[0] if run.warnings else "Discovery unavailable — upload real data first")
+        msg = run.warnings[0] if run.warnings else "Discovery unavailable — upload real data first"
+        push_notification(msg, title="Discovery failed", level="warning", source="discovery")
+        st.warning(msg)
         return
     out = run.outputs.get("discovery_results", {})
-    if out.get("is_demo"):
-        st.info("Demo dataset — all discovery outputs are labeled synthetic.")
     st.session_state.discovery_results = out
     st.session_state.findings = out.get("findings", [])
     st.session_state.evidence = out.get("evidence", [])
@@ -52,8 +52,14 @@ def _run_discovery(allow_demo: bool = False) -> None:
     st.session_state.communication_results = out.get("communication_results")
     st.session_state.tme_results = out.get("tme_results")
     export_discovery_engine(out, OUTPUT_DIR)
-    st.session_state.last_run = "Discovery Intelligence (demo)" if out.get("is_demo") else "Discovery Intelligence"
+    st.session_state.last_run = "Discovery Intelligence"
     st.session_state.run_outputs["discovery"] = run.to_dict()
+    push_notification(
+        f"{len(st.session_state.findings)} findings registered.",
+        title="Discovery complete",
+        level="success",
+        source="discovery",
+    )
 
 
 def _render_top_findings(findings: list, evidence: list) -> None:
@@ -89,17 +95,8 @@ def render():
     adata = st.session_state.get("adata")
 
     if not _has_real_adata() and adata is None:
-        st.warning("Discovery unavailable — upload real data first.")
-        if st.button("Load Demo Dataset (labeled demo)", key="disc_load_demo"):
-            load_advanced_demo_into_session(force=True)
-            st.session_state.using_synthetic_demo = True
-            st.session_state.mbsi_platform = "demo"
-            st.session_state.mbsi_readiness = {"status": "Synthetic demo data", "technology_key": "demo"}
-            st.rerun()
+        st.warning("Discovery unavailable — upload real data in Study Setup & Data first.")
         return
-
-    if st.session_state.get("using_synthetic_demo"):
-        st.caption("Demo mode — computational outputs for research use only.")
 
     substeps = WORKFLOW_SUBSTEPS[WorkflowModule.DISCOVERY.value]
     tab_labels = [s.replace("_", " ").title() for s in substeps]
@@ -138,7 +135,7 @@ def render():
     with tabs[8]:
         st.caption("Spatial biomarker panels")
         if st.button("Run full Discovery Engine", type="primary", key="disc_run_engine"):
-            _run_discovery(allow_demo=st.session_state.get("using_synthetic_demo", False))
+            _run_discovery(allow_demo=False)
 
     with tabs[9]:
         st.caption("Causal driver hypotheses from discovery graph")

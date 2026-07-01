@@ -1,20 +1,20 @@
 """Reconstruction workspace."""
 
 import streamlit as st
+from app.components.notification_center import push_notification
 from app.components.page_header import render_page_header
 from app.components.page_utils import ensure_adata, ensure_reconstructed, has_real_adata
-from app.workspaces._helpers import demo_banner, add_finding
+from app.workspaces._helpers import add_finding
 
 
 def render():
-    demo_banner()
     render_page_header(
-        "MBSI Reconstruction",
+        "Reconstruction",
         "Reconstruct cell-level expression from spatial spot measurements.",
         icon="🔄",
     )
-    if not has_real_adata() and not st.session_state.get("using_synthetic_demo"):
-        st.info("Upload real spatial data in Study & Data to run reconstruction.")
+    if not has_real_adata():
+        st.info("Upload spatial data in Study Setup & Data to run reconstruction.")
         return
     if st.button("Run MBSI (quick)", type="primary"):
         try:
@@ -24,6 +24,13 @@ def render():
                 return
             st.session_state.last_run = "MBSI reconstruction"
             add_finding("Reconstruction", "MBSI run completed")
+            push_notification(
+                "MBSI reconstruction completed.",
+                title="Workflow complete",
+                level="success",
+                source="reconstruction",
+            )
             st.success("Reconstruction ready.")
         except Exception as exc:
+            push_notification(str(exc), title="Reconstruction failed", level="error", source="reconstruction")
             st.warning(f"Reconstruction failed: {exc}")

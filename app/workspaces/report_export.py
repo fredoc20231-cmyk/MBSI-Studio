@@ -2,10 +2,10 @@
 
 import streamlit as st
 
+from app.components.notification_center import push_notification
 from app.components.page_header import render_page_header
 from app.components.page_utils import OUTPUT_DIR
 from app.components.results_notebook import render_results_notebook
-from mbsi.reports.final_report import create_data_bundle, generate_final_html_report, generate_final_pdf_report
 from mbsi.reports.registry import get_notebook_entries, get_registered_outputs
 from mbsi.schema.report import ReportMetadata
 from mbsi.schema.workflow import WORKFLOW_SUBSTEPS, WorkflowModule
@@ -19,16 +19,21 @@ def _generate(kind: str) -> None:
     run = run_report_workflow(OUTPUT_DIR, snapshot=snap, export_type=kind)
     st.session_state.run_outputs["report_export"] = run.to_dict()
     if run.status == "success":
-        st.success(f"Export complete: {run.outputs.get('path')}")
+        path = run.outputs.get("path", "")
+        push_notification(
+            f"{kind.upper()} report saved{f' to {path}' if path else ''}.",
+            title="Report generated",
+            level="success",
+            source="report_export",
+        )
+        st.success(f"Export complete: {path}")
     else:
-        st.warning(run.warnings[0] if run.warnings else "Export failed")
+        msg = run.warnings[0] if run.warnings else "Export failed"
+        push_notification(msg, title="Report generation failed", level="error", source="report_export")
+        st.warning(msg)
 
 
 def render():
-    using_demo = st.session_state.get("using_synthetic_demo", True)
-    if using_demo:
-        st.warning("Report includes demo/synthetic data — upload real data for production exports.")
-
     st.markdown(
         '<span class="saas-report-final-badge">Final deliverable</span>',
         unsafe_allow_html=True,
@@ -60,7 +65,7 @@ def render():
 
     with tabs[4]:
         st.download_button(
-            "Download findings JSON (demo)",
+            "Download findings JSON",
             data=str(st.session_state.get("findings", [])),
             file_name="findings.json",
             key="ws_dl_findings",
@@ -82,3 +87,4 @@ def render():
         }
     )
     st.caption(f"Report traceability: {len(meta.finding_ids)} findings, {len(meta.evidence_ids)} evidence items")
+

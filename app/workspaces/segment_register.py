@@ -8,8 +8,7 @@ import streamlit as st
 from app.components.interactive_figures import render_interactive_plot
 from app.components.page_header import render_page_header
 from app.components.page_utils import OUTPUT_DIR, init_session
-from app.workspaces._helpers import add_finding, demo_banner, safe_register_finding, safe_register_table
-from mbsi.analysis.demo import make_synthetic_visium_adata
+from app.workspaces._helpers import add_finding, safe_register_finding, safe_register_table
 from mbsi.schema.technology import get_technology
 from mbsi.schema.workflow import WORKFLOW_SUBSTEPS, WorkflowModule
 from mbsi.segmentation.adapters import available_backends, get_technology_segmentation_plan
@@ -40,12 +39,7 @@ def _ensure_adata():
     adata = st.session_state.get("adata")
     if adata is not None:
         return adata
-    st.warning("Segmentation unavailable — upload real data first.")
-    if st.button("Load Demo Dataset (labeled demo)", key="seg_load_demo"):
-        adata = make_synthetic_visium_adata(n_spots=80, n_genes=120, seed=42)
-        st.session_state.adata = adata
-        st.session_state.using_synthetic_demo = True
-        st.rerun()
+    st.warning("Segmentation unavailable — upload real data in Study Setup & Data first.")
     st.stop()
 
 
@@ -85,9 +79,6 @@ def _overlay_preview(image, mask=None, coords=None):
 
 def render():
     _init_segmentation_state()
-    if st.session_state.get("using_synthetic_demo"):
-        demo_banner()
-
     adata = _ensure_adata()
     tech_key = st.session_state.get("selected_technology") or st.session_state.get("mbsi_platform", "")
     spec = get_technology(tech_key)

@@ -1,8 +1,76 @@
-"""SaaS module registry — 16-module spatialGE-style guided workflow."""
+"""SaaS module registry — full module catalog + 10-item primary navigation."""
 
 from __future__ import annotations
 
 from typing import Any, Dict, List
+
+# Primary left-sidebar navigation (10 items per UI spec)
+NAV_MODULES: List[Dict[str, Any]] = [
+    {
+        "key": "study_data",
+        "label": "Study Setup & Data",
+        "icon": "📁",
+        "description": "Project setup, experimental design, sample table, technology-aware upload",
+    },
+    {
+        "key": "qc_transformation",
+        "label": "QC & Transformation",
+        "icon": "🧹",
+        "description": "QC summary, filtering, normalization, pseudobulk, quilt plots",
+    },
+    {
+        "key": "segment_register",
+        "label": "Segmentation & Registration",
+        "icon": "🔬",
+        "description": "Tissue/cell segmentation and image registration",
+    },
+    {
+        "key": "spatial_analysis",
+        "label": "Spatial Analysis",
+        "icon": "🗺️",
+        "description": "Spatial feature, quilt, cluster maps, UMAP/PCA, violin/dot/heatmap",
+    },
+    {
+        "key": "reconstruction",
+        "label": "Reconstruction",
+        "icon": "🧩",
+        "description": "Physics-aware cell reconstruction",
+    },
+    {
+        "key": "benchmark",
+        "label": "Benchmark & Validation",
+        "icon": "📊",
+        "description": "Ground-truth benchmarking and validation metrics",
+        "show_drawer": True,
+    },
+    {
+        "key": "discovery",
+        "label": "Discovery Intelligence",
+        "icon": "🚀",
+        "description": "Communication, TME niches, biomarkers, causal drivers",
+        "show_drawer": True,
+    },
+    {
+        "key": "ai_review",
+        "label": "AI Review & Evidence",
+        "icon": "💬",
+        "description": "Grounded outcome Q&A and evidence review",
+    },
+    {
+        "key": "report_export",
+        "label": "Report & Export",
+        "icon": "📄",
+        "description": "Notebook, HTML/PDF report, data bundle, downloads",
+    },
+    {
+        "key": "settings",
+        "label": "Settings",
+        "icon": "⚙️",
+        "description": "Session, theme, and export defaults",
+    },
+]
+
+NAV_MODULE_KEYS = [m["key"] for m in NAV_MODULES]
 
 MODULES: List[Dict[str, Any]] = [
     # Setup
@@ -90,7 +158,7 @@ MODULES: List[Dict[str, Any]] = [
     },
     {
         "key": "reconstruction",
-        "label": "MBSI Reconstruction",
+        "label": "Reconstruction",
         "icon": "🧩",
         "section": "MBSI Intelligence",
         "description": "Physics-aware cell reconstruction",
@@ -114,7 +182,7 @@ MODULES: List[Dict[str, Any]] = [
     },
     {
         "key": "ai_review",
-        "label": "AI Review",
+        "label": "AI Review & Evidence",
         "icon": "💬",
         "section": "MBSI Intelligence",
         "description": "Grounded outcome Q&A and evidence review",
@@ -172,20 +240,46 @@ def get_module(key: str) -> Dict[str, Any]:
     for m in MODULES:
         if m["key"] == key:
             return m
-    return MODULES[0]
+    for m in NAV_MODULES:
+        if m["key"] == key or resolve_module(m["key"]) == key:
+            return m
+    return NAV_MODULES[0]
 
 
 def module_show_drawer(key: str) -> bool:
-    return bool(get_module(key).get("show_drawer", False))
+    key = resolve_module(key)
+    mod = get_module(key)
+    if mod.get("show_drawer"):
+        return True
+    return key in DRAWER_MODULES
 
 
 def next_module(key: str) -> str | None:
-    """Return the next module in workflow order, or None if last."""
+    """Return the next primary-nav module in workflow order, or None if last."""
     key = resolve_module(key)
-    keys = MODULE_KEYS
+    keys = NAV_MODULE_KEYS
+    resolved = key
     if key not in keys:
-        return keys[0]
-    idx = keys.index(key)
+        for nav_key in keys:
+            if resolve_module(nav_key) == key or key.startswith(nav_key):
+                resolved = nav_key
+                break
+        else:
+            return keys[0]
+    idx = keys.index(resolved)
     if idx + 1 < len(keys):
         return keys[idx + 1]
     return None
+
+
+def search_nav_modules(query: str) -> List[Dict[str, Any]]:
+    """Filter primary nav modules by label or description."""
+    q = query.strip().lower()
+    if not q:
+        return list(NAV_MODULES)
+    out: List[Dict[str, Any]] = []
+    for mod in NAV_MODULES:
+        hay = f"{mod.get('label', '')} {mod.get('description', '')}".lower()
+        if q in hay:
+            out.append(mod)
+    return out

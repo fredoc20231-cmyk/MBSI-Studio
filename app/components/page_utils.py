@@ -87,6 +87,7 @@ def init_session():
         "discovery_graph": None,
         "workflow_status": {},
         "job_status": {},
+        "validators": {},
         "saas_notifications": [],
         "mbsi_settings": {},
     }

@@ -6,6 +6,8 @@ from typing import Tuple
 
 import streamlit as st
 
+DATASET_STATUSES = ("UNVERIFIED", "VALIDATING", "READY", "CORRUPTED")
+
 
 def _workflow_state() -> str:
     wf = st.session_state.get("workflow_status") or {}
@@ -35,31 +37,69 @@ def get_technology_label() -> str:
     return str(tech_key).replace("_", " ").title()
 
 
-def get_dataset_status() -> Tuple[str, str]:
-    """Return (label, css_class) for header dataset status chip."""
-    wf_state = _workflow_state()
-    if wf_state in {"running", "processing", "in_progress", "queued"}:
-        return "Processing", "saas-status-warn"
+def _is_corrupted(
+    wf_state: str,
+    readiness: dict,
+    ingestion: dict,
+    validators: dict,
+) -> bool:
+    if wf_state in {"failed", "error", "corrupted"}:
+        return True
+    status = str(readiness.get("status", "")).lower()
+    if status in {"corrupted", "error", "failed"}:
+        return True
+    if ingestion.get("corrupted") or validators.get("failed"):
+        return True
+    if validators.get("errors"):
+        return True
+    return False
 
-    adata = st.session_state.get("adata")
+
+def _is_validating(wf_state: str, readiness: dict) -> bool:
+    if wf_state in {"running", "processing", "in_progress", "queued", "validating"}:
+        return True
+    if str(readiness.get("status", "")).lower() == "validating":
+        return True
+    job = st.session_state.get("job_status") or {}
+    if str(job.get("status", "")).lower() in {"running", "queued", "validating"}:
+        return True
+    return False
+
+
+def _is_ready(adata, readiness: dict, ingestion: dict, validators: dict) -> bool:
     if adata is None:
-        return "No Dataset Loaded", "saas-status-warn"
+        return False
+    if validators.get("passed") or validators.get("valid"):
+        return True
+    if readiness.get("validated"):
+        return True
+    status = str(readiness.get("status", "")).lower()
+    if status in {"validated", "ready", "complete"}:
+        return True
+    score = float(readiness.get("dataset_readiness") or ingestion.get("readiness_score") or 0)
+    return score >= 70
 
+
+def get_dataset_status() -> Tuple[str, str]:
+    """Return (label, css_class) for header dataset status chip.
+
+    Status values: UNVERIFIED | VALIDATING | READY | CORRUPTED
+    """
+    wf_state = _workflow_state()
+    adata = st.session_state.get("adata")
     readiness = st.session_state.get("mbsi_readiness") or {}
     ingestion = st.session_state.get("ingestion_result") or {}
+    validators = st.session_state.get("validators") or {}
 
-    validated = bool(
-        readiness.get("validated")
-        or str(readiness.get("status", "")).lower() in {"validated", "ready", "complete"}
-        or float(readiness.get("dataset_readiness") or 0) >= 70
-        or float(ingestion.get("readiness_score") or 0) >= 70
-    )
-
-    if wf_state in {"complete", "completed", "success", "done"}:
-        return "Complete", "saas-status-ok"
-    if validated:
-        return "Dataset Validated", "saas-status-ok"
-    return "Dataset Loaded", "saas-status-ok"
+    if _is_corrupted(wf_state, readiness, ingestion, validators):
+        return "CORRUPTED", "saas-status-error"
+    if _is_validating(wf_state, readiness):
+        return "VALIDATING", "saas-status-warn"
+    if adata is None:
+        return "UNVERIFIED", "saas-status-warn"
+    if _is_ready(adata, readiness, ingestion, validators):
+        return "READY", "saas-status-ok"
+    return "UNVERIFIED", "saas-status-neutral"
 
 
 def get_run_status() -> Tuple[str, str]:

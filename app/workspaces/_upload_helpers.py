@@ -9,7 +9,6 @@ from app.components.interactive_figures import render_interactive_plot
 from app.components.page_header import render_page_header
 from app.components.uploaders import data_readiness_score, upload_panel
 from app.components.notification_center import push_notification
-from app.components.page_utils import load_advanced_demo_into_session
 from app.workspaces._helpers import add_finding, safe_register_finding
 from mbsi.visualization.analysis_plots import plot_qc_spatial
 
@@ -70,6 +69,16 @@ def _store_ingestion(result: dict) -> None:
             source="ingestion",
             dedupe=True,
         )
+
+    for module, info in compatibility.items():
+        status = str(info.get("status", "")).lower()
+        if status in {"blocked", "incompatible", "error"}:
+            push_notification(
+                info.get("reason") or f"{module} is not compatible with this dataset.",
+                title="Validation warning",
+                level="warning",
+                source="validation",
+            )
 
 
 def _render_detection_panel(detection: dict) -> None:
@@ -187,11 +196,3 @@ def render():
         _render_post_upload_actions()
     else:
         st.info("No data loaded yet. Upload Visium ZIP, h5ad, or CSV matrix + coordinates.")
-
-    st.divider()
-    if st.button("Load Advanced Demo Instead", key="upload_load_demo"):
-        load_advanced_demo_into_session(force=True)
-        st.session_state.using_synthetic_demo = True
-        st.session_state.mbsi_platform = "demo"
-        st.session_state.mbsi_readiness = {"status": "Synthetic demo data"}
-        st.rerun()

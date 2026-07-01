@@ -26,7 +26,7 @@ def render_benchmark_ribbon() -> None:
     _ribbon_start()
     cols = st.columns([1.1, 1.0, 1.0, 0.7, 1.1, 0.7], gap="small")
     with cols[0]:
-        st.selectbox("Dataset", ["synthetic_visium", "xenium_demo", "cosmx_demo"], key="rb_benchmark_dataset", label_visibility="visible")
+        st.selectbox("Dataset", ["session_adata", "reference_panel_a", "reference_panel_b"], key="rb_benchmark_dataset", label_visibility="visible")
     with cols[1]:
         st.selectbox("Platform", ["xenium", "cosmx", "merfish"], key="ctx_benchmark_platform", label_visibility="visible")
     with cols[2]:

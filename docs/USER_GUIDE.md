@@ -17,11 +17,11 @@ MBSI Studio supports technology-aware ingestion and module compatibility for maj
 - **Stereo-seq** — nanoscale spatial omics
 - **CODEX / multiplex IF** — protein spatial imaging
 
-Select your technology in **Study & Data** before upload. Required and optional file types are shown per platform.
+Select your technology in **Study Setup & Data** before upload. Required and optional file types are shown per platform.
 
 ## Workflow guide
 
-1. **Study & Data** — define project metadata, experimental design, sample table, and upload spatial files.
+1. **Study Setup & Data** — define project metadata, experimental design, sample table, and upload spatial files.
 2. **QC & Transformation** — filter, normalize, and prepare AnnData for downstream analysis.
 3. **Core Spatial Analysis** — visualization, SVG, gene sets, domains, phenotyping, differential analysis, gradients.
 4. **MBSI Intelligence** — segmentation, physics-aware reconstruction, benchmark, discovery, AI review.
@@ -41,13 +41,12 @@ Dataset status in the header reflects session state:
 
 | Status | Meaning |
 |--------|---------|
-| No Dataset Loaded | No AnnData in session |
-| Dataset Loaded | Data present, validation incomplete |
-| Dataset Validated | Readiness score or validation passed |
-| Processing | Workflow currently running |
-| Complete | Latest workflow finished successfully |
+| UNVERIFIED | No AnnData loaded, or data present but validation incomplete |
+| VALIDATING | Upload or workflow validation in progress |
+| READY | Dataset validated (readiness score ≥ 70 or validators passed) |
+| CORRUPTED | Validation or ingestion failed |
 
-Sample datasets can be loaded explicitly from **Study & Data** for exploration; they are labeled on that page only.
+Sample datasets can be loaded explicitly from **Study Setup & Data** for exploration; they are labeled on that page only.
 
 ## Documentation links
 

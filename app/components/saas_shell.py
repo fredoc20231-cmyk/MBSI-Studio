@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-from collections import defaultdict
 
 import streamlit as st
 
@@ -17,11 +16,11 @@ from app.components.header_status import (
 from app.components.help_panel import render_help_drawer
 from app.components.module_registry import (
     LEGACY_MODULE_ALIASES,
-    MODULES,
-    SECTION_ORDER,
+    NAV_MODULES,
     get_module,
     module_show_drawer,
     resolve_module,
+    search_nav_modules,
 )
 from app.components.notification_center import render_notification_center
 from app.components.notification_center import init_notifications
@@ -55,12 +54,27 @@ WORKSPACE_ROUTES = {
 for _legacy, _canonical in LEGACY_MODULE_ALIASES.items():
     WORKSPACE_ROUTES[_legacy] = WORKSPACE_ROUTES[_canonical]
 
-SECTION_SHORT: dict[str, str] = {
-    "Setup": "Setup",
-    "Core Spatial Analysis": "Core Analysis",
-    "MBSI Intelligence": "MBSI Intelligence",
-    "Export": "Export",
-}
+
+@st.dialog("Search modules", width="large")
+def _search_dialog() -> None:
+    query = st.text_input("Search modules", placeholder="Type to filter…", key="header_search_query")
+    matches = search_nav_modules(query)
+    if not matches:
+        st.info("No modules match your search.")
+        return
+    for mod in matches:
+        icon = mod.get("icon", "")
+        label = mod["label"]
+        btn_label = f"{icon}  {label}" if icon else label
+        if st.button(btn_label, key=f"search_nav_{mod['key']}", use_container_width=True):
+            st.session_state.active_module = mod["key"]
+            st.rerun()
+
+
+def render_module_search() -> None:
+    """Header search — opens filterable module list."""
+    if st.button("Search", key="header_search_btn", help="Search modules (Ctrl/Cmd+K)"):
+        _search_dialog()
 
 
 def init_saas_state() -> None:
@@ -78,11 +92,6 @@ def init_saas_state() -> None:
     st.session_state.setdefault("run_outputs", {})
     st.session_state.setdefault("figure_registry", {})
     st.session_state.setdefault("table_registry", {})
-
-
-def _is_section_open(section: str, active_key: str, mods: list[dict]) -> bool:
-    mod_keys = {m["key"] for m in mods}
-    return active_key in mod_keys
 
 
 def _header_chip(label: str, value: str, css_class: str = "") -> str:
@@ -129,14 +138,16 @@ def render_product_header() -> None:
         st.markdown(f'<div class="saas-header-meta">{chips}</div>', unsafe_allow_html=True)
     with actions_col:
         st.markdown('<div class="saas-header-actions-anchor"></div>', unsafe_allow_html=True)
-        a1, a2, a3, a4 = st.columns(4, gap="small")
+        a1, a2, a3, a4, a5 = st.columns(5, gap="small")
         with a1:
-            render_notification_center()
+            render_module_search()
         with a2:
-            render_help_drawer()
+            render_notification_center()
         with a3:
-            render_settings_panel()
+            render_help_drawer()
         with a4:
+            render_settings_panel()
+        with a5:
             render_user_menu()
 
 
@@ -170,40 +181,23 @@ def render_project_panel() -> None:
 
 
 def render_left_main_nav() -> None:
-    """Grouped module nav — four collapsible sections with clear headers."""
+    """Primary workflow navigation — 10 modules per UI spec."""
     render_project_panel()
     active_key = resolve_module(st.session_state.get("active_module", "study_data"))
 
-    grouped: dict[str, list[dict]] = defaultdict(list)
-    for mod in MODULES:
-        grouped[mod.get("section", "Other")].append(mod)
-
-    for section in SECTION_ORDER:
-        mods = grouped.get(section, [])
-        if not mods:
-            continue
-
-        section_open = _is_section_open(section, active_key, mods)
-        short = SECTION_SHORT.get(section, section)
-        count = len(mods)
-        header = f"{short}  ·  {count} modules"
-
-        with st.expander(header, expanded=section_open):
-            if section == "MBSI Intelligence":
-                st.markdown(
-                    '<div class="saas-workflow-hint">Reconstruction → benchmark → discovery → AI review</div>',
-                    unsafe_allow_html=True,
-                )
-            for mod in mods:
-                key = mod["key"]
-                active = active_key == key
-                btn_type = "primary" if active else "secondary"
-                icon = mod.get("icon", "")
-                label = mod["label"]
-                btn_label = f"{icon}  {label}" if icon else label
-                if st.button(btn_label, key=f"saas_nav_{key}", type=btn_type, use_container_width=True):
-                    st.session_state.active_module = key
-                    st.rerun()
+    st.markdown('<div class="saas-nav-list">', unsafe_allow_html=True)
+    for mod in NAV_MODULES:
+        key = mod["key"]
+        resolved = resolve_module(key)
+        active = active_key == key or active_key == resolved
+        btn_type = "primary" if active else "secondary"
+        icon = mod.get("icon", "")
+        label = mod["label"]
+        btn_label = f"{icon}  {label}" if icon else label
+        if st.button(btn_label, key=f"saas_nav_{key}", type=btn_type, use_container_width=True):
+            st.session_state.active_module = key
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_top_context_bar() -> None:

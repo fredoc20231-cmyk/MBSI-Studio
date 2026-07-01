@@ -2,7 +2,7 @@
 
 import streamlit as st
 from app.components.page_header import render_page_header
-from app.workspaces._helpers import demo_banner, add_finding
+from app.workspaces._helpers import add_finding
 from mbsi.ml_learning.recommender import recommend_next_analysis, record_user_feedback
 from mbsi.ml_learning.run_store import log_analysis_run
 
@@ -14,7 +14,6 @@ DISCLAIMER = (
 
 
 def render():
-    demo_banner()
     render_page_header(
         "ML Learning",
         "Heuristic recommendations and feedback for next analyses.",
@@ -25,7 +24,7 @@ def render():
         log_analysis_run(
             module=st.session_state.get("active_module", "unknown"),
             run_name=st.session_state.last_run,
-            metadata={"demo": True},
+            metadata={"module": st.session_state.get("active_module", "unknown")},
         )
     recs = recommend_next_analysis(st.session_state.get("active_module", "project_setup"))
     if recs:

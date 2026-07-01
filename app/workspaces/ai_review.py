@@ -3,7 +3,6 @@
 import streamlit as st
 
 from app.components.page_header import render_page_header
-from app.workspaces._helpers import demo_banner
 from mbsi.ai_review.reviewer import answer_outcome_question
 
 DISCLAIMER = (
@@ -13,7 +12,6 @@ DISCLAIMER = (
 
 
 def render():
-    demo_banner()
     render_page_header(
         "AI Outcome Review",
         "Ask grounded questions about registered analysis outputs.",

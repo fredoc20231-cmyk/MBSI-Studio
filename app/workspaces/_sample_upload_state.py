@@ -113,17 +113,54 @@ def status_label(status: str) -> str:
     return labels.get(status, status.replace("_", " ").title())
 
 
+def _resolve_effective_technology(
+    technology_key: str,
+    sample_uploads: Optional[Dict[str, Dict[str, Any]]],
+) -> str:
+    """Prefer explicit technology; fall back to first ingested sample's platform."""
+    if is_milestone_platform(technology_key) or technology_key in ("csv_matrix", "generic_h5ad"):
+        return technology_key
+    for upload in (sample_uploads or {}).values():
+        if upload.get("status") != "ingested":
+            continue
+        candidate = str(upload.get("technology") or upload.get("platform") or "").strip()
+        if is_milestone_platform(candidate) or candidate in ("csv_matrix", "generic_h5ad"):
+            return candidate
+    return technology_key or UI_TECHNOLOGY_OPTIONS[0][1]
+
+
+def _has_project_identity(
+    project_metadata: Dict[str, Any],
+    project_name: str = "",
+) -> bool:
+    title = str(project_metadata.get("project_title") or "").strip()
+    bio_q = str(project_metadata.get("biological_question") or "").strip()
+    name = str(project_name or project_metadata.get("project_name") or "").strip()
+    if title or bio_q:
+        return True
+    return bool(name and name.lower() not in {"no project loaded", "untitled project"})
+
+
 def can_start_analysis(
     project_metadata: Optional[Dict[str, Any]],
     sample_metadata: Any,
     sample_uploads: Optional[Dict[str, Dict[str, Any]]],
     technology_key: str,
-) -> Tuple[bool, List[str]]:
-    """Return (enabled, missing_reasons) for Start Analysis."""
+    *,
+    project_name: str = "",
+) -> Tuple[bool, List[str], List[str]]:
+    """Return (enabled, hard_missing, soft_warnings) for Start Analysis."""
     missing: List[str] = []
+    warnings: List[str] = []
     meta = project_metadata or {}
-    if not meta.get("project_title", "").strip() and not meta.get("biological_question", "").strip():
-        missing.append("project title or biological question")
+
+    ingested = any(u.get("status") == "ingested" for u in (sample_uploads or {}).values())
+    has_identity = _has_project_identity(meta, project_name)
+    if not has_identity:
+        if ingested:
+            warnings.append("Add a project title or biological question for reproducible reports.")
+        else:
+            missing.append("project title, biological question, or project name")
 
     table_ok = False
     if isinstance(sample_metadata, pd.DataFrame):
@@ -133,15 +170,15 @@ def can_start_analysis(
     if not table_ok:
         missing.append("sample metadata table")
 
-    ingested = any(u.get("status") == "ingested" for u in (sample_uploads or {}).values())
     if not ingested:
         missing.append("at least one ingested sample")
 
-    tech_ok = is_milestone_platform(technology_key) or technology_key in ("csv_matrix", "generic_h5ad")
+    effective_tech = _resolve_effective_technology(technology_key, sample_uploads)
+    tech_ok = is_milestone_platform(effective_tech) or effective_tech in ("csv_matrix", "generic_h5ad")
     if not tech_ok:
         missing.append("milestone platform (Visium, Xenium, or Generic)")
 
-    return len(missing) == 0, missing
+    return len(missing) == 0, missing, warnings
 
 
 def get_primary_ingested_sample(

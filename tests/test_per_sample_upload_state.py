@@ -40,13 +40,19 @@ def test_can_start_analysis_gating():
     meta = {"project_title": "Test study"}
     samples = pd.DataFrame([{"sample_id": "S1"}])
     uploads = {"S1": {"status": "ingested"}}
-    ok, missing = can_start_analysis(meta, samples, uploads, "visium")
+    ok, missing, warnings = can_start_analysis(meta, samples, uploads, "visium")
     assert ok is True
     assert missing == []
+    assert warnings == []
 
-    ok2, missing2 = can_start_analysis({}, samples, uploads, "visium")
-    assert ok2 is False
-    assert "project title or biological question" in missing2[0]
+    ok2, missing2, warnings2 = can_start_analysis({}, samples, uploads, "visium")
+    assert ok2 is True
+    assert missing2 == []
+    assert warnings2
+
+    ok3, missing3, _ = can_start_analysis({}, samples, {}, "visium")
+    assert ok3 is False
+    assert any("ingested" in m for m in missing3)
 
 
 def test_ingest_sample_file_xenium(tmp_path):

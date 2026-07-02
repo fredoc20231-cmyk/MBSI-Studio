@@ -25,6 +25,7 @@ from app.components.module_registry import (
 from app.components.notification_center import render_notification_center
 from app.components.notification_center import init_notifications
 from app.components.page_utils import init_session
+from app.workspaces._study_setup_core import ensure_study_setup_defaults
 from app.components.results_drawer import render_right_results_drawer
 from app.components.settings_panel import init_settings, render_settings_panel
 from app.components.statusbar import render_statusbar
@@ -80,13 +81,14 @@ def render_module_search() -> None:
 def init_saas_state() -> None:
     """Initialize session keys used by the SaaS shell."""
     init_session()
+    ensure_study_setup_defaults()
     init_theme_state()
     init_settings()
     init_notifications()
     active = st.session_state.get("active_module", "study_data")
     st.session_state["active_module"] = resolve_module(active)
     st.session_state.setdefault("active_module", "study_data")
-    st.session_state.setdefault("selected_technology", "")
+    st.session_state.setdefault("selected_technology", "visium")
     st.session_state.setdefault("saas_warnings", [])
     st.session_state.setdefault("saas_findings", [])
     st.session_state.setdefault("run_outputs", {})

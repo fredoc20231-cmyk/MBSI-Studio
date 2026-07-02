@@ -91,40 +91,65 @@ ANALYSIS_ROWS = [
 ]
 
 
+_PROJECT_METADATA_DEFAULTS = {
+    "project_title": "",
+    "sample_name": "",
+    "disease_context": "",
+    "biological_question": "",
+    "experimental_target": "",
+    "hypothesis": "",
+    "study_objective": "",
+    "organism": "Human",
+    "therapeutic_context": "",
+}
+
+_EXPERIMENTAL_DESIGN_DEFAULTS = {
+    "study_type": STUDY_TYPES[0],
+    "num_samples": 1,
+    "has_replicates": "Not sure",
+    "replicate_type": REPLICATE_TYPES[0],
+    "comparison_groups": "",
+    "timepoints": "",
+    "treatment_arms": "",
+    "primary_comparison": "",
+    "secondary_comparisons": "",
+    "patient_ids": "",
+    "batch_ids": "",
+    "paired_design": "No",
+    "controls": "",
+}
+
+
+def _merge_session_dict(key: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    current = st.session_state.get(key)
+    merged = dict(defaults)
+    if isinstance(current, dict):
+        merged.update(current)
+    st.session_state[key] = merged
+    return merged
+
+
+def ensure_study_setup_defaults() -> None:
+    """Merge study-setup defaults so first load is interactive (not blank-gated)."""
+    default_tech = UI_TECHNOLOGY_OPTIONS[0][1]
+    tech_key = st.session_state.get("selected_technology") or ""
+    if not tech_key or not is_milestone_platform(tech_key):
+        st.session_state.selected_technology = default_tech
+        if not st.session_state.get("mbsi_platform"):
+            st.session_state.mbsi_platform = default_tech
+
+    _merge_session_dict("project_metadata", _PROJECT_METADATA_DEFAULTS)
+    design = _merge_session_dict("experimental_design", _EXPERIMENTAL_DESIGN_DEFAULTS)
+    _merge_session_dict("platform_metadata", {"platforms": [], "modalities": []})
+
+    num_samples = max(1, int(design.get("num_samples") or 1))
+    design["num_samples"] = num_samples
+    st.session_state.experimental_design = design
+    _sync_sample_table(num_samples)
+
+
 def _init_project_state() -> None:
-    st.session_state.setdefault(
-        "project_metadata",
-        {
-            "project_title": "",
-            "sample_name": "",
-            "disease_context": "",
-            "biological_question": "",
-            "experimental_target": "",
-            "hypothesis": "",
-            "study_objective": "",
-            "organism": "Human",
-            "therapeutic_context": "",
-        },
-    )
-    st.session_state.setdefault(
-        "experimental_design",
-        {
-            "study_type": STUDY_TYPES[0],
-            "num_samples": 3,
-            "has_replicates": "Not sure",
-            "replicate_type": REPLICATE_TYPES[0],
-            "comparison_groups": "",
-            "timepoints": "",
-            "treatment_arms": "",
-            "primary_comparison": "",
-            "secondary_comparisons": "",
-            "patient_ids": "",
-            "batch_ids": "",
-            "paired_design": "No",
-            "controls": "",
-        },
-    )
-    st.session_state.setdefault("platform_metadata", {"platforms": [], "modalities": []})
+    ensure_study_setup_defaults()
     st.session_state.setdefault("clinical_metadata", None)
     st.session_state.setdefault("project_completeness", 0)
     st.session_state.setdefault("dataset_readiness", 0)
@@ -248,7 +273,7 @@ def _render_experimental_design() -> None:
             "Number of samples",
             min_value=1,
             max_value=500,
-            value=int(design.get("num_samples", 3)),
+            value=int(design.get("num_samples", 1)),
             key="ps_num_samples",
         )
     )
@@ -323,7 +348,7 @@ def _render_experimental_design() -> None:
 
 def _render_sample_table() -> None:
     st.markdown("#### Sample metadata table")
-    num_samples = int(st.session_state.experimental_design.get("num_samples", 3))
+    num_samples = int(st.session_state.experimental_design.get("num_samples", 1))
     df = _sync_sample_table(num_samples)
     edited = st.data_editor(
         df,
@@ -365,12 +390,15 @@ def _update_sample_metadata_file_name(sample_id: str, file_name: str) -> None:
 
 def _render_per_sample_upload_cards() -> None:
     """One upload card per sample row — Milestone 1 Visium/Xenium/Generic."""
+    num_samples = int(st.session_state.get("experimental_design", {}).get("num_samples", 1))
     samples = st.session_state.get("sample_metadata")
     if not isinstance(samples, pd.DataFrame) or samples.empty:
+        samples = _sync_sample_table(max(1, num_samples))
+    if samples.empty:
         st.info("Add samples in the metadata table above before uploading data.")
         return
 
-    global_tech = st.session_state.get("selected_technology", "")
+    global_tech = st.session_state.get("selected_technology", "") or UI_TECHNOLOGY_OPTIONS[0][1]
     uploads = st.session_state.get("sample_uploads") or {}
     num_samples = int(st.session_state.experimental_design.get("num_samples", len(samples)))
 
@@ -484,12 +512,15 @@ def _ensure_primary_adata_from_uploads() -> None:
 def _render_start_analysis_button(tech_key: str) -> None:
     """Bottom-of-page Start Analysis — runs Milestone 1 pipeline on primary ingested sample."""
     _ensure_primary_adata_from_uploads()
-    enabled, missing = can_start_analysis(
+    enabled, missing, warnings = can_start_analysis(
         st.session_state.get("project_metadata"),
         st.session_state.get("sample_metadata"),
         st.session_state.get("sample_uploads"),
         tech_key,
+        project_name=st.session_state.get("project_name", ""),
     )
+    for warning in warnings:
+        st.warning(warning)
     if missing and not enabled:
         st.caption("Start Analysis requires: " + ", ".join(missing))
 

@@ -50,8 +50,9 @@ def test_start_analysis_enablement_with_ingested_sample():
             "uploaded_file_name": "x.zip",
         }
     }
-    ok, missing = can_start_analysis(meta, samples, uploads, "xenium")
+    ok, missing, warnings = can_start_analysis(meta, samples, uploads, "xenium")
     assert ok is True
+    assert missing == []
     sid, primary = get_primary_ingested_sample(uploads)
     assert sid == "S1"
     assert primary["status"] == "ingested"

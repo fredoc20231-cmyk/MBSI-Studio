@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -9,9 +10,21 @@ import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
 from app.components.page_utils import load_advanced_demo_into_session
-from app.components.uploaders import data_readiness_score, upload_panel
+from app.components.uploaders import data_readiness_score
 from app.workspaces._helpers import safe_register_finding
+from app.workspaces._sample_upload_state import (
+    apply_ingestion_to_session,
+    can_start_analysis,
+    get_primary_ingested_sample,
+    ingest_sample_file,
+    required_files_for_technology,
+    resolve_sample_technology,
+    status_label,
+    sync_sample_uploads,
+    upload_file_types_for_technology,
+)
 from app.workspaces._upload_helpers import _render_detection_panel, _store_ingestion
+from mbsi.io.ingest import save_upload_to_temp
 from mbsi.io.compatibility import get_compatibility_matrix, recommended_next_step_for_module
 from mbsi.profiles.stereo_seq import get_stereo_seq_profile
 from mbsi.schema.technology import UI_TECHNOLOGY_OPTIONS, get_technology, is_milestone_platform
@@ -150,15 +163,20 @@ def _sync_sample_table(num_samples: int) -> pd.DataFrame:
     if not isinstance(current, pd.DataFrame) or current.empty:
         df = _default_sample_rows(num_samples)
         st.session_state.sample_metadata = df
-        return df
-
-    if len(current) != num_samples:
+    elif len(current) != num_samples:
         preserved = current.head(num_samples).copy()
         if len(preserved) < num_samples:
             extra = _default_sample_rows(num_samples - len(preserved))
             extra["sample_id"] = [f"S{i}" for i in range(len(preserved) + 1, num_samples + 1)]
             preserved = pd.concat([preserved, extra], ignore_index=True)
         st.session_state.sample_metadata = preserved.reset_index(drop=True)
+
+    tech_key = st.session_state.get("selected_technology", "")
+    st.session_state.sample_uploads = sync_sample_uploads(
+        st.session_state.sample_metadata,
+        st.session_state.get("sample_uploads"),
+        tech_key,
+    )
     return st.session_state.sample_metadata
 
 
@@ -327,6 +345,205 @@ def _render_sample_table() -> None:
         },
     )
     st.session_state.sample_metadata = edited
+    tech_key = st.session_state.get("selected_technology", "")
+    st.session_state.sample_uploads = sync_sample_uploads(
+        edited,
+        st.session_state.get("sample_uploads"),
+        tech_key,
+    )
+
+
+def _update_sample_metadata_file_name(sample_id: str, file_name: str) -> None:
+    samples = st.session_state.get("sample_metadata")
+    if not isinstance(samples, pd.DataFrame) or samples.empty:
+        return
+    mask = samples["sample_id"].astype(str) == str(sample_id)
+    if mask.any():
+        samples.loc[mask, "file_name"] = file_name
+        st.session_state.sample_metadata = samples
+
+
+def _render_per_sample_upload_cards() -> None:
+    """One upload card per sample row — Milestone 1 Visium/Xenium/Generic."""
+    samples = st.session_state.get("sample_metadata")
+    if not isinstance(samples, pd.DataFrame) or samples.empty:
+        st.info("Add samples in the metadata table above before uploading data.")
+        return
+
+    global_tech = st.session_state.get("selected_technology", "")
+    uploads = st.session_state.get("sample_uploads") or {}
+    num_samples = int(st.session_state.experimental_design.get("num_samples", len(samples)))
+
+    for _, row in samples.iterrows():
+        sample_id = str(row.get("sample_id", "")).strip()
+        if not sample_id:
+            continue
+
+        tech_key = resolve_sample_technology(row.get("technology"), global_tech)
+        upload = uploads.get(sample_id) or {
+            "sample_id": sample_id,
+            "technology": tech_key,
+            "status": "not_uploaded",
+        }
+        req_files = required_files_for_technology(tech_key)
+        file_types = upload_file_types_for_technology(tech_key)
+
+        with st.container(border=True):
+            c1, c2 = st.columns([3, 1])
+            c1.markdown(
+                f"**{sample_id}** — {row.get('sample_name', '')} · "
+                f"{row.get('condition', '—')} · {row.get('technology', tech_key)}"
+            )
+            c2.markdown(f"**Status:** {status_label(upload.get('status', 'not_uploaded'))}")
+
+            st.caption("Required: " + "; ".join(req_files))
+            if upload.get("uploaded_file_name"):
+                st.caption(f"File: `{upload['uploaded_file_name']}`")
+            for w in upload.get("warnings") or []:
+                st.warning(w)
+
+            uploaded = st.file_uploader(
+                f"Upload data for {sample_id}",
+                type=file_types,
+                key=f"ps_sample_upload_{sample_id}",
+            )
+            if uploaded is not None:
+                suffix = Path(uploaded.name).suffix.lower() or ".bin"
+                temp_path = save_upload_to_temp(uploaded, suffix)
+                result = ingest_sample_file(
+                    temp_path,
+                    sample_id=sample_id,
+                    technology_key=tech_key,
+                    uploaded_file_name=uploaded.name,
+                )
+                patch = {k: v for k, v in result.items() if k != "adata"}
+                st.session_state.sample_uploads[sample_id] = patch
+                _update_sample_metadata_file_name(sample_id, uploaded.name)
+
+                session_updates = apply_ingestion_to_session(result, num_samples=num_samples)
+                if "adata" in session_updates:
+                    st.session_state.adata = session_updates["adata"]
+                if "ingestion_result" in session_updates:
+                    st.session_state.ingestion_result = session_updates["ingestion_result"]
+                if "mbsi_platform" in session_updates:
+                    st.session_state.mbsi_platform = session_updates["mbsi_platform"]
+                if "using_synthetic_demo" in session_updates:
+                    st.session_state.using_synthetic_demo = session_updates["using_synthetic_demo"]
+                if "sample_adatas" in session_updates:
+                    st.session_state.sample_adatas = {
+                        **(st.session_state.get("sample_adatas") or {}),
+                        **session_updates["sample_adatas"],
+                    }
+                if "sample_adata_paths" in session_updates:
+                    st.session_state.sample_adata_paths = {
+                        **(st.session_state.get("sample_adata_paths") or {}),
+                        **session_updates["sample_adata_paths"],
+                    }
+
+                if result.get("status") == "ingested":
+                    from app.components.notification_center import push_notification
+
+                    adata = result.get("adata")
+                    n_obs = adata.n_obs if adata is not None else "?"
+                    push_notification(
+                        f"Sample {sample_id} ingested ({n_obs} observations).",
+                        title="Sample ingest complete",
+                        level="success",
+                        source="study_data",
+                    )
+                    st.success(f"{sample_id}: ingested {uploaded.name}")
+                else:
+                    st.error(f"{sample_id}: ingest failed — see warnings above.")
+                st.rerun()
+
+
+def _ensure_primary_adata_from_uploads() -> None:
+    """Set global adata from first ingested sample when missing."""
+    if st.session_state.get("adata") is not None:
+        return
+    uploads = st.session_state.get("sample_uploads") or {}
+    sid, upload = get_primary_ingested_sample(uploads)
+    if not sid or not upload.get("adata_path"):
+        return
+    try:
+        import anndata as ad
+
+        st.session_state.adata = ad.read_h5ad(upload["adata_path"])
+        st.session_state.mbsi_platform = upload.get("platform") or upload.get("technology")
+        st.session_state.ingestion_result = {
+            "platform": upload.get("platform") or upload.get("technology"),
+            "readiness": upload.get("readiness", {}),
+            "compatibility": upload.get("compatibility", {}),
+            "sample_id": sid,
+            "source": upload.get("adata_path"),
+        }
+    except Exception:
+        pass
+
+
+def _render_start_analysis_button(tech_key: str) -> None:
+    """Bottom-of-page Start Analysis — runs Milestone 1 pipeline on primary ingested sample."""
+    _ensure_primary_adata_from_uploads()
+    enabled, missing = can_start_analysis(
+        st.session_state.get("project_metadata"),
+        st.session_state.get("sample_metadata"),
+        st.session_state.get("sample_uploads"),
+        tech_key,
+    )
+    if missing and not enabled:
+        st.caption("Start Analysis requires: " + ", ".join(missing))
+
+    if st.button(
+        "Start Analysis",
+        type="primary",
+        key="sd_start_analysis",
+        disabled=not enabled,
+    ):
+        from pathlib import Path
+
+        from app.components.notification_center import push_notification
+        from app.components.page_utils import OUTPUT_DIR
+        from mbsi.workflows.milestone1_pipeline import run_milestone1_pipeline
+
+        adata = st.session_state.get("adata")
+        if adata is None:
+            st.error("No ingested AnnData available.")
+            return
+
+        platform = tech_key or st.session_state.get("mbsi_platform") or "generic_h5ad"
+        out_dir = Path(OUTPUT_DIR) / "milestone1_pipeline" / platform
+        result = run_milestone1_pipeline(
+            adata,
+            params={
+                "platform": platform,
+                "output_dir": out_dir,
+                "min_counts": 50,
+                "min_genes": 10,
+            },
+        )
+
+        st.session_state.adata = result["adata"]
+        st.session_state.analysis_results = {
+            k: v for k, v in result.items() if k != "adata"
+        }
+        st.session_state.marker_table = result.get("markers")
+        st.session_state.spatial_stats = result.get("spatial", {}).get("spatial_stats")
+        st.session_state.run_outputs["milestone1_pipeline"] = result.get("output_paths", {})
+        st.session_state.workflow_status = {
+            **(st.session_state.get("workflow_status") or {}),
+            "milestone1": result.get("status", "success"),
+            "platform": platform,
+        }
+        st.session_state.last_run = "Milestone 1 analysis"
+        st.session_state.active_module = "qc_transformation"
+
+        push_notification(
+            f"Milestone 1 pipeline complete — {result['clusters'].get('n_clusters', 0)} clusters.",
+            title="Analysis started",
+            level="success",
+            source="study_data",
+        )
+        st.rerun()
 
 
 def _render_platform_modality() -> None:
@@ -601,14 +818,15 @@ def _render_download_section() -> None:
 
 
 def _render_file_upload() -> None:
-    st.markdown("#### File upload")
-    st.caption("Upload spatial omics files and optional multimodal assets.")
+    st.markdown("#### Per-sample data upload")
+    st.caption(
+        "Upload one dataset per sample (Visium ZIP, Xenium ZIP, h5ad, or CSV matrix with coordinates). "
+        "Cards sync with the sample metadata table above."
+    )
+    _render_per_sample_upload_cards()
 
-    tech_key = st.session_state.get("selected_technology") or st.session_state.get("mbsi_platform")
-    result = upload_panel(technology_key=tech_key)
-    if result.get("adata") is not None or result.get("detection"):
-        _store_ingestion(result)
-
+    st.divider()
+    st.markdown("#### Optional multimodal assets")
     tab_meta, tab_atac, tab_protein, tab_mut, tab_gt = st.tabs(
         ["Sample / clinical metadata", "ATAC", "Protein / CODEX", "Mutation / CNV", "Ground truth"]
     )
@@ -692,7 +910,10 @@ def _render_file_upload() -> None:
 
 def _uploaded_file_summary() -> List[str]:
     files: List[str] = []
-    if st.session_state.get("adata") is not None:
+    for sid, upload in (st.session_state.get("sample_uploads") or {}).items():
+        if upload.get("uploaded_file_name"):
+            files.append(f"{sid}: {upload['uploaded_file_name']} ({upload.get('status', 'unknown')})")
+    if st.session_state.get("adata") is not None and not files:
         files.append("AnnData (spatial counts)")
     if st.session_state.get("uploaded_image") is not None:
         files.append("Histology image")
@@ -753,10 +974,17 @@ def _compute_project_completeness() -> Tuple[int, List[str]]:
 
 
 def _compute_dataset_readiness() -> Tuple[int, List[str]]:
+    _ensure_primary_adata_from_uploads()
     adata = st.session_state.get("adata")
     missing: List[str] = []
-    if adata is None:
-        return 0, ["spatial omics file (h5ad, Visium ZIP, Stereo-seq ZIP, or CSV + coordinates)"]
+    uploads = st.session_state.get("sample_uploads") or {}
+    ingested = [u for u in uploads.values() if u.get("status") == "ingested"]
+
+    if adata is None and not ingested:
+        return 0, ["spatial omics file (h5ad, Visium ZIP, Xenium ZIP, or CSV + coordinates)"]
+
+    if adata is None and ingested:
+        return 25, ["primary AnnData load pending — click Start Analysis after ingest"]
 
     score, _ = data_readiness_score(adata)
     if "spatial" not in adata.obsm:

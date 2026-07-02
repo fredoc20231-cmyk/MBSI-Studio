@@ -36,16 +36,26 @@ def render() -> None:
 
     adata = st.session_state.adata
     tech_key = st.session_state.get("selected_technology", "") or st.session_state.get("mbsi_platform", "")
-    milestone_out = (st.session_state.get("run_outputs") or {}).get("qc_transformation", {}).get(
-        "milestone_pipeline"
+    analysis = st.session_state.get("analysis_results") or {}
+    milestone_out = (st.session_state.get("run_outputs") or {}).get("milestone1_pipeline") or (
+        (st.session_state.get("run_outputs") or {}).get("qc_transformation", {}).get("milestone_pipeline")
     )
-    if milestone_out and tech_key in ("visium", "xenium"):
+    if analysis.get("status") == "success":
+        emb = analysis.get("embedding") or {}
+        clusters = analysis.get("clusters") or {}
+        st.caption(
+            f"Milestone 1 analysis loaded — UMAP: {'yes' if emb.get('has_umap') else 'no'}, "
+            f"clusters: {clusters.get('n_clusters', 0)}"
+        )
+    if milestone_out and tech_key in ("visium", "xenium", "generic_h5ad"):
         with st.expander("Milestone 1 pipeline outputs", expanded=False):
             for label, path in milestone_out.items():
                 st.caption(f"{label}: {path}")
     tabs = st.tabs(["Spatial", "Quilt", "Reduction", "Violin / Dot / Heatmap"])
 
     with tabs[0]:
+        if "spatial" not in adata.obsm:
+            st.warning("No spatial coordinates in adata.obsm['spatial'] — complete Study & Data ingest first.")
         obs_feats = [c for c in adata.obs.columns if c not in ("qc_pass",)]
         gene = st.selectbox("Feature", list(adata.var_names[:200]) + obs_feats, key="viz_feature")
         fig = plot_spatial_feature(adata, gene)
@@ -56,6 +66,10 @@ def render() -> None:
         render_interactive_plot(fig, key="viz_quilt")
 
     with tabs[2]:
+        if "X_umap" in adata.obsm:
+            st.caption("UMAP from Milestone 1 pipeline (obsm['X_umap']).")
+        elif analysis.get("status") != "success":
+            st.caption("Run **Start Analysis** on Study & Data to compute UMAP, or use the button below.")
         if "cluster" not in adata.obs.columns:
             if st.button("Compute PCA + UMAP + Leiden clusters", key="viz_run_cluster"):
                 from mbsi.analysis.seurat_like import run_seurat_like_pipeline

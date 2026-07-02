@@ -25,6 +25,16 @@ def render() -> None:
         return
 
     adata = st.session_state.adata
+    analysis = st.session_state.get("analysis_results") or {}
+    if analysis.get("qc_summary") is not None:
+        qc_df = analysis["qc_summary"]
+        if hasattr(qc_df, "empty") and not qc_df.empty:
+            st.markdown("#### Milestone 1 pipeline QC summary")
+            st.dataframe(qc_df, use_container_width=True, hide_index=True)
+            for w in analysis.get("warnings") or []:
+                st.warning(w)
+            st.divider()
+
     tech_key = st.session_state.get("selected_technology", "") or st.session_state.get("mbsi_platform", "")
     if tech_key and not is_milestone_platform(tech_key) and tech_key not in ("csv_matrix", "demo"):
         spec = get_technology(tech_key)

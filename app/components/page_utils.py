@@ -90,6 +90,9 @@ def init_session():
         "validators": {},
         "saas_notifications": [],
         "mbsi_settings": {},
+        "sample_uploads": {},
+        "sample_adatas": {},
+        "sample_adata_paths": {},
     }
     for k, v in defaults.items():
         if k not in st.session_state:

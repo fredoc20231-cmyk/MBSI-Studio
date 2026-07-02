@@ -18,7 +18,9 @@ def _generate(kind: str) -> None:
 
     snap = _session_snapshot()
     snap["ingestion_result"] = st.session_state.get("ingestion_result")
+    snap["analysis_results"] = st.session_state.get("analysis_results")
     snap["marker_table"] = st.session_state.get("marker_table") or snap.get("marker_table")
+    snap["spatial_stats"] = st.session_state.get("spatial_stats") or snap.get("spatial_stats")
     run = run_report_workflow(OUTPUT_DIR, snapshot=snap, export_type=kind)
     st.session_state.run_outputs["report_export"] = run.to_dict()
     if run.status == "success":
@@ -59,6 +61,12 @@ def render():
         render_results_notebook(compact=False)
 
     with tabs[1]:
+        analysis = st.session_state.get("analysis_results")
+        if analysis:
+            st.caption(
+                f"Milestone 1 results: {analysis.get('clusters', {}).get('n_clusters', 0)} clusters · "
+                f"platform {analysis.get('platform', '—')}"
+            )
         reg = get_registered_outputs()
         st.caption(f"{len(get_notebook_entries())} notebook entries · {len(reg.get('findings', []))} registered findings")
         if st.button("Generate HTML Report", type="primary", key="ws_gen_html"):

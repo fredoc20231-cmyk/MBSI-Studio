@@ -22,6 +22,7 @@ from app.workspaces._study_setup_core import (
     _render_project_description,
     _render_readiness_section,
     _render_sample_table,
+    _render_start_analysis_button,
     _render_stereo_seq_guidance,
     _render_summary_card,
     _uploaded_file_summary,
@@ -150,7 +151,9 @@ def render() -> None:
     st.divider()
     _render_summary_card(recommended, compatibility_df, _uploaded_file_summary())
 
-    if st.button("Continue to QC & Transformation", type="primary", key="sd_continue_qc"):
+    _render_start_analysis_button(tech_key)
+
+    if st.button("Continue to QC & Transformation", key="sd_continue_qc"):
         st.session_state.active_module = WorkflowModule.QC_TRANSFORMATION.value
         st.rerun()
 

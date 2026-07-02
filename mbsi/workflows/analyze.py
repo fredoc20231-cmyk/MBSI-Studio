@@ -18,7 +18,40 @@ def run_analyze_workflow(adata: Any, params: Optional[Dict[str, Any]] = None) ->
     if mode != "in_memory":
         warnings.append(SCALABILITY_CONFIG["large_dataset_message"])
 
+    platform = params.get("platform") or getattr(adata, "uns", {}).get("mbsi_platform", "")
+    use_milestone = params.get("use_milestone_pipeline", False)
+    output_dir = params.get("output_dir")
+
     try:
+        if use_milestone and output_dir and platform in ("visium", "xenium"):
+            from pathlib import Path
+            from mbsi.workflows.xenium_pipeline import (
+                run_visium_milestone_pipeline,
+                run_xenium_milestone_pipeline,
+            )
+
+            if platform == "xenium":
+                results = run_xenium_milestone_pipeline(adata, Path(output_dir), **params)
+            else:
+                results = run_visium_milestone_pipeline(adata, Path(output_dir), **params)
+            warnings.extend(results.get("warnings", []))
+            out_adata = results["adata"]
+            return RunRecord.success(
+                module=WorkflowModule.SPATIAL_ANALYSIS.value,
+                inputs=params,
+                outputs={
+                    "n_obs": out_adata.n_obs,
+                    "n_vars": out_adata.n_vars,
+                    "n_clusters": out_adata.obs["cluster"].nunique() if "cluster" in out_adata.obs else None,
+                    "has_spatial": "spatial" in out_adata.obsm,
+                    "scalability_mode": mode,
+                    "milestone_results": {k: v for k, v in results.items() if k != "adata"},
+                    "output_paths": results.get("output_paths", {}),
+                    "status": "milestone_analysis_complete",
+                },
+                warnings=warnings,
+            )
+
         from mbsi.analysis.seurat_like import run_seurat_like_pipeline
 
         results = run_seurat_like_pipeline(

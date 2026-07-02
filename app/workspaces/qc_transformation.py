@@ -34,6 +34,31 @@ def render() -> None:
     tech = get_technology(tech_key)
     if tech and is_milestone_platform(tech_key):
         st.caption(f"Platform: {tech.label} — Milestone 1 real-data workflow")
+        if st.button("Run Milestone 1 pipeline", type="primary", key="qct_milestone_pipeline"):
+            from pathlib import Path
+
+            from app.components.page_utils import OUTPUT_DIR
+            from mbsi.workflows.xenium_pipeline import (
+                run_visium_milestone_pipeline,
+                run_xenium_milestone_pipeline,
+            )
+
+            out_dir = Path(OUTPUT_DIR) / "milestone_pipeline" / tech_key
+            if tech_key == "xenium":
+                result = run_xenium_milestone_pipeline(adata, out_dir, min_counts=50, min_genes=10)
+            else:
+                result = run_visium_milestone_pipeline(
+                    adata, out_dir, min_counts=50, min_genes=10, filter_tissue=(tech_key == "visium")
+                )
+            st.session_state.adata = result["adata"]
+            st.session_state.marker_table = result.get("markers")
+            st.session_state.spatial_stats = result.get("spatial_stats")
+            st.session_state.run_outputs["qc_transformation"] = {
+                "milestone_pipeline": result["output_paths"],
+                "warnings": result.get("warnings", []),
+            }
+            st.success(f"Milestone pipeline complete — outputs in {out_dir}")
+            st.rerun()
     substeps = WORKFLOW_SUBSTEPS[WorkflowModule.QC_TRANSFORMATION.value]
     tabs = st.tabs([s.replace("_", " ").title() for s in substeps])
 

@@ -60,6 +60,8 @@ Visium HD, MERFISH/MERSCOPE, CosMx, Stereo-seq, CODEX, Slide-seq, Spatial ATAC �
 - [x] Cell-level AnnData with spatial centroids
 - [x] UI file checklist in Study & Data when Xenium selected
 - [x] Same analysis chain as Visium
+- [x] Xenium QC module (`mbsi/analysis/xenium_qc.py`): transcript density, spatial coverage, boundary flags
+- [x] Full pipeline test: `tests/test_xenium_qc_pipeline.py`
 
 ### Generic h5ad / CSV
 
@@ -71,11 +73,20 @@ Visium HD, MERFISH/MERSCOPE, CosMx, Stereo-seq, CODEX, Slide-seq, Spatial ATAC �
 
 See `docs/MBSI_API_MILESTONE1.md` for endpoint details.
 
+## Pipeline orchestrator
+
+Milestone 1 end-to-end analysis: `mbsi/workflows/xenium_pipeline.py`
+
+- `run_xenium_milestone_pipeline(adata, output_dir)` — Xenium QC + shared analysis chain
+- `run_visium_milestone_pipeline(adata, output_dir)` — Visium QC + same chain
+
+Outputs: `processed.h5ad`, `cluster_labels.csv`, `cell_type_annotations.csv`, `cluster_markers.csv`, `qc_summary.csv`, `spatial_autocorrelation.csv`, spatial HTML plots, HTML report, `pipeline_manifest.json`.
+
 ## Smoke tests
 
 ```bash
 PYTHONPATH=. python scripts/smoke_test_launch_imports.py
-PYTHONPATH=. pytest tests/test_ingest_universal.py tests/test_io_compatibility.py -q
+PYTHONPATH=. pytest tests/test_visium_ingestion.py tests/test_xenium_ingestion.py tests/test_xenium_qc_pipeline.py tests/test_real_data_workflow.py tests/test_ingest_universal.py -q
 ```
 
 ## Out of scope
@@ -84,7 +95,9 @@ MERFISH, CosMx, Stereo-seq, CODEX, Spatial ATAC, Visium HD, benchmark hub, disco
 
 ## Stubbed / deferred
 
-- Full `cell_boundaries.parquet` geometry parse
-- Full `transcripts.parquet` layer load
+- Full `cell_boundaries.parquet` geometry parse (QC flags only)
+- Full `transcripts.parquet` layer load (per-cell density when path available)
 - Morphology OME-TIFF raster load
+- **SpatialData** — optional `spatialdata` install; AnnData fallback with warning
+- **squidpy** spatial_neighbors / nhood_enrichment — optional; skipped when not installed
 - Legacy platform loaders return honest stubs via `ingest_dataset`

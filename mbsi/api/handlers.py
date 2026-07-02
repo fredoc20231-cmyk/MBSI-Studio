@@ -198,16 +198,18 @@ def run_workflow(req: WorkflowRunRequest) -> WorkflowRunResponse:
     )
     warnings: List[str] = []
     outputs: Dict[str, Any] = {}
+    params = dict(req.params or {})
 
     try:
+        adata, load_warnings = _load_adata_for_dataset(req.dataset_id)
+        warnings.extend(load_warnings)
+
         if req.module == "discovery":
-            adata, load_warnings = _load_adata_for_dataset(req.dataset_id)
-            warnings.extend(load_warnings)
             out = run_discovery_engine(
                 adata=adata,
                 dataset_id=req.dataset_id,
                 allow_demo=req.allow_demo,
-                seed=int(req.params.get("seed", 42)),
+                seed=int(params.get("seed", 42)),
             )
             outputs = {
                 "status": out.get("status"),
@@ -226,6 +228,86 @@ def run_workflow(req: WorkflowRunRequest) -> WorkflowRunResponse:
             if out.get("run_id"):
                 run.traceability.run_id = str(out["run_id"])
             run.status = out.get("status", "complete")
+        elif req.module in ("qc_transformation", "qc_preprocess", "qc"):
+            from mbsi.workflows.qc import run_qc_workflow
+
+            record = run_qc_workflow(
+                adata,
+                min_counts=int(params.get("min_counts", 10)),
+                min_genes=int(params.get("min_genes", 200)),
+                max_mito_pct=float(params.get("max_mito_pct", 20.0)),
+                technology_key=str(params.get("technology_key", "")),
+            )
+            outputs = record.outputs
+            warnings.extend(record.warnings)
+            run.status = record.status
+            run.outputs = outputs
+        elif req.module in ("visualization", "spatial_analysis", "analyze"):
+            from mbsi.workflows.analyze import run_analyze_workflow
+
+            record = run_analyze_workflow(adata, params)
+            outputs = record.outputs
+            warnings.extend(record.warnings)
+            run.status = record.status
+            run.outputs = outputs
+        elif req.module in ("preprocess", "normalization"):
+            from mbsi.workflows.preprocess import run_preprocess_workflow
+
+            record = run_preprocess_workflow(adata, technology_key=str(params.get("technology_key", "")))
+            outputs = record.outputs
+            warnings.extend(record.warnings)
+            run.status = record.status
+            run.outputs = outputs
+        elif req.module == "spatial_variable_genes":
+            from mbsi.spatial_stats import spatial_autocorrelation_table
+
+            if adata is None:
+                raise ValueError("AnnData required for SVG analysis")
+            table = spatial_autocorrelation_table(
+                adata,
+                n_top=int(params.get("n_top", 500)),
+                k=int(params.get("k", 6)),
+            )
+            outputs = {"svg_table": table.head(50).to_dict(), "n_genes": len(table)}
+            run.status = "complete"
+            run.outputs = outputs
+        elif req.module == "spatial_domains":
+            from mbsi.domains import detect_domains
+
+            if adata is None:
+                raise ValueError("AnnData required for domain detection")
+            _, summary, domain_warnings = detect_domains(
+                adata,
+                method=str(params.get("method", "leiden")),
+                resolution=float(params.get("resolution", 0.8)),
+            )
+            warnings.extend(domain_warnings)
+            outputs = {"domain_summary": summary.to_dict(), "method": params.get("method", "leiden")}
+            run.status = "complete"
+            run.outputs = outputs
+        elif req.module == "phenotyping":
+            from mbsi.phenotyping import score_marker_panel, score_tme
+
+            if adata is None:
+                raise ValueError("AnnData required for phenotyping")
+            panel = str(params.get("panel", "immune"))
+            _, panel_summary = score_marker_panel(adata, panel)
+            _, tme_summary = score_tme(adata)
+            outputs = {
+                "panel_summary": panel_summary.to_dict(),
+                "tme_summary": tme_summary.to_dict(),
+            }
+            run.status = "complete"
+            run.outputs = outputs
+        elif req.module == "report_export":
+            from mbsi.workflows.report import run_report_workflow
+
+            out_dir = Path("data/outputs/reports")
+            record = run_report_workflow(out_dir, snapshot=params.get("snapshot"), export_type=params.get("export_type", "html"))
+            outputs = record.outputs
+            warnings.extend(record.warnings)
+            run.status = record.status
+            run.outputs = outputs
         else:
             run.status = "stub"
             warnings.append(f"Workflow module '{req.module}' handler is a stub — wire to mbsi.workflows")

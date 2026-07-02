@@ -120,6 +120,33 @@ def test_ingest_visium_zip_minimal(tmp_path, monkeypatch):
     json.dumps(result.to_dict())
 
 
+def test_ingest_no_silent_demo_fallback(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    missing = tmp_path / "not_a_dataset.txt"
+    missing.write_text("hello")
+    result = ingest_dataset(missing)
+    assert result.adata_path == ""
+    assert result.readiness.get("status") in ("unsupported", "error", "stub")
+    assert not any("demo" in w.lower() for w in result.warnings)
+
+
+def test_ingest_readiness_matrix_statuses(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from tests.test_visium_ingestion import write_mini_spaceranger
+
+    write_mini_spaceranger(tmp_path / "outs", n_spots=10, n_genes=25)
+    result = ingest_dataset(tmp_path / "outs", technology_hint="visium")
+    qc = result.compatibility.get("qc_transformation", {})
+    viz = result.compatibility.get("visualization", {})
+    assert qc.get("status") in ("available", "warn", "unavailable")
+    assert viz.get("status") in ("available", "warn", "unavailable")
+    assert result.readiness.get("status") in (
+        "Missing optional fields",
+        "Ready for spatial analysis",
+        "Ready for reconstruction",
+    )
+
+
 def test_ingest_stub_platform(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     dummy = tmp_path / "merfish_export.txt"

@@ -38,21 +38,26 @@ class TechnologySpec:
         }
 
 
-_COMMON_ANALYSES = [
+_MILESTONE_ANALYSES = [
     "study_data",
     "qc_transformation",
     "visualization",
     "spatial_variable_genes",
-    "spatial_gene_sets",
     "spatial_domains",
     "phenotyping",
+    "report_export",
+]
+
+_COMMON_ANALYSES = _MILESTONE_ANALYSES + [
+    "spatial_gene_sets",
     "differential_analysis",
     "spatial_gradients",
     "segment_register",
     "reconstruction",
     "discovery",
-    "report_export",
 ]
+
+MILESTONE_TECHNOLOGY_KEYS = ("visium", "xenium", "generic_h5ad")
 
 TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "visium": TechnologySpec(
@@ -67,13 +72,14 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
             "spatial/tissue_hires_image.png",
             "spatial/tissue_lowres_image.png",
         ],
-        compatible_analyses=_COMMON_ANALYSES + ["benchmark"],
+        compatible_analyses=list(_MILESTONE_ANALYSES),
         qc_metrics=["spots_under_tissue", "total_counts", "n_genes", "mito_pct", "ribo_pct"],
         normalization_strategy="SCTransform or log1p + scale (Scanpy)",
         clustering_choices=["Leiden", "Louvain", "BayesSpace (optional)"],
         segmentation_logic="Spot-level (55 µm); histology-guided refinement optional",
-        benchmark_eligibility="Yes with single-cell reference h5ad",
-        report_sections=["QC spatial map", "cluster markers", "Moran's I", "niche summary"],
+        benchmark_eligibility="Out of Milestone 1 scope",
+        report_sections=["QC spatial map", "cluster markers", "Moran's I", "domain summary"],
+        notes="Milestone 1: Space Ranger outs (h5/mtx + tissue positions + scalefactors + image)",
     ),
     "visium_hd": TechnologySpec(
         key="visium_hd",
@@ -97,18 +103,21 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         label="10x Xenium",
         required_files=[
             "cell_feature_matrix.h5",
-            "cells.csv or cells.parquet",
-            "transcripts.parquet (optional)",
-            "morphology.ome.tif (optional)",
+            "cells.csv.gz or cells.parquet",
         ],
-        compatible_analyses=_COMMON_ANALYSES + ["benchmark"],
+        optional_files=[
+            "transcripts.parquet",
+            "cell_boundaries.parquet",
+            "morphology.ome.tif",
+        ],
+        compatible_analyses=list(_MILESTONE_ANALYSES),
         qc_metrics=["transcripts_per_cell", "negative control probes", "cell area", "segmentation quality"],
-        normalization_strategy="Per-cell depth normalization; probe background correction",
-        clustering_choices=["Leiden", "Graph-based on Xenium Explorer exports"],
+        normalization_strategy="Per-cell depth normalization; log1p + scale (Scanpy)",
+        clustering_choices=["Leiden", "Louvain"],
         segmentation_logic="Cell segmentation from Xenium pipeline (nucleus + membrane)",
-        benchmark_eligibility="Partial — requires matched scRNA reference",
-        report_sections=["cell QC", "spatial cell map", "L-R pairs", "niche composition"],
-        notes="Full bundle parser partial; h5ad fallback supported",
+        benchmark_eligibility="Out of Milestone 1 scope",
+        report_sections=["cell QC", "spatial cell map", "SVG", "domain summary"],
+        notes="Milestone 1: real bundle loader (matrix + cells table + optional artifacts)",
     ),
     "merfish": TechnologySpec(
         key="merfish",
@@ -244,13 +253,14 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
             "counts matrix (.h5ad or csv)",
             "spatial coordinates (obsm['spatial'] or coordinates.csv)",
         ],
-        compatible_analyses=_COMMON_ANALYSES,
+        compatible_analyses=list(_MILESTONE_ANALYSES),
         qc_metrics=["total_counts", "n_genes", "mito_pct", "spatial density"],
         normalization_strategy="log1p + scale (Scanpy default)",
         clustering_choices=["Leiden", "Louvain"],
-        segmentation_logic="Use obs cell_type/cluster if present; else spot-level",
-        benchmark_eligibility="If single_cell_reference in uns",
+        segmentation_logic="Use obs cell_type/cluster if present; else spot/cell-level",
+        benchmark_eligibility="Out of Milestone 1 scope",
         report_sections=["generic QC", "spatial map", "marker table"],
+        notes="Milestone 1: h5ad or CSV matrix + coordinates.csv fallback",
     ),
 }
 
@@ -258,15 +268,19 @@ TECHNOLOGY_LABELS: Dict[str, str] = {k: v.label for k, v in TECHNOLOGY_CATALOG.i
 
 UI_TECHNOLOGY_OPTIONS = [
     ("10x Visium", "visium"),
-    ("10x Visium HD", "visium_hd"),
     ("10x Xenium", "xenium"),
+    ("Generic AnnData / CSV", "generic_h5ad"),
+]
+
+# Full catalog labels (non-milestone platforms remain in TECHNOLOGY_CATALOG for reference)
+ALL_UI_TECHNOLOGY_OPTIONS = UI_TECHNOLOGY_OPTIONS + [
+    ("10x Visium HD", "visium_hd"),
     ("MERFISH / MERSCOPE", "merfish"),
     ("NanoString CosMx", "cosmx"),
     ("STOmics Stereo-seq", "stereo_seq"),
     ("CODEX / multiplex IF", "codex"),
     ("Slide-seq", "slide_seq"),
     ("Spatial ATAC", "spatial_atac"),
-    ("Generic AnnData / CSV", "generic_h5ad"),
 ]
 
 

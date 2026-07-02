@@ -16,6 +16,8 @@ def _generate(kind: str) -> None:
     from mbsi.reports.final_report import _session_snapshot
 
     snap = _session_snapshot()
+    snap["ingestion_result"] = st.session_state.get("ingestion_result")
+    snap["marker_table"] = st.session_state.get("marker_table") or snap.get("marker_table")
     run = run_report_workflow(OUTPUT_DIR, snapshot=snap, export_type=kind)
     st.session_state.run_outputs["report_export"] = run.to_dict()
     if run.status == "success":

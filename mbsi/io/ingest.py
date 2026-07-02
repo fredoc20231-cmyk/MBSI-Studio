@@ -13,6 +13,7 @@ from mbsi.io.compatibility import get_compatibility_matrix
 from mbsi.io.detect import detect_platform
 from mbsi.io.generic import ingest_csv_matrix_coords, ingest_h5ad
 from mbsi.io.visium import load_space_ranger
+from mbsi.io.xenium import load_xenium
 from mbsi.io.stereo_seq import load_stereo_seq_dataset
 from mbsi.schema.technology import get_technology
 
@@ -72,6 +73,7 @@ def ingest_upload(
     *,
     h5ad_path: Optional[Path] = None,
     visium_path: Optional[Path] = None,
+    xenium_path: Optional[Path] = None,
     stereo_seq_path: Optional[Path] = None,
     count_matrix: Optional[pd.DataFrame] = None,
     coordinates: Optional[pd.DataFrame] = None,
@@ -88,6 +90,9 @@ def ingest_upload(
 
     if visium_path is not None:
         adata, meta = load_space_ranger(visium_path)
+        detection = meta.get("detection", detection)
+    elif xenium_path is not None:
+        adata, meta = load_xenium(xenium_path)
         detection = meta.get("detection", detection)
     elif stereo_seq_path is not None:
         adata, meta = load_stereo_seq_dataset(stereo_seq_path)

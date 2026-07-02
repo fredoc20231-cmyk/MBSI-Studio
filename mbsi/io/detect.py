@@ -115,7 +115,9 @@ def detect_platform(path_or_files: Union[str, Path, List[str], Dict[str, Any]]) 
     has_coords = _has_any(names, ["coordinates.csv", "coords.csv", "spatial.csv"]) or any(
         "coord" in n.lower() for n in names
     )
-    has_xenium = _has_any(names, XENIUM_MARKERS)
+    has_xenium_matrix = _has_any(names, ["cell_feature_matrix"])
+    has_xenium_cells = _has_any(names, ["cells.csv", "cells.parquet", "cells.csv.gz"])
+    has_xenium = has_xenium_matrix and has_xenium_cells
     has_cosmx = _has_any(names, COSMX_MARKERS)
     has_merfish = _has_any(names, MERFISH_MARKERS)
     has_stereo = _has_suffix(names, [".gef", ".cgef"]) or _has_any(names, STEREO_SEQ_MARKERS)
@@ -156,9 +158,14 @@ def detect_platform(path_or_files: Union[str, Path, List[str], Dict[str, Any]]) 
         confidence = 0.95 if has_scalefactors else 0.85
     elif has_xenium:
         platform = "xenium"
-        required_found.append("xenium_bundle")
-        missing.append("full_xenium_loader_phase2")
-        confidence = 0.6
+        required_found.extend(["cell_feature_matrix", "cells_table"])
+        if _has_any(names, ["transcripts.parquet"]):
+            optional_found.append("transcripts")
+        if _has_any(names, ["cell_boundaries.parquet", "cell_boundaries.csv"]):
+            optional_found.append("cell_boundaries")
+        if _has_any(names, ["morphology.ome.tif", "morphology.ome.tiff"]):
+            optional_found.append("morphology")
+        confidence = 0.95 if has_xenium_matrix and has_xenium_cells else 0.7
     elif has_cosmx:
         platform = "cosmx"
         required_found.append("cosmx_expr_matrix")
@@ -208,5 +215,5 @@ def detect_platform(path_or_files: Union[str, Path, List[str], Dict[str, Any]]) 
         "root": str(root) if root else None,
         "n_files": len(names),
         "technology_label": tech_spec.label if tech_spec else platform,
-        "partial_support": platform in ("xenium", "cosmx", "merfish", "codex", "spatial_atac", "stereo_seq"),
+        "partial_support": platform in ("cosmx", "merfish", "codex", "spatial_atac", "stereo_seq", "visium_hd"),
     }

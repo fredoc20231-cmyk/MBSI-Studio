@@ -11,7 +11,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from scipy.io import mmread
-from scipy.sparse import csr_matrix
+from scipy.sparse import csc_matrix, csr_matrix
 
 
 def load_tissue_positions(outs_dir: Union[str, Path]) -> pd.DataFrame:
@@ -64,7 +64,7 @@ def _load_matrix(outs_dir: Path) -> tuple[csr_matrix, list, list]:
             indices = mat["indices"][:]
             indptr = mat["indptr"][:]
             shape = tuple(mat["shape"][:])
-            X = csr_matrix((data, indices, indptr), shape=shape).T
+            X = csc_matrix((data, indices, indptr), shape=shape).T
             genes = [
                 g.decode() if isinstance(g, bytes) else str(g)
                 for g in mat["features"]["name"][:]

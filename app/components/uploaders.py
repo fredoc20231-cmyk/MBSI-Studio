@@ -47,6 +47,28 @@ def h5ad_uploader() -> Optional[Dict[str, Any]]:
         return None
 
 
+def xenium_uploader() -> Optional[Dict[str, Any]]:
+    uploaded_file = st.file_uploader(
+        "Upload Xenium bundle as ZIP (or folder contents)",
+        type=["zip"],
+        key="xenium_zip_uploader",
+    )
+    if uploaded_file is None:
+        return None
+    try:
+        temp_path = save_upload_to_temp(uploaded_file, ".zip")
+        result = ingest_upload(xenium_path=temp_path, file_names=[uploaded_file.name])
+        if result.get("adata") is None:
+            st.error("Could not load Xenium bundle from ZIP")
+            return None
+        adata = result["adata"]
+        st.success(f"Xenium loaded: {adata.n_obs} cells × {adata.n_vars} genes")
+        return result
+    except Exception as exc:
+        st.error(f"Xenium load failed: {exc}")
+        return None
+
+
 def visium_uploader() -> Optional[Dict[str, Any]]:
     uploaded_file = st.file_uploader(
         "Upload Space Ranger outs folder as ZIP",
@@ -170,8 +192,8 @@ def upload_panel() -> dict:
     st.subheader("Data Upload")
 
     data: Dict[str, Any] = {}
-    tab_h5, tab_visium, tab_stereo, tab_csv, tab_coords, tab_img, tab_seg = st.tabs(
-        ["h5ad", "Visium ZIP", "Stereo-seq ZIP", "CSV Matrix", "Coordinates", "Image", "Segmentation"]
+    tab_h5, tab_visium, tab_xenium, tab_stereo, tab_csv, tab_coords, tab_img, tab_seg = st.tabs(
+        ["h5ad", "Visium ZIP", "Xenium ZIP", "Stereo-seq ZIP", "CSV Matrix", "Coordinates", "Image", "Segmentation"]
     )
 
     with tab_h5:
@@ -183,6 +205,11 @@ def upload_panel() -> dict:
         visium_result = visium_uploader()
         if visium_result:
             data.update(visium_result)
+
+    with tab_xenium:
+        xenium_result = xenium_uploader()
+        if xenium_result:
+            data.update(xenium_result)
 
     with tab_stereo:
         stereo_result = stereo_seq_uploader()

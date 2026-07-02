@@ -32,12 +32,10 @@ def _resolve_outs_dir(path: Union[str, Path]) -> tuple[Path, Path | None]:
         tmp = Path(tempfile.mkdtemp(prefix="mbsi_visium_"))
         with zipfile.ZipFile(path) as zf:
             zf.extractall(tmp)
-        detection = detect_platform(tmp)
-        root = Path(detection["root"]) if detection.get("root") else tmp
-        for sub in ("outs", ""):
-            candidate = root / sub if sub else root
-            if (candidate / "spatial").exists() or list(candidate.rglob("tissue_positions*.csv")):
-                return candidate, tmp
+        for h5 in tmp.rglob("filtered_feature_bc_matrix.h5"):
+            return h5.parent, tmp
+        for positions in tmp.rglob("tissue_positions*.csv"):
+            return positions.parent.parent, tmp
         return tmp, tmp
 
     raise FileNotFoundError(f"Not a Visium outs directory or ZIP: {path}")

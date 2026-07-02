@@ -27,6 +27,8 @@ def render() -> None:
     adata = st.session_state.adata
     tech_key = st.session_state.get("selected_technology", "") or st.session_state.get("mbsi_platform", "")
     tech = get_technology(tech_key)
+    if tech and tech_key in ("visium", "xenium", "generic_h5ad"):
+        st.caption(f"Platform: {tech.label} — Milestone 1 real-data workflow")
     substeps = WORKFLOW_SUBSTEPS[WorkflowModule.QC_TRANSFORMATION.value]
     tabs = st.tabs([s.replace("_", " ").title() for s in substeps])
 

@@ -268,11 +268,20 @@ def _methods_html(snap: Dict[str, Any]) -> str:
 """
 
 
+def _readiness_score(snap: Dict[str, Any]) -> int:
+    readiness = snap.get("dataset_readiness")
+    if isinstance(readiness, dict):
+        return int(readiness.get("score", readiness.get("readiness_score", 0)) or 0)
+    if isinstance(readiness, (int, float)):
+        return int(readiness)
+    return 0
+
+
 def _limitations_html(snap: Dict[str, Any]) -> str:
     limits = []
     if snap.get("using_synthetic_demo"):
         limits.append("Analysis used synthetic demo data — not suitable for clinical decisions.")
-    if (snap.get("dataset_readiness") or 0) < 60:
+    if _readiness_score(snap) < 60:
         limits.append("Dataset readiness below recommended threshold — partial analyses may apply.")
     pre = (snap.get("preprocess_settings") or {}).get("preprocess", {}).get("outputs", {})
     fb = pre.get("clustering_fallback", "")

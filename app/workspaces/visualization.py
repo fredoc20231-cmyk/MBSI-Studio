@@ -40,6 +40,23 @@ def render() -> None:
         render_interactive_plot(fig, key="viz_quilt")
 
     with tabs[2]:
+        if "cluster" not in adata.obs.columns:
+            if st.button("Compute PCA + UMAP + Leiden clusters", key="viz_run_cluster"):
+                from mbsi.analysis.seurat_like import run_seurat_like_pipeline
+
+                results = run_seurat_like_pipeline(
+                    adata,
+                    preset="spatial_transcriptomics",
+                    min_counts=50,
+                    min_genes=10,
+                    max_mito=30.0,
+                )
+                st.session_state.adata = results["adata"]
+                st.session_state.marker_table = results.get("markers")
+                st.session_state.run_outputs["visualization"] = {
+                    "n_clusters": results["adata"].obs["cluster"].nunique() if "cluster" in results["adata"].obs else 0,
+                }
+                st.rerun()
         if "X_umap" not in adata.obsm:
             if st.button("Compute PCA + UMAP", key="viz_run_umap"):
                 adata = run_pca(adata)

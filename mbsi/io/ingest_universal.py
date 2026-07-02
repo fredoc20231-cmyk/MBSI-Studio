@@ -17,11 +17,14 @@ from mbsi.io.detect import detect_platform
 from mbsi.io.generic import ingest_csv_matrix_coords, ingest_h5ad
 from mbsi.io.ingest import normalize_loader_result
 from mbsi.io.visium import load_space_ranger
-from mbsi.schema.technology import get_technology
+from mbsi.schema.technology import MILESTONE_TECHNOLOGY_KEYS, get_technology
 from mbsi.schema.technology_profile import TechnologyProfile
 
 
 _REGISTRY_ROOT = Path("data/registry/ingested")
+
+_MILESTONE_LOADERS = {"visium", "xenium", "generic_h5ad", "csv_matrix"}
+_LEGACY_STUB_LOADERS = {"merfish", "cosmx", "codex", "stereo_seq", "spatial_atac"}
 
 
 @dataclass
@@ -272,13 +275,58 @@ def _ingest_csv_pair(path: Path, *, dataset_id: str) -> IngestionResult:
     )
 
 
-def _ingest_visium_zip(path: Path, *, dataset_id: str) -> IngestionResult:
-    extract_dir = Path(tempfile.mkdtemp(prefix="mbsi_visium_"))
+def _ingest_visium_dir(path: Path, *, dataset_id: str) -> IngestionResult:
     warnings: List[str] = []
     try:
-        with zipfile.ZipFile(path) as zf:
-            zf.extractall(extract_dir)
-        adata, meta = load_space_ranger(extract_dir)
+        adata, meta = load_space_ranger(path)
+        normalized = normalize_loader_result(
+            {
+                "adata": adata,
+                "platform": meta.get("platform", "visium"),
+                "detection": meta.get("detection", {}),
+                "readiness": meta.get("readiness", {}),
+                "readiness_score": meta.get("readiness_score", 0),
+                "source": str(path),
+            }
+        )
+        adata_path = _persist_adata(adata, path, dataset_id)
+        return IngestionResult(
+            adata_path=adata_path,
+            platform="visium",
+            technology_profile=TechnologyProfile.from_technology("visium", dataset_id=dataset_id).to_dict(),
+            readiness=dict(normalized.get("readiness") or {}),
+            compatibility=dict(normalized.get("compatibility") or {}),
+            warnings=list(normalized.get("warnings") or []) + warnings,
+            dataset_id=dataset_id,
+            metadata={
+                "detection": normalized.get("detection", {}),
+                "source": str(path),
+                "n_obs": int(adata.n_obs),
+                "n_vars": int(adata.n_vars),
+            },
+        )
+    except Exception as exc:
+        warnings.append(f"Visium directory ingest failed: {exc}")
+        return IngestionResult(
+            adata_path="",
+            platform="visium",
+            technology_profile=TechnologyProfile.from_technology("visium", dataset_id=dataset_id).to_dict(),
+            readiness={"status": "error", "score": 0},
+            compatibility=get_compatibility_matrix(None),
+            warnings=warnings,
+            dataset_id=dataset_id,
+            metadata={"source": str(path)},
+        )
+
+
+def _ingest_xenium_zip(path: Path, *, dataset_id: str) -> IngestionResult:
+    return _ingest_platform_loader("xenium", path, dataset_id=dataset_id, technology_hint="xenium")
+
+
+def _ingest_visium_zip(path: Path, *, dataset_id: str) -> IngestionResult:
+    warnings: List[str] = []
+    try:
+        adata, meta = load_space_ranger(path)
         normalized = normalize_loader_result(
             {
                 "adata": adata,
@@ -317,8 +365,6 @@ def _ingest_visium_zip(path: Path, *, dataset_id: str) -> IngestionResult:
             dataset_id=dataset_id,
             metadata={"source": str(path)},
         )
-    finally:
-        shutil.rmtree(extract_dir, ignore_errors=True)
 
 
 def ingest_dataset(
@@ -330,70 +376,65 @@ def ingest_dataset(
     """
     Unified ingestion entry — returns JSON-serializable metadata and adata path reference.
 
-    Supports: h5ad, CSV+coords, Visium ZIP, xenium, merfish, cosmx, stereo_seq, codex, spatial_atac.
-    Honest stubs return clear warnings when full parsers are unavailable.
+    Milestone 1: visium, xenium, generic h5ad/CSV. Other platforms return honest stubs.
     """
     path = _resolve_source_path(source)
     dataset_id = dataset_id or str(uuid4())
     suffix = path.suffix.lower()
     name_lower = path.name.lower()
 
-    platform_loaders = {
-        "xenium": "xenium",
-        "merfish": "merfish",
-        "cosmx": "cosmx",
-        "codex": "codex",
-        "stereo_seq": "stereo_seq",
-        "spatial_atac": "spatial_atac",
-    }
-
-    if technology_hint and technology_hint in platform_loaders:
+    if technology_hint in _LEGACY_STUB_LOADERS:
         return _ingest_platform_loader(
-            platform_loaders[technology_hint],
+            technology_hint,
             path,
             dataset_id=dataset_id,
             technology_hint=technology_hint,
         )
 
+    if technology_hint == "visium":
+        if suffix == ".zip":
+            return _ingest_visium_zip(path, dataset_id=dataset_id)
+        if path.is_dir():
+            return _ingest_visium_dir(path, dataset_id=dataset_id)
+
+    if technology_hint == "xenium":
+        if suffix == ".zip" or path.is_dir():
+            return _ingest_platform_loader("xenium", path, dataset_id=dataset_id, technology_hint="xenium")
+
     if suffix == ".h5ad":
-        return _ingest_h5ad(path, dataset_id=dataset_id, technology_hint=technology_hint)
+        return _ingest_h5ad(path, dataset_id=dataset_id, technology_hint=technology_hint or "generic_h5ad")
 
     if suffix == ".csv" and "coord" not in name_lower:
         return _ingest_csv_pair(path, dataset_id=dataset_id)
 
-    if suffix == ".zip" and any(k in name_lower for k in ("visium", "spaceranger", "outs")):
+    if suffix == ".zip":
+        detection = detect_platform(path)
+        platform = technology_hint or detection.get("platform", "unknown")
+        if platform == "xenium":
+            return _ingest_xenium_zip(path, dataset_id=dataset_id)
         return _ingest_visium_zip(path, dataset_id=dataset_id)
 
-    if suffix in (".gef", ".cgef") or "stereo" in name_lower:
-        return _ingest_platform_loader("stereo_seq", path, dataset_id=dataset_id, technology_hint="stereo_seq")
-
-    detection = detect_platform([path.name])
+    detection = detect_platform(path)
     detected = technology_hint or detection.get("platform", "unknown")
 
-    if detected in platform_loaders:
+    if path.is_dir():
+        if detected == "visium" or detection.get("platform") == "visium":
+            return _ingest_visium_dir(path, dataset_id=dataset_id)
+        if detected == "xenium" or detection.get("platform") == "xenium":
+            return _ingest_platform_loader("xenium", path, dataset_id=dataset_id, technology_hint="xenium")
+        h5ad_candidates = list(path.rglob("*.h5ad"))
+        if h5ad_candidates:
+            return _ingest_h5ad(h5ad_candidates[0], dataset_id=dataset_id, technology_hint="generic_h5ad")
+
+    if detected in _MILESTONE_LOADERS and detected not in ("generic_h5ad", "csv_matrix"):
         return _ingest_platform_loader(
-            platform_loaders[detected],
+            detected,
             path,
             dataset_id=dataset_id,
             technology_hint=detected,
         )
 
-    if path.is_dir():
-        for loader in ("visium", "xenium", "merfish", "cosmx", "codex", "stereo_seq", "spatial_atac"):
-            try:
-                return _ingest_platform_loader(
-                    loader,
-                    path,
-                    dataset_id=dataset_id,
-                    technology_hint=technology_hint or loader,
-                )
-            except Exception:
-                continue
-
-    if suffix == ".zip":
-        return _ingest_visium_zip(path, dataset_id=dataset_id)
-
-    tech = get_technology(detected)
+    tech = get_technology(detected if detected in MILESTONE_TECHNOLOGY_KEYS else "generic_h5ad")
     return IngestionResult(
         adata_path="",
         platform=str(detected),

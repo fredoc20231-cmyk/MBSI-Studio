@@ -43,7 +43,10 @@ class ProjectUpdateResponse(BaseModel):
 
 class DatasetUploadRequest(BaseModel):
     project_id: str = ""
-    technology_hint: Optional[str] = None
+    technology_hint: Optional[str] = Field(
+        default=None,
+        description="Milestone 1: visium | xenium | generic_h5ad (aliases: csv_matrix, h5ad)",
+    )
     sample_id: str = ""
 
 
@@ -78,6 +81,11 @@ class DatasetReadinessResponse(BaseModel):
     readiness: Dict[str, Any]
     compatibility: Dict[str, Any]
     warnings: List[str] = Field(default_factory=list)
+
+
+class TechnologyListResponse(BaseModel):
+    milestone_1_platforms: List[str] = Field(default_factory=list)
+    technologies: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class WorkflowRunRequest(BaseModel):

@@ -20,6 +20,7 @@ class TechnologySpec:
     benchmark_eligibility: str = ""
     report_sections: List[str] = field(default_factory=list)
     notes: str = ""
+    milestone_status: str = "active"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -35,6 +36,7 @@ class TechnologySpec:
             "benchmark_eligibility": self.benchmark_eligibility,
             "report_sections": list(self.report_sections),
             "notes": self.notes,
+            "milestone_status": self.milestone_status,
         }
 
 
@@ -57,7 +59,8 @@ _COMMON_ANALYSES = _MILESTONE_ANALYSES + [
     "discovery",
 ]
 
-MILESTONE_TECHNOLOGY_KEYS = ("visium", "xenium", "generic_h5ad")
+MILESTONE_1_PLATFORMS = ("visium", "xenium", "generic_h5ad")
+MILESTONE_TECHNOLOGY_KEYS = MILESTONE_1_PLATFORMS
 
 TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "visium": TechnologySpec(
@@ -84,6 +87,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "visium_hd": TechnologySpec(
         key="visium_hd",
         label="10x Visium HD",
+        milestone_status="coming_later",
         required_files=[
             "binned_outputs (e.g. square_008um)",
             "spatial/tissue_positions.parquet or csv",
@@ -122,6 +126,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "merfish": TechnologySpec(
         key="merfish",
         label="MERFISH / MERSCOPE",
+        milestone_status="coming_later",
         required_files=[
             "counts matrix (csv/h5ad)",
             "cell metadata with x/y coordinates",
@@ -139,6 +144,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "cosmx": TechnologySpec(
         key="cosmx",
         label="NanoString CosMx",
+        milestone_status="coming_later",
         required_files=[
             "flatFiles/*_exprMat_file.csv",
             "fov_positions_file.csv",
@@ -157,6 +163,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "stereo_seq": TechnologySpec(
         key="stereo_seq",
         label="STOmics Stereo-seq",
+        milestone_status="coming_later",
         required_files=[
             "GEF or CGEF expression matrix",
             "SAW / StereoMap workflow outputs",
@@ -191,6 +198,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "codex": TechnologySpec(
         key="codex",
         label="CODEX / multiplex IF",
+        milestone_status="coming_later",
         required_files=[
             "cell intensity matrix (csv)",
             "cell coordinates / segmentation",
@@ -209,6 +217,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "spatial_atac": TechnologySpec(
         key="spatial_atac",
         label="Spatial ATAC",
+        milestone_status="coming_later",
         required_files=[
             "peak-by-spot matrix (h5ad or mtx)",
             "spatial coordinates",
@@ -227,6 +236,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "slide_seq": TechnologySpec(
         key="slide_seq",
         label="Slide-seq",
+        milestone_status="coming_later",
         required_files=[
             "bead-by-gene matrix (csv/h5ad/mtx)",
             "bead locations (csv with x/y or puck coordinates)",
@@ -272,8 +282,7 @@ UI_TECHNOLOGY_OPTIONS = [
     ("Generic AnnData / CSV", "generic_h5ad"),
 ]
 
-# Full catalog labels (non-milestone platforms remain in TECHNOLOGY_CATALOG for reference)
-ALL_UI_TECHNOLOGY_OPTIONS = UI_TECHNOLOGY_OPTIONS + [
+COMING_LATER_UI_TECHNOLOGY_OPTIONS = [
     ("10x Visium HD", "visium_hd"),
     ("MERFISH / MERSCOPE", "merfish"),
     ("NanoString CosMx", "cosmx"),
@@ -283,15 +292,37 @@ ALL_UI_TECHNOLOGY_OPTIONS = UI_TECHNOLOGY_OPTIONS + [
     ("Spatial ATAC", "spatial_atac"),
 ]
 
+# Full catalog labels (non-milestone platforms remain in TECHNOLOGY_CATALOG for reference)
+ALL_UI_TECHNOLOGY_OPTIONS = UI_TECHNOLOGY_OPTIONS + COMING_LATER_UI_TECHNOLOGY_OPTIONS
+
+
+def is_milestone_platform(key: Optional[str]) -> bool:
+    """Return True when *key* is in Milestone 1 functional scope."""
+    return bool(key) and key in MILESTONE_1_PLATFORMS
+
+
+def normalize_technology_hint(hint: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """Map API/UI technology hints to Milestone 1 keys; return (key, warning)."""
+    if not hint:
+        return None, None
+    normalized = hint.strip().lower()
+    aliases = {"csv_matrix": "generic_h5ad", "h5ad": "generic_h5ad", "generic": "generic_h5ad"}
+    normalized = aliases.get(normalized, normalized)
+    if is_milestone_platform(normalized):
+        return normalized, None
+    spec = TECHNOLOGY_CATALOG.get(normalized)
+    label = spec.label if spec else normalized
+    return None, f"Technology '{label}' is not in Milestone 1 scope — use visium, xenium, or generic_h5ad"
+
 
 def get_technology(key: str) -> Optional[TechnologySpec]:
     return TECHNOLOGY_CATALOG.get(key)
 
 
 def technology_from_label(label: str) -> Optional[str]:
-    for ui_label, key in UI_TECHNOLOGY_OPTIONS:
+    for ui_label, key in ALL_UI_TECHNOLOGY_OPTIONS:
         if ui_label == label or key == label:
-            return key
+            return key if is_milestone_platform(key) else None
     return None
 
 
@@ -402,6 +433,8 @@ def _technology_entry(key: str, spec: TechnologySpec) -> Dict[str, Any]:
         "benchmark_eligibility": spec.benchmark_eligibility,
         "report_sections": list(spec.report_sections),
         "notes": spec.notes,
+        "milestone_status": spec.milestone_status,
+        "milestone_1_functional": is_milestone_platform(key),
     }
 
 
@@ -412,3 +445,13 @@ TECHNOLOGIES: Dict[str, Dict[str, Any]] = {
 
 def list_technologies() -> List[str]:
     return list(TECHNOLOGY_CATALOG.keys())
+
+
+def list_technologies_api() -> List[Dict[str, Any]]:
+    """Technology catalog for API responses — milestone scope annotated."""
+    out: List[Dict[str, Any]] = []
+    for key, spec in TECHNOLOGY_CATALOG.items():
+        entry = _technology_entry(key, spec)
+        entry["key"] = key
+        out.append(entry)
+    return out

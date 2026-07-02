@@ -187,9 +187,32 @@ def stereo_seq_uploader() -> Optional[Dict[str, Any]]:
         return None
 
 
-def upload_panel() -> dict:
+def render_xenium_file_checklist() -> None:
+    """Show Xenium required/optional file checklist in Study & Data upload section."""
+    st.markdown("**10x Xenium — expected bundle files**")
+    st.markdown("**Required**")
+    for item in (
+        "cell_feature_matrix.h5",
+        "cells.csv.gz or cells.parquet",
+    ):
+        st.markdown(f"- `{item}`")
+    st.markdown("**Optional**")
+    for item in (
+        "transcripts.parquet",
+        "cell_boundaries.parquet",
+        "morphology image (e.g. morphology.ome.tif)",
+    ):
+        st.markdown(f"- `{item}`")
+    st.caption("Upload the Xenium outs folder as a ZIP via the Xenium tab below.")
+
+
+def upload_panel(*, technology_key: Optional[str] = None) -> dict:
     """Complete upload panel with platform detection and mbsi.io ingestion."""
     st.subheader("Data Upload")
+
+    if technology_key == "xenium":
+        render_xenium_file_checklist()
+        st.divider()
 
     data: Dict[str, Any] = {}
     tab_h5, tab_visium, tab_xenium, tab_stereo, tab_csv, tab_coords, tab_img, tab_seg = st.tabs(
@@ -212,9 +235,7 @@ def upload_panel() -> dict:
             data.update(xenium_result)
 
     with tab_stereo:
-        stereo_result = stereo_seq_uploader()
-        if stereo_result:
-            data.update(stereo_result)
+        st.info("STOmics Stereo-seq — **Coming later** (not in Milestone 1 scope). Select Visium, Xenium, or Generic h5ad/CSV.")
 
     with tab_csv:
         data["count_matrix"] = csv_matrix_uploader()

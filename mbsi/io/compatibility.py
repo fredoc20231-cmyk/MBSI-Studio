@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 import anndata as ad
 
 from mbsi.io.detect import PlatformDetection
-from mbsi.schema.technology import MILESTONE_TECHNOLOGY_KEYS, get_technology
+from mbsi.schema.technology import get_technology, is_milestone_platform
 from mbsi.schema.workflow import WorkflowModule
 
 MILESTONE_MODULE_KEYS = [
@@ -183,7 +183,7 @@ def get_compatibility_matrix(
     tech = get_technology(tech_key) if tech_key else None
     compatible = set(tech.compatible_analyses) if tech else set()
     platform = tech_key or (detection or {}).get("platform") or "unknown"
-    milestone_platform = platform in MILESTONE_TECHNOLOGY_KEYS or platform == "csv_matrix"
+    milestone_platform = is_milestone_platform(platform) or platform == "csv_matrix"
 
     if adata is None:
         matrix = {key: _entry("unavailable", "no data loaded", ["spatial omics upload"]) for key in MILESTONE_MODULE_KEYS}
@@ -199,6 +199,21 @@ def get_compatibility_matrix(
     n_vars = adata.n_vars
     has_cell_types = "cell_type" in adata.obs or "cluster" in adata.obs
     platform = tech_key or (detection or {}).get("platform") or adata.uns.get("mbsi_platform", "unknown")
+    if not is_milestone_platform(platform) and platform not in ("csv_matrix", "unknown", "incomplete"):
+        tech = get_technology(platform)
+        label = tech.label if tech else platform
+        reason = f"{label} is Coming later in Milestone 1 — select Visium, Xenium, or Generic h5ad/CSV"
+        matrix = {
+            key: _entry("coming_later", reason, [f"technology {platform} not in Milestone 1 scope"])
+            for key in MILESTONE_MODULE_KEYS
+        }
+        matrix[WorkflowModule.STUDY_DATA.value] = _entry("available", "Study setup always available")
+        matrix[WorkflowModule.REPORT_EXPORT.value] = _entry("coming_later", reason)
+        matrix[WorkflowModule.SETTINGS.value] = _entry("available")
+        matrix[WorkflowModule.QC_PREPROCESS.value] = matrix[WorkflowModule.QC_TRANSFORMATION.value]
+        matrix[WorkflowModule.SPATIAL_ANALYSIS.value] = matrix[WorkflowModule.VISUALIZATION.value]
+        return _add_legacy_aliases(matrix)
+
     has_sc_ref = adata.uns.get("single_cell_reference") is not None
     platform_rules = get_platform_module_rules(platform)
     partial = bool((detection or {}).get("partial_support"))

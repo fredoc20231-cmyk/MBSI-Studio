@@ -19,6 +19,7 @@ from mbsi.api.contracts import (
     ReportGenerateRequest,
     WorkflowRunRequest,
 )
+from mbsi.schema.technology import MILESTONE_1_PLATFORMS
 
 
 @asynccontextmanager
@@ -48,7 +49,11 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
 
     @app.get("/health")
     async def health_check():
-        return {"status": "healthy", "version": "0.3.0"}
+        return {"status": "healthy", "version": "0.3.0", "milestone_1_platforms": list(MILESTONE_1_PLATFORMS)}
+
+    @app.get("/api/technologies")
+    async def api_technologies():
+        return handlers.list_technologies()
 
     @app.post("/api/project/create")
     async def api_project_create(body: ProjectCreateRequest):

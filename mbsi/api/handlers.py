@@ -22,6 +22,7 @@ from mbsi.api.contracts import (
     ReportGenerateRequest,
     ReportGenerateResponse,
     ResultsListResponse,
+    TechnologyListResponse,
     WorkflowRunRequest,
     WorkflowRunResponse,
     WorkflowStatusResponse,
@@ -32,6 +33,12 @@ from mbsi.registry.registry import ProjectRegistry
 from mbsi.schema.project import ProjectMetadata
 from mbsi.schema.report import ReportMetadata
 from mbsi.schema.serialize import to_json_serializable
+from mbsi.schema.technology import (
+    MILESTONE_1_PLATFORMS,
+    is_milestone_platform,
+    list_technologies_api,
+    normalize_technology_hint,
+)
 from mbsi.schema.workflow_run import WorkflowRun
 
 _PROJECTS_DIR = Path("data/registry/projects")
@@ -97,7 +104,9 @@ def upload_dataset(
     source_path: str,
 ) -> DatasetUploadResponse:
     _ensure_dirs()
-    result = ingest_dataset(source_path, technology_hint=req.technology_hint)
+    hint, hint_warning = normalize_technology_hint(req.technology_hint)
+    effective_hint = hint if hint is not None else req.technology_hint
+    result = ingest_dataset(source_path, technology_hint=effective_hint)
     record = result.to_dict()
     record["project_id"] = req.project_id
     record["sample_id"] = req.sample_id
@@ -106,15 +115,30 @@ def upload_dataset(
         "n_obs": record.get("metadata", {}).get("n_obs", 0),
         "n_vars": record.get("metadata", {}).get("n_vars", 0),
     }
+    warnings = list(result.warnings)
+    if hint_warning:
+        warnings.insert(0, hint_warning)
+    platform = result.platform
+    if not is_milestone_platform(platform) and platform not in ("csv_matrix", "unknown"):
+        warnings.append(
+            f"Detected platform '{platform}' is not in Milestone 1 scope — pipeline modules are Coming later"
+        )
     return DatasetUploadResponse(
         dataset_id=result.dataset_id,
         adata_path=result.adata_path,
-        platform=result.platform,
+        platform=platform,
         technology_profile=result.technology_profile,
         readiness=result.readiness,
         compatibility=result.compatibility,
-        warnings=result.warnings,
+        warnings=warnings,
         summary=summary,
+    )
+
+
+def list_technologies() -> TechnologyListResponse:
+    return TechnologyListResponse(
+        milestone_1_platforms=list(MILESTONE_1_PLATFORMS),
+        technologies=list_technologies_api(),
     )
 
 

@@ -28,7 +28,13 @@ from app.workspaces._study_setup_core import (
 )
 from mbsi.schema.project import ProjectMetadata
 from mbsi.schema.sample import SampleRecord
-from mbsi.schema.technology import TECHNOLOGY_CATALOG, UI_TECHNOLOGY_OPTIONS, get_technology
+from mbsi.schema.technology import (
+    COMING_LATER_UI_TECHNOLOGY_OPTIONS,
+    TECHNOLOGY_CATALOG,
+    UI_TECHNOLOGY_OPTIONS,
+    get_technology,
+    is_milestone_platform,
+)
 from mbsi.schema.workflow import WorkflowModule
 from mbsi.workflows.ingest import run_ingest_workflow
 
@@ -38,17 +44,30 @@ def _render_technology_selection() -> str:
     labels = [label for label, _ in UI_TECHNOLOGY_OPTIONS]
     keys = [key for _, key in UI_TECHNOLOGY_OPTIONS]
     current = st.session_state.get("selected_technology", "")
+    if current and not is_milestone_platform(current):
+        current = keys[0]
+        st.session_state.selected_technology = current
     idx = keys.index(current) if current in keys else 0
     choice = st.selectbox(
-        "Spatial technology",
+        "Spatial technology (Milestone 1)",
         labels,
         index=idx,
         key="sd_technology_select",
-        help="Technology drives required files, QC hints, and module compatibility",
+        help="Milestone 1 supports Visium, Xenium, and Generic h5ad/CSV only",
     )
     tech_key = dict(UI_TECHNOLOGY_OPTIONS)[choice]
     st.session_state.selected_technology = tech_key
     st.session_state.mbsi_platform = tech_key
+
+    coming_labels = [label for label, _ in COMING_LATER_UI_TECHNOLOGY_OPTIONS]
+    if coming_labels:
+        st.markdown(
+            '<p style="color:#888;font-size:0.9rem;margin-top:0.25rem;">'
+            "<strong>Coming later:</strong> "
+            + ", ".join(coming_labels)
+            + " — not selectable in Milestone 1</p>",
+            unsafe_allow_html=True,
+        )
 
     spec = get_technology(tech_key)
     if spec:

@@ -22,6 +22,8 @@ def route(method: str, path: str, body: Dict[str, Any] | None = None, **query) -
         return handlers.create_project(ProjectCreateRequest(**body)).model_dump()
     if method == "POST" and path == "/api/project/update":
         return handlers.update_project(ProjectUpdateRequest(**body)).model_dump()
+    if method == "GET" and path == "/api/technologies":
+        return handlers.list_technologies().model_dump()
     if method == "POST" and path == "/api/dataset/upload":
         source = body.pop("source_path", "")
         req = DatasetUploadRequest(**body)

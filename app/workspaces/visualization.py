@@ -6,6 +6,7 @@ import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
 from app.workspaces._spatial_page import render_continue, render_page_header, require_adata
+from mbsi.schema.technology import get_technology, is_milestone_platform
 from mbsi.analysis.clustering import run_pca, run_umap
 from mbsi.visualization.seurat_like import (
     plot_dotplot,
@@ -26,7 +27,22 @@ def render() -> None:
     if not require_adata("visualization"):
         return
 
+    tech_key = st.session_state.get("selected_technology", "") or st.session_state.get("mbsi_platform", "")
+    if tech_key and not is_milestone_platform(tech_key) and tech_key not in ("csv_matrix", "demo"):
+        spec = get_technology(tech_key)
+        label = spec.label if spec else tech_key
+        st.warning(f"**{label}** is marked **Coming later** — not supported in Milestone 1.")
+        return
+
     adata = st.session_state.adata
+    tech_key = st.session_state.get("selected_technology", "") or st.session_state.get("mbsi_platform", "")
+    milestone_out = (st.session_state.get("run_outputs") or {}).get("qc_transformation", {}).get(
+        "milestone_pipeline"
+    )
+    if milestone_out and tech_key in ("visium", "xenium"):
+        with st.expander("Milestone 1 pipeline outputs", expanded=False):
+            for label, path in milestone_out.items():
+                st.caption(f"{label}: {path}")
     tabs = st.tabs(["Spatial", "Quilt", "Reduction", "Violin / Dot / Heatmap"])
 
     with tabs[0]:

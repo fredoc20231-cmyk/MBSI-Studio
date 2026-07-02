@@ -10,7 +10,7 @@ from app.workspaces._spatial_page import render_continue, render_page_header, re
 from mbsi.preprocessing import normalize
 from mbsi.pseudobulk import run_pca_heatmap
 from mbsi.qc import compute_original_summary, filter_data
-from mbsi.schema.technology import get_technology
+from mbsi.schema.technology import get_technology, is_milestone_platform
 from mbsi.schema.workflow import WORKFLOW_SUBSTEPS, WorkflowModule
 from mbsi.visualization.seurat_like import plot_quilt
 
@@ -26,8 +26,13 @@ def render() -> None:
 
     adata = st.session_state.adata
     tech_key = st.session_state.get("selected_technology", "") or st.session_state.get("mbsi_platform", "")
+    if tech_key and not is_milestone_platform(tech_key) and tech_key not in ("csv_matrix", "demo"):
+        spec = get_technology(tech_key)
+        label = spec.label if spec else tech_key
+        st.warning(f"**{label}** is marked **Coming later** — not supported in Milestone 1. Return to Study & Data and select Visium, Xenium, or Generic h5ad/CSV.")
+        return
     tech = get_technology(tech_key)
-    if tech and tech_key in ("visium", "xenium", "generic_h5ad"):
+    if tech and is_milestone_platform(tech_key):
         st.caption(f"Platform: {tech.label} — Milestone 1 real-data workflow")
     substeps = WORKFLOW_SUBSTEPS[WorkflowModule.QC_TRANSFORMATION.value]
     tabs = st.tabs([s.replace("_", " ").title() for s in substeps])

@@ -14,7 +14,7 @@ from app.workspaces._helpers import safe_register_finding
 from app.workspaces._upload_helpers import _render_detection_panel, _store_ingestion
 from mbsi.io.compatibility import get_compatibility_matrix, recommended_next_step_for_module
 from mbsi.profiles.stereo_seq import get_stereo_seq_profile
-from mbsi.schema.technology import UI_TECHNOLOGY_OPTIONS, get_technology
+from mbsi.schema.technology import UI_TECHNOLOGY_OPTIONS, get_technology, is_milestone_platform
 from mbsi.schema.workflow import WorkflowModule
 from mbsi.visualization.analysis_plots import plot_qc_spatial
 
@@ -604,7 +604,8 @@ def _render_file_upload() -> None:
     st.markdown("#### File upload")
     st.caption("Upload spatial omics files and optional multimodal assets.")
 
-    result = upload_panel()
+    tech_key = st.session_state.get("selected_technology") or st.session_state.get("mbsi_platform")
+    result = upload_panel(technology_key=tech_key)
     if result.get("adata") is not None or result.get("detection"):
         _store_ingestion(result)
 

@@ -8,16 +8,19 @@ Use the header to monitor project context, technology, dataset status, and run s
 
 ## Supported technologies
 
-MBSI Studio supports technology-aware ingestion and module compatibility for major spatial platforms, including:
+**Milestone 1 (functional):**
 
-- **Visium / Visium HD** — spot-based spatial transcriptomics
-- **Xenium** — subcellular spatial transcriptomics
-- **CosMx SMI** — high-plex spatial molecular imaging
-- **MERFISH / seqFISH** — single-molecule FISH platforms
-- **Stereo-seq** — nanoscale spatial omics
-- **CODEX / multiplex IF** — protein spatial imaging
+- **10x Visium** — Space Ranger outs (spot-based spatial transcriptomics)
+- **10x Xenium** — cell-level spatial transcriptomics (`cell_feature_matrix.h5` + cells table)
+- **Generic AnnData / CSV** — `.h5ad` with spatial coordinates, or CSV matrix + coordinates file
 
-Select your technology in **Study Setup & Data** before upload. Required and optional file types are shown per platform.
+Select your technology in **Study Setup & Data** before upload. Required and optional file types are shown per platform. When Xenium is selected, a file checklist appears in the upload section.
+
+**Coming later (visible in catalog, not selectable):**
+
+Visium HD, MERFISH/MERSCOPE, CosMx, Stereo-seq, CODEX, Slide-seq, Spatial ATAC — shown in gray as *Coming later* and excluded from the active workflow.
+
+See `docs/MILESTONE_1_VISIUM_XENIUM_REAL_DATA.md` and `docs/MBSI_UI_SPEC_MILESTONE1.md` for scope details.
 
 ## Workflow guide
 

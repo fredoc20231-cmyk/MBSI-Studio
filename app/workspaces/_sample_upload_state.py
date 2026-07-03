@@ -283,13 +283,22 @@ def apply_ingestion_to_session(
         }
         updates["mbsi_platform"] = upload_state.get("platform", upload_state.get("technology"))
         updates["using_synthetic_demo"] = False
-        from app.components.histology_viewer import extract_histology_from_adata
 
-        if st.session_state.get("uploaded_image") is None:
-            img, source, _ = extract_histology_from_adata(adata)
-            if img is not None:
-                updates["uploaded_image"] = img
-                updates["histology_source"] = source
+        # Optional convenience: auto-extract embedded histology when no image is
+        # already loaded. Guarded so the core update logic never depends on a live
+        # Streamlit runtime (keeps this function unit-testable).
+        try:
+            import streamlit as st
+
+            if st.session_state.get("uploaded_image") is None:
+                from app.components.histology_viewer import extract_histology_from_adata
+
+                img, source, _ = extract_histology_from_adata(adata)
+                if img is not None:
+                    updates["uploaded_image"] = img
+                    updates["histology_source"] = source
+        except Exception:
+            pass
     else:
         updates["sample_adatas"] = {sample_id: adata}
         updates["sample_adata_paths"] = {sample_id: upload_state.get("adata_path", "")}

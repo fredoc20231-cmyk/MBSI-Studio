@@ -118,7 +118,11 @@ def _add_legacy_aliases(matrix: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str
     )
     matrix["discovery"] = matrix.get(
         WorkflowModule.DISCOVERY.value,
-        _entry("warn", "out of Milestone 1 scope"),
+        _entry(
+            "unavailable",
+            "discovery requires uploaded spatial data with gene expression",
+            recommended_next_step="Upload spatial omics data to enable discovery.",
+        ),
     )
     matrix["report"] = matrix[WorkflowModule.REPORT_EXPORT.value]
     return matrix

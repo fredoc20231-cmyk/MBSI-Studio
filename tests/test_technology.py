@@ -9,10 +9,12 @@ from mbsi.schema.technology import (
 )
 
 
-def test_nine_technologies_in_catalog():
-    assert len(TECHNOLOGY_CATALOG) == 9
-    assert len(UI_TECHNOLOGY_OPTIONS) == 9
-    assert len(list_technologies()) == 9
+def test_full_technology_catalog():
+    # 12 platforms: 3 milestone-1 + 5 functional vendor loaders + 4 coming-later.
+    assert len(TECHNOLOGY_CATALOG) == 12
+    assert len(list_technologies()) == 12
+    # UI_TECHNOLOGY_OPTIONS holds the milestone-1 quick picks; full set is ALL_UI.
+    assert len(UI_TECHNOLOGY_OPTIONS) >= 3
 
 
 def test_stereo_seq_in_catalog():

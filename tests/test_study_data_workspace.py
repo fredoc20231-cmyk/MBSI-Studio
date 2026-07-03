@@ -14,10 +14,10 @@ def test_study_setup_legacy_alias():
 
 
 def test_technology_options_include_slide_seq():
-    from mbsi.schema.technology import UI_TECHNOLOGY_OPTIONS, get_technology
+    from mbsi.schema.technology import ALL_UI_TECHNOLOGY_OPTIONS, get_technology
 
-    keys = [k for _, k in UI_TECHNOLOGY_OPTIONS]
-    assert len(keys) == 10
+    keys = [k for _, k in ALL_UI_TECHNOLOGY_OPTIONS]
+    assert len(keys) == 12
     assert "slide_seq" in keys
     spec = get_technology("slide_seq")
     assert spec is not None

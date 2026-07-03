@@ -24,7 +24,9 @@ from mbsi.schema.technology_profile import TechnologyProfile
 _REGISTRY_ROOT = Path("data/registry/ingested")
 
 _MILESTONE_LOADERS = {"visium", "xenium", "generic_h5ad", "csv_matrix"}
-_LEGACY_STUB_LOADERS = {"merfish", "cosmx", "codex", "stereo_seq", "spatial_atac"}
+# Vendor-format loaders dispatched through _ingest_platform_loader.
+_PLATFORM_LOADERS = {"merfish", "cosmx", "codex", "stereo_seq", "spatial_atac"}
+_LEGACY_STUB_LOADERS = _PLATFORM_LOADERS  # backward-compatible alias
 
 
 @dataclass
@@ -376,7 +378,8 @@ def ingest_dataset(
     """
     Unified ingestion entry — returns JSON-serializable metadata and adata path reference.
 
-    Milestone 1: visium, xenium, generic h5ad/CSV. Other platforms return honest stubs.
+    Supported loaders: visium, xenium, generic h5ad/CSV, plus vendor formats
+    MERSCOPE/MERFISH, CosMx, CODEX, Stereo-seq, and spatial-ATAC.
     """
     path = _resolve_source_path(source)
     dataset_id = dataset_id or str(uuid4())

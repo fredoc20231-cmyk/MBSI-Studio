@@ -20,7 +20,7 @@ def test_biomarker_disclaimer_exact():
 
 
 def test_generate_biomarker_report_text():
-    results = run_discovery_engine(seed=42)
+    results = run_discovery_engine(seed=42, allow_demo=True)
     text = generate_biomarker_report_text(
         results["benchmark_results"],
         results["communication_results"],
@@ -33,7 +33,7 @@ def test_generate_biomarker_report_text():
 
 
 def test_generate_spatial_biomarker_report_html(tmp_path: Path):
-    results = run_discovery_engine(seed=7)
+    results = run_discovery_engine(seed=7, allow_demo=True)
     path = generate_spatial_biomarker_report(
         results["benchmark_results"],
         results["communication_results"],

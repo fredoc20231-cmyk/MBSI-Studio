@@ -147,13 +147,14 @@ def test_theme_module():
         THEME_PALETTES,
         apply_plotly_theme,
         get_plotly_theme_colors,
+        get_theme,
         VALID_THEMES,
     )
 
     assert VALID_THEMES == ("dark", "light")
     assert "plot_paper" in THEME_PALETTES["light"]
-    assert THEME_PALETTES["light"]["bg"] == "#f4f7fb"
-    assert THEME_PALETTES["dark"]["bg"] == "#07111f"
+    assert THEME_PALETTES["light"]["bg"] == "#f8fafc"
+    assert THEME_PALETTES["dark"]["bg"] == "#0c1117"
 
     class _FakeFig:
         def __init__(self):
@@ -162,9 +163,13 @@ def test_theme_module():
         def update_layout(self, **kwargs):
             self.kwargs.update(kwargs)
 
+    # Assert against the active theme (default resolves to "light" outside a
+    # Streamlit session) rather than a hardcoded palette.
+    active = THEME_PALETTES[get_theme()] if callable(get_theme) else THEME_PALETTES["light"]
+
     fig = _FakeFig()
     apply_plotly_theme(fig)
-    assert fig.kwargs["paper_bgcolor"] == THEME_PALETTES["dark"]["plot_paper"]
+    assert fig.kwargs["paper_bgcolor"] == active["plot_paper"]
 
     colors = get_plotly_theme_colors()
-    assert colors["plot_font"] == THEME_PALETTES["dark"]["plot_font"]
+    assert colors["plot_font"] == active["plot_font"]

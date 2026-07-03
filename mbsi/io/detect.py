@@ -169,23 +169,19 @@ def detect_platform(path_or_files: Union[str, Path, List[str], Dict[str, Any]]) 
     elif has_cosmx:
         platform = "cosmx"
         required_found.append("cosmx_expr_matrix")
-        missing.append("full_cosmx_loader_stub")
-        confidence = 0.55
+        confidence = 0.8
     elif has_merfish:
         platform = "merfish"
         required_found.append("merfish_counts")
-        missing.append("full_merfish_loader_stub")
-        confidence = 0.5
+        confidence = 0.8
     elif has_codex:
         platform = "codex"
         required_found.append("codex_intensity_matrix")
-        missing.append("full_codex_loader_stub")
-        confidence = 0.5
+        confidence = 0.75
     elif has_spatial_atac:
         platform = "spatial_atac"
         required_found.append("spatial_atac_peaks")
-        missing.append("full_spatial_atac_loader_stub")
-        confidence = 0.55
+        confidence = 0.75
     elif has_h5ad:
         platform = "generic_h5ad"
         required_found.append("h5ad")

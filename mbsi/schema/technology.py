@@ -62,6 +62,16 @@ _COMMON_ANALYSES = _MILESTONE_ANALYSES + [
 MILESTONE_1_PLATFORMS = ("visium", "xenium", "generic_h5ad")
 MILESTONE_TECHNOLOGY_KEYS = MILESTONE_1_PLATFORMS
 
+# Platforms with a real vendor-format loader (dir/ZIP/exported-h5ad) that
+# normalizes to the MBSI AnnData contract and passes end-to-end ingestion.
+FUNCTIONAL_PLATFORMS = MILESTONE_1_PLATFORMS + (
+    "merfish",
+    "cosmx",
+    "codex",
+    "stereo_seq",
+    "spatial_atac",
+)
+
 TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "visium": TechnologySpec(
         key="visium",
@@ -126,7 +136,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
     "merfish": TechnologySpec(
         key="merfish",
         label="MERFISH / MERSCOPE",
-        milestone_status="coming_later",
+        milestone_status="functional",
         required_files=[
             "counts matrix (csv/h5ad)",
             "cell metadata with x/y coordinates",
@@ -139,12 +149,12 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         segmentation_logic="Vizgen MERSCOPE cell segmentation or custom masks",
         benchmark_eligibility="Limited without matched reference",
         report_sections=["FOV QC", "cell type map", "spatial stats"],
-        notes="Loader stub — partial support",
+        notes="Functional: reads MERSCOPE cell_by_gene + cell_metadata (dir/ZIP/h5ad); flags Blank control probes",
     ),
     "cosmx": TechnologySpec(
         key="cosmx",
         label="NanoString CosMx",
-        milestone_status="coming_later",
+        milestone_status="functional",
         required_files=[
             "flatFiles/*_exprMat_file.csv",
             "fov_positions_file.csv",
@@ -158,12 +168,12 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         segmentation_logic="CosMx SMI cell segmentation",
         benchmark_eligibility="Partial with scRNA deconvolution reference",
         report_sections=["FOV overview", "niche analysis", "pathway scores"],
-        notes="Loader stub — partial support",
+        notes="Functional: reads CosMx exprMat + metadata flat files (composite fov/cell_ID; drops FOV background; flags NegPrb)",
     ),
     "stereo_seq": TechnologySpec(
         key="stereo_seq",
         label="STOmics Stereo-seq",
-        milestone_status="coming_later",
+        milestone_status="functional",
         required_files=[
             "GEF or CGEF expression matrix",
             "SAW / StereoMap workflow outputs",
@@ -193,12 +203,12 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
             "cluster markers",
             "region lasso comparisons",
         ],
-        notes="Supports SAW/StereoMap, GEF/CGEF detection; parse partially stubbed",
+        notes="Functional: GEF/CGEF + SAW/StereoMap exports load to binned AnnData",
     ),
     "codex": TechnologySpec(
         key="codex",
         label="CODEX / multiplex IF",
-        milestone_status="coming_later",
+        milestone_status="functional",
         required_files=[
             "cell intensity matrix (csv)",
             "cell coordinates / segmentation",
@@ -212,12 +222,12 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         segmentation_logic="CellProfiler / CODEX Toolkit segmentation",
         benchmark_eligibility="No standard gene-level benchmark",
         report_sections=["marker heatmap", "neighborhood analysis", "immune infiltration"],
-        notes="Loader stub — partial support",
+        notes="Functional: reads CODEX/PhenoCycler single-cell protein intensity table; markers to X, centroids to obsm[spatial]",
     ),
     "spatial_atac": TechnologySpec(
         key="spatial_atac",
         label="Spatial ATAC",
-        milestone_status="coming_later",
+        milestone_status="functional",
         required_files=[
             "peak-by-spot matrix (h5ad or mtx)",
             "spatial coordinates",
@@ -231,7 +241,7 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         segmentation_logic="Spot or bin level; linked to histology when available",
         benchmark_eligibility="Limited — requires matched scATAC reference",
         report_sections=["peak accessibility map", "gene activity", "motif enrichment"],
-        notes="Loader stub — partial support",
+        notes="Functional: reads peak/gene-activity matrix (.h5/.mtx) + Visium-style positions; fragment/BAM parsing upstream",
     ),
     "slide_seq": TechnologySpec(
         key="slide_seq",
@@ -337,6 +347,11 @@ ALL_UI_TECHNOLOGY_OPTIONS = UI_TECHNOLOGY_OPTIONS + COMING_LATER_UI_TECHNOLOGY_O
 def is_milestone_platform(key: Optional[str]) -> bool:
     """Return True when *key* is in Milestone 1 functional scope."""
     return bool(key) and key in MILESTONE_1_PLATFORMS
+
+
+def is_functional_platform(key: Optional[str]) -> bool:
+    """Return True when *key* has a real vendor-format loader wired end-to-end."""
+    return bool(key) and key in FUNCTIONAL_PLATFORMS
 
 
 def normalize_technology_hint(hint: Optional[str]) -> tuple[Optional[str], Optional[str]]:
@@ -525,6 +540,8 @@ def _technology_entry(key: str, spec: TechnologySpec) -> Dict[str, Any]:
         "notes": spec.notes,
         "milestone_status": spec.milestone_status,
         "milestone_1_functional": is_milestone_platform(key),
+        "functional": is_functional_platform(key),
+        "loader_status": "functional" if is_functional_platform(key) else "coming_later",
     }
 
 

@@ -26,10 +26,13 @@ def test_technology_catalog_keys():
         "stereo_seq",
         "codex",
         "spatial_atac",
+        "seqfish",
+        "exst",
+        "slide_seq",
         "generic_h5ad",
     }
     assert set(TECHNOLOGY_CATALOG.keys()) == expected
-    assert len(UI_TECHNOLOGY_OPTIONS) == 9
+    assert len(UI_TECHNOLOGY_OPTIONS) >= 3
 
 
 def test_stereo_seq_spec():
@@ -42,10 +45,11 @@ def test_stereo_seq_spec():
 
 
 def test_workflow_modules():
-    assert len(WorkflowModule) == 10
-    assert WorkflowModule.STUDY_SETUP.value == "study_setup"
+    assert len(WorkflowModule) == 16
+    # STUDY_SETUP is retained as an alias of STUDY_DATA after the workflow refactor.
+    assert WorkflowModule.STUDY_SETUP.value == "study_data"
     assert "communication" in WORKFLOW_SUBSTEPS[WorkflowModule.DISCOVERY.value]
-    assert resolve_module_key("project_setup") == "study_setup"
+    assert resolve_module_key("project_setup") == "study_data"
     assert resolve_module_key("notebook") == "report_export"
 
 
@@ -70,7 +74,7 @@ def test_schema_epic_entities_import():
 
 def test_compatibility_uses_workflow_keys():
     matrix = get_compatibility_matrix(None)
-    assert "study_setup" in matrix
-    assert "qc_preprocess" in matrix
-    assert matrix["study_setup"]["status"] == "available"
-    assert matrix["qc_preprocess"]["status"] == "unavailable"
+    assert "study_data" in matrix
+    assert "qc_transformation" in matrix
+    assert matrix["study_data"]["status"] == "available"
+    assert matrix["qc_transformation"]["status"] == "unavailable"

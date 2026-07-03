@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 import anndata as ad
 import numpy as np
 
+from mbsi.analysis.svg import detect_svgs
 from mbsi.reconstruction.solver import run_mbsi
 from mbsi.segmentation.compartments import infer_compartment_labels
 from mbsi.segmentation.masks import voronoi_cell_regions
@@ -41,6 +42,10 @@ def run_full_pipeline(
     tumor_markers: Optional[list] = None,
     immune_markers: Optional[list] = None,
     random_state: int = 42,
+    svg_n_top: int = 2000,
+    svg_k: int = 6,
+    svg_n_perms: int = 0,
+    svg_fdr_alpha: float = 0.05,
     **mbsi_kwargs,
 ) -> Dict[str, Any]:
     """Run complete MBSI Studio pipeline and return analysis state."""
@@ -55,6 +60,27 @@ def run_full_pipeline(
 
     subcell = infer_subcellular_compartments(reconstructed, image=image)
     reconstructed = partition_transcripts_by_compartment(reconstructed, subcell)
+
+    # Spatially variable genes with significance testing (Moran's I + BH-FDR).
+    # Run on the reconstructed field; fall back gracefully if spatial coords
+    # or a suitable expression layer are unavailable.
+    try:
+        svg_layer = "logcounts" if "logcounts" in reconstructed.layers else None
+        svg_table = detect_svgs(
+            reconstructed,
+            layer=svg_layer if svg_layer is not None else "X",
+            n_top=svg_n_top,
+            k=svg_k,
+            method="moran",
+            n_perms=svg_n_perms,
+            fdr_alpha=svg_fdr_alpha,
+            random_state=random_state,
+        )
+    except Exception as exc:  # pragma: no cover - defensive: never break pipeline
+        svg_table = None
+        svg_error = str(exc)
+    else:
+        svg_error = None
 
     boundaries = detect_tissue_boundaries(reconstructed)
     leakage = compute_boundary_leakage(reconstructed, boundaries=boundaries)
@@ -99,5 +125,12 @@ def run_full_pipeline(
         "n_cells": reconstructed.n_obs,
         "compartments": {"labels": list(reconstructed.obs["compartment"].unique())},
         "embedding_shape": embedding.shape,
+        "svg_table": svg_table,
+        "svg_n_significant": (
+            int(svg_table["is_svg"].sum())
+            if svg_table is not None and "is_svg" in svg_table.columns
+            else None
+        ),
+        "svg_error": svg_error,
     }
     return state

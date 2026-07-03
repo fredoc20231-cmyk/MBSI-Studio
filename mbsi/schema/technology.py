@@ -272,6 +272,42 @@ TECHNOLOGY_CATALOG: Dict[str, TechnologySpec] = {
         report_sections=["generic QC", "spatial map", "marker table"],
         notes="Milestone 1: h5ad or CSV matrix + coordinates.csv fallback",
     ),
+    "seqfish": TechnologySpec(
+        key="seqfish",
+        label="SeqFISH+",
+        required_files=[
+            "cell x gene counts (.h5ad or csv)",
+            "cell centroid coordinates (obsm['spatial'] or coordinates.csv)",
+        ],
+        optional_files=["field-of-view metadata", "segmentation masks"],
+        compatible_analyses=list(_MILESTONE_ANALYSES),
+        qc_metrics=["total_counts", "n_genes", "mito_pct", "cell density"],
+        normalization_strategy="log1p + scale; volume normalization if segmentation present",
+        clustering_choices=["Leiden", "Louvain"],
+        segmentation_logic="Imaging-based single-cell segmentation (nucleus/cytoplasm masks)",
+        benchmark_eligibility="Yes with matched-resolution reference",
+        report_sections=["QC", "spatial map", "marker table", "cell neighborhoods"],
+        milestone_status="coming_later",
+        notes="SeqFISH+ high-plex imaging; export to h5ad (cells × genes + spatial) for ingestion",
+    ),
+    "exst": TechnologySpec(
+        key="exst",
+        label="Expansion Spatial Transcriptomics (ExST)",
+        required_files=[
+            "cell/spot x gene counts (.h5ad or csv)",
+            "expansion-corrected coordinates (obsm['spatial'])",
+        ],
+        optional_files=["expansion factor metadata", "segmentation masks"],
+        compatible_analyses=list(_MILESTONE_ANALYSES),
+        qc_metrics=["total_counts", "n_genes", "mito_pct", "cell density"],
+        normalization_strategy="log1p + scale (coordinates rescaled by expansion factor)",
+        clustering_choices=["Leiden", "Louvain"],
+        segmentation_logic="Imaging-based segmentation on expanded tissue; rescale coords by expansion factor",
+        benchmark_eligibility="Yes with matched-resolution reference",
+        report_sections=["QC", "spatial map", "marker table"],
+        milestone_status="coming_later",
+        notes="ExST: divide physical coordinates by expansion factor before analysis",
+    ),
 }
 
 TECHNOLOGY_LABELS: Dict[str, str] = {k: v.label for k, v in TECHNOLOGY_CATALOG.items()}
@@ -290,6 +326,8 @@ COMING_LATER_UI_TECHNOLOGY_OPTIONS = [
     ("CODEX / multiplex IF", "codex"),
     ("Slide-seq", "slide_seq"),
     ("Spatial ATAC", "spatial_atac"),
+    ("SeqFISH+", "seqfish"),
+    ("Expansion Spatial Transcriptomics (ExST)", "exst"),
 ]
 
 # Full catalog labels (non-milestone platforms remain in TECHNOLOGY_CATALOG for reference)
@@ -401,6 +439,33 @@ _PLATFORM_CAPABILITIES: Dict[str, Dict[str, Any]] = {
         "supports_regions": True,
         "supports_ground_truth_benchmarking": True,
     },
+    "slide_seq": {
+        "resolution_class": "near_single_cell",
+        "supports_images": False,
+        "supports_segmentation": False,
+        "supports_bins": True,
+        "supports_cells": False,
+        "supports_regions": True,
+        "supports_ground_truth_benchmarking": False,
+    },
+    "seqfish": {
+        "resolution_class": "single_cell",
+        "supports_images": True,
+        "supports_segmentation": True,
+        "supports_bins": False,
+        "supports_cells": True,
+        "supports_regions": True,
+        "supports_ground_truth_benchmarking": True,
+    },
+    "exst": {
+        "resolution_class": "subcellular",
+        "supports_images": True,
+        "supports_segmentation": True,
+        "supports_bins": False,
+        "supports_cells": True,
+        "supports_regions": True,
+        "supports_ground_truth_benchmarking": True,
+    },
     "generic_h5ad": {
         "resolution_class": "generic",
         "supports_images": True,
@@ -413,9 +478,34 @@ _PLATFORM_CAPABILITIES: Dict[str, Dict[str, Any]] = {
 }
 
 
+# Human-readable presentation fields consumed by the AIStudio React frontend.
+# `resolution` and `modality_type` populate StudySetupView's currentTech.resolution
+# and currentTech.type — the fields whose absence previously threw a TypeError.
+_PLATFORM_PRESENTATION: Dict[str, Dict[str, str]] = {
+    "visium": {"resolution": "55 µm spots", "modality_type": "Sequencing-based"},
+    "visium_hd": {"resolution": "2–8 µm bins", "modality_type": "Sequencing-based"},
+    "xenium": {"resolution": "Subcellular (~0.2 µm)", "modality_type": "Imaging-based"},
+    "merfish": {"resolution": "Subcellular", "modality_type": "Imaging-based"},
+    "cosmx": {"resolution": "Single-cell / subcellular", "modality_type": "Imaging-based"},
+    "stereo_seq": {"resolution": "220–500 nm (DNB)", "modality_type": "Sequencing-based"},
+    "codex": {"resolution": "Single-cell (protein)", "modality_type": "Imaging-based"},
+    "spatial_atac": {"resolution": "Spot / bin (epigenome)", "modality_type": "Sequencing-based"},
+    "slide_seq": {"resolution": "10 µm beads", "modality_type": "Sequencing-based"},
+    "seqfish": {"resolution": "Subcellular", "modality_type": "Imaging-based"},
+    "exst": {"resolution": "Subcellular (expansion)", "modality_type": "Imaging-based"},
+    "generic_h5ad": {"resolution": "Variable", "modality_type": "Generic"},
+}
+
+
 def _technology_entry(key: str, spec: TechnologySpec) -> Dict[str, Any]:
     caps = _PLATFORM_CAPABILITIES.get(key, {})
+    pres = _PLATFORM_PRESENTATION.get(key, {})
     return {
+        # AIStudio frontend contract fields (id/name/resolution/type) — additive aliases.
+        "id": key,
+        "name": caps.get("display_name", spec.label),
+        "resolution": pres.get("resolution", "Variable"),
+        "type": pres.get("modality_type", "Generic"),
         "display_name": caps.get("display_name", spec.label),
         "resolution_class": caps.get("resolution_class", "generic"),
         "supports_images": caps.get("supports_images", True),

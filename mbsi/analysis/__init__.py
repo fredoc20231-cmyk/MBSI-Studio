@@ -8,6 +8,12 @@ from mbsi.analysis.visium import (
     load_scalefactors,
     load_tissue_positions,
 )
+from mbsi.analysis.svg import (
+    detect_svgs,
+    morans_i_vectorized,
+    gearys_c_vectorized,
+    benjamini_hochberg,
+)
 
 __all__ = [
     "run_standard_spatial_analysis",
@@ -18,4 +24,8 @@ __all__ = [
     "load_spatial_image",
     "load_scalefactors",
     "load_tissue_positions",
+    "detect_svgs",
+    "morans_i_vectorized",
+    "gearys_c_vectorized",
+    "benjamini_hochberg",
 ]

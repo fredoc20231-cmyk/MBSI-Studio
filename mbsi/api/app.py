@@ -7,10 +7,10 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, Query, UploadFile
+from fastapi import Body, FastAPI, File, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from mbsi.api import handlers
+from mbsi.api import aistudio, handlers
 from mbsi.api.contracts import (
     DatasetInspectRequest,
     DatasetUploadRequest,
@@ -129,6 +129,48 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
     @app.post("/api/report/generate")
     async def api_report_generate(body: ReportGenerateRequest):
         return handlers.generate_report(body)
+
+    # ---------------------------------------------------------------- #
+    # AIStudio frontend contract endpoints
+    # ---------------------------------------------------------------- #
+    @app.get("/api/technologies/frontend")
+    async def api_technologies_frontend():
+        """Technology catalog guaranteed to carry id/name/resolution/type."""
+        return {"technologies": aistudio.technologies_frontend()}
+
+    @app.get("/api/projects/{project_id}/spatial-data")
+    async def api_project_spatial_data(
+        project_id: str,
+        dataset_id: str = Query(default=""),
+        genes: str | None = Query(default=None),
+        max_cells: int = Query(default=5000),
+        max_genes: int = Query(default=12),
+    ):
+        ds = dataset_id or project_id
+        gene_list = [g.strip() for g in genes.split(",")] if genes else None
+        return aistudio.build_spatial_data_payload(
+            ds, genes=gene_list, max_cells=max_cells, max_genes=max_genes
+        )
+
+    @app.post("/api/upload/sign")
+    async def api_upload_sign(body: dict = Body(...)):
+        return aistudio.sign_upload(
+            filename=body.get("filename", "upload.h5ad"),
+            content_type=body.get("contentType", "application/octet-stream"),
+        )
+
+    @app.get("/api/jobs/{job_id}/status")
+    async def api_job_status(job_id: str):
+        """Polling contract: {jobId, status, module, outputs, warnings}."""
+        res = handlers.workflow_status(job_id)
+        status = getattr(res, "status", "unknown")
+        return {
+            "jobId": job_id,
+            "status": "completed" if status in ("complete", "completed") else status,
+            "module": getattr(res, "module", ""),
+            "outputs": getattr(res, "outputs", {}),
+            "warnings": getattr(res, "warnings", []),
+        }
 
     return app
 

@@ -1,58 +1,52 @@
-"""Left sidebar controls for analysis cockpit."""
+"""Left sidebar controls for analysis cockpit (developer mode)."""
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode
 from app.components.layout import metric_tile
 
 
 MODALITIES = [
     ("Visium spots", "adata"),
-    ("H&E histology", "spatial_demo"),
+    ("H&E histology", "uploaded_image"),
     ("Cell reconstruction", "reconstructed"),
-    ("Neighborhood graph", "spatial_demo"),
-    ("L-R signaling", "spatial_demo"),
-    ("Boundary intelligence", "spatial_demo"),
-    ("Causal model", "spatial_demo"),
-    ("Digital twin", "spatial_demo"),
 ]
 
 
 def _readiness_score() -> float:
     score = 0.0
-    if st.session_state.get("adata") is not None:
-        score += 0.25
+    if st.session_state.get("adata") is not None and not st.session_state.get("using_synthetic_demo"):
+        score += 0.5
     if st.session_state.get("reconstructed") is not None:
         score += 0.25
-    if st.session_state.get("spatial_demo"):
-        score += 0.35
-    if st.session_state.get("metrics"):
-        score += 0.15
+    if st.session_state.get("uploaded_image") is not None:
+        score += 0.25
     return min(1.0, score)
 
 
 def render_analysis_sidebar() -> None:
     """Project panel, data summary, modalities, readiness, pipeline controls."""
+    if not is_developer_mode():
+        return
     with st.sidebar:
         st.markdown("### Project")
         project = st.text_input("Project name", value=st.session_state.get("project_name", "Untitled project"))
         st.session_state.project_name = project
 
-        demo = st.session_state.get("spatial_demo") or {}
-        n_cells = demo.get("n_cells_total", 0)
-        n_spots = demo.get("n_spots", 0)
+        n_spots = 0
         if st.session_state.adata is not None:
             n_spots = st.session_state.adata.n_obs
 
         st.markdown("---")
         st.markdown("**Data Summary**")
         c1, c2 = st.columns(2)
-        c1.metric("Cells", f"{n_cells:,}" if n_cells else "—")
-        c2.metric("Spots", f"{n_spots:,}" if n_spots else "—")
+        c1.metric("Spots", f"{n_spots:,}" if n_spots else "—")
+        c2.metric("Image", "yes" if st.session_state.get("uploaded_image") is not None else "no")
 
         st.markdown("---")
         st.markdown("**Modalities**")
         for label, key in MODALITIES:
-            ready = bool(st.session_state.get(key) or (key == "spatial_demo" and demo))
+            ready = bool(st.session_state.get(key))
             st.checkbox(label, value=ready, disabled=True, key=f"mod_{label}")
 
         readiness = _readiness_score()
@@ -69,9 +63,11 @@ def render_analysis_sidebar() -> None:
 
 
 def _run_full_pipeline() -> None:
-    from app.components.page_utils import ensure_advanced_demo, run_local_pipeline
+    from app.components.page_utils import run_local_pipeline
 
-    ensure_advanced_demo()
+    if st.session_state.adata is None:
+        st.warning("Upload real data first.")
+        return
     with st.spinner("Running full MBSI pipeline..."):
         run_local_pipeline(quick=True)
     st.success("Pipeline complete.")
@@ -79,10 +75,9 @@ def _run_full_pipeline() -> None:
 
 
 def _reset_session() -> None:
-    from app.components.page_utils import init_session, load_advanced_demo_into_session
+    from app.components.page_utils import init_session
 
     keys_to_clear = list(st.session_state.keys())
     for k in keys_to_clear:
         del st.session_state[k]
     init_session()
-    load_advanced_demo_into_session()

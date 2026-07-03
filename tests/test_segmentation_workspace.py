@@ -17,6 +17,7 @@ def test_workflow_imports_and_runs():
         tissue_method="otsu",
         cell_method="voronoi",
         compartment_method="hybrid",
+        allow_synthetic_image=False,
     )
     assert run.status == "success"
     assert run.outputs["status"] == "segment_complete"

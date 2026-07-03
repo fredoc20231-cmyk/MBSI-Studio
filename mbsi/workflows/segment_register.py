@@ -44,6 +44,7 @@ def run_segment_register_workflow(
     segmentation_source: str = "run_tissue",
     imported_mask: Optional[np.ndarray] = None,
     out_dir: Optional[Path] = None,
+    allow_synthetic_image: bool = False,
 ) -> RunRecord:
     """Run full segmentation + registration pipeline."""
     if adata is None:
@@ -60,19 +61,28 @@ def run_segment_register_workflow(
     boundary_map = None
     warnings: list[str] = []
 
-    if image is None:
-        image = _synthetic_he_image()
-
     source = (segmentation_source or "run_tissue").lower()
+    needs_image = source == "run_tissue" or cell_method not in ("voronoi", "imported")
+
+    if image is None and needs_image and imported_mask is None:
+        if allow_synthetic_image:
+            image = _synthetic_he_image()
+            warnings.append("Using synthetic H&E placeholder (developer mode only).")
+        else:
+            return RunRecord.failed(
+                WorkflowModule.SEGMENT_REGISTER.value,
+                "No histology/morphology image found. Upload image in Study & Data or Segmentation page.",
+            )
+
     if source in ("uploaded", "imported") and imported_mask is not None:
         tissue_mask = imported_mask
-    elif source == "run_tissue":
+    elif source == "run_tissue" and image is not None:
         try:
             tissue_mask = segment_tissue(image=image, method=tissue_method)
         except Exception as exc:
             warnings.append(f"tissue segmentation failed: {exc}")
 
-    registration = register_spatial_to_image(adata, image=image)
+    registration = register_spatial_to_image(adata, image=image) if image is not None else {"status": "skipped", "reason": "no image"}
     reg_validation = validate_registration(adata, tissue_mask)
 
     if source == "voronoi" or cell_method == "voronoi":

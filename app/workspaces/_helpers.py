@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode
 from app.components.demo_data import generate_dashboard_demo
 from app.components.page_utils import ensure_adata, OUTPUT_DIR
 
 
 def ensure_demo():
+    if not is_developer_mode():
+        raise RuntimeError("Demo datasets are disabled in production mode (set DEVELOPER_MODE=true).")
     if "dashboard_demo" not in st.session_state:
         st.session_state.dashboard_demo = generate_dashboard_demo(seed=42)
     return st.session_state.dashboard_demo

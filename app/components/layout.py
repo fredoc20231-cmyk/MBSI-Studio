@@ -7,6 +7,8 @@ from typing import Optional
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode
+
 # Navigation targets relative to app/ (streamlit run app/streamlit_app.py)
 NAV_TARGETS = [
     ("Dashboard", "streamlit_app.py"),
@@ -72,7 +74,7 @@ def render_navbar(active: str = "Analysis") -> None:
             </div>
           </div>
           <div class="mbsi-nav-right">
-            <span class="mbsi-demo-btn">Demo Mode</span>
+            {"<span class='mbsi-demo-btn'>Developer Mode</span>" if is_developer_mode() else ""}
             <span class="mbsi-icon-btn" title="Help">?</span>
             <span class="mbsi-icon-btn" title="Settings">⚙</span>
             <span class="mbsi-avatar">AU</span>

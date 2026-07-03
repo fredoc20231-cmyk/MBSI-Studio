@@ -109,8 +109,8 @@ def render() -> None:
         icon="📁",
     )
 
-    if st.session_state.get("using_synthetic_demo") and st.session_state.get("adata") is not None:
-        st.info("Sample Dataset Loaded — labeled demo data for exploration on this page only.")
+    if is_developer_mode() and st.session_state.get("using_synthetic_demo") and st.session_state.get("adata") is not None:
+        st.info("Developer mode — labeled demo data loaded.")
 
     tech_key = _render_technology_selection()
     st.divider()

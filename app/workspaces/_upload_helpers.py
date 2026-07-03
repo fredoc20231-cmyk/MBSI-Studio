@@ -5,6 +5,11 @@ from __future__ import annotations
 import streamlit as st
 import pandas as pd
 
+from app.components.histology_viewer import (
+    histology_status_caption,
+    render_histology_overlay,
+    sync_histology_session_from_adata,
+)
 from app.components.interactive_figures import render_interactive_plot
 from app.components.page_header import render_page_header
 from app.components.uploaders import data_readiness_score, upload_panel
@@ -19,6 +24,7 @@ def _store_ingestion(result: dict) -> None:
     if adata is not None:
         st.session_state.adata = adata
         st.session_state.using_synthetic_demo = False
+        sync_histology_session_from_adata(adata)
 
     detection = result.get("detection", {})
     platform = result.get("platform", detection.get("platform", "unknown"))
@@ -110,15 +116,32 @@ def _render_compatibility_panel(compatibility: dict) -> None:
 
 def _render_spatial_preview(adata) -> None:
     st.markdown("**Spatial preview**")
+    st.markdown(histology_status_caption(adata), unsafe_allow_html=True)
+
     color_by = "total_counts"
     if "cell_type" in adata.obs.columns:
         color_by = "cell_type"
     elif "cluster" in adata.obs.columns:
         color_by = "cluster"
+    elif "leiden" in adata.obs.columns:
+        color_by = "leiden"
     elif "total_counts" not in adata.obs.columns:
         color_by = None
 
-    if color_by and color_by in adata.obs.columns:
+    from app.components.histology_viewer import get_active_histology_image
+
+    histology, _ = get_active_histology_image(adata)
+    if histology is not None and "spatial" in adata.obsm:
+        fig = render_histology_overlay(
+            adata=adata,
+            image=histology,
+            color=color_by,
+            title="Histology & spatial overlay",
+            show_image=True,
+            show_spots=True,
+            return_figure=True,
+        )
+    elif color_by and color_by in adata.obs.columns:
         fig = plot_qc_spatial(adata, color_by)
     else:
         import plotly.express as px
@@ -128,9 +151,6 @@ def _render_spatial_preview(adata) -> None:
         fig.update_yaxes(autorange="reversed")
 
     render_interactive_plot(fig, title="Upload spatial map", module="upload", key="upload_spatial_preview")
-
-    if adata.uns.get("spatial"):
-        st.caption("Histology images available in uns['spatial'] — overlay in spatial analysis.")
 
 
 def _render_post_upload_actions() -> None:

@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import streamlit as st
 
 from app.components.layout import inject_styles
-from app.components.page_utils import init_session, OUTPUT_DIR
+from app.components.developer_mode import is_developer_mode, production_mode_message
+from app.components.page_utils import init_session, OUTPUT_DIR, has_real_adata
 from app.components.topnav import render_topnav
 from app.components.statusbar import render_statusbar
 from mbsi.benchmarks.hub import run_benchmark_hub, VC_BANNER, BENCHMARK_GUARDRAIL
@@ -40,13 +41,20 @@ ALL_METHODS = list_adapters()
 
 with ctrl:
     st.markdown("**Dataset Mode**")
+    mode_options = ["Upload real", "Session ground truth"]
+    if is_developer_mode():
+        mode_options = ["Synthetic"] + mode_options
+    default_index = 0 if is_developer_mode() else (1 if has_real_adata() else 0)
     dataset_mode = st.radio(
         "Ground truth source",
-        ["Synthetic", "Upload real", "Session ground truth"],
-        index=0,
-        help="Synthetic generates cells; Upload uses h5ad/csv; Session uses true_adata from session.",
+        mode_options,
+        index=min(default_index, len(mode_options) - 1),
+        help="Session uses uploaded AnnData; Upload uses h5ad. Synthetic is developer-only.",
     )
     mode_key = {"Synthetic": "synthetic", "Upload real": "upload", "Session ground truth": "session"}[dataset_mode]
+
+    if not is_developer_mode() and mode_key == "session" and not has_real_adata():
+        st.warning("Upload real data in Study & Data before running session benchmarks.")
 
     uploaded_path = None
     if mode_key == "upload":
@@ -59,7 +67,9 @@ with ctrl:
     platform = st.selectbox("Platform", ["xenium", "cosmx", "merfish"], index=0)
     seed = st.number_input("Random seed", value=42, step=1)
     n_spots = st.slider("Pseudo-Visium spots", 20, 200, 80)
-    synthetic_cells = st.slider("Synthetic cells", 100, 600, 200)
+    synthetic_cells = 200
+    if is_developer_mode() and mode_key == "synthetic":
+        synthetic_cells = st.slider("Synthetic cells", 100, 600, 200)
 
     st.markdown("**Methods**")
     selected = []
@@ -72,24 +82,31 @@ with ctrl:
     repro_btn = st.button("Reproduce Benchmark (seed=42)", use_container_width=True)
 
     if run_btn or repro_btn:
-        use_seed = 42 if repro_btn else int(seed)
-        session_adata = st.session_state.get("true_adata") if mode_key == "session" else None
-        with st.spinner("Running Benchmark Hub..."):
-            out = run_benchmark_hub(
-                methods=selected or ALL_METHODS,
-                platform=platform,
-                seed=use_seed,
-                n_spots=n_spots,
-                synthetic_cells=synthetic_cells,
-                dataset_mode=mode_key,
-                uploaded_path=uploaded_path,
-                session_adata=session_adata,
+        if not is_developer_mode() and mode_key == "synthetic":
+            st.error("Synthetic benchmarks require DEVELOPER_MODE=true.")
+        elif mode_key == "session" and not has_real_adata() and st.session_state.get("true_adata") is None:
+            st.error(production_mode_message())
+        else:
+            use_seed = 42 if repro_btn else int(seed)
+            session_adata = st.session_state.get("true_adata") or (
+                st.session_state.adata if mode_key == "session" else None
             )
-            st.session_state.benchmark_results = out
-            st.session_state.benchmark_leaderboard = out["leaderboard"]
-            export_benchmark_hub(out, out_dir=OUTPUT_DIR)
-            st.session_state.last_run = "Benchmark Hub"
-        st.success(f"Benchmark complete. Readiness: {out.get('readiness_score', 0)}/100")
+            with st.spinner("Running Benchmark Hub..."):
+                out = run_benchmark_hub(
+                    methods=selected or ALL_METHODS,
+                    platform=platform,
+                    seed=use_seed,
+                    n_spots=n_spots,
+                    synthetic_cells=synthetic_cells,
+                    dataset_mode=mode_key,
+                    uploaded_path=uploaded_path,
+                    session_adata=session_adata,
+                )
+                st.session_state.benchmark_results = out
+                st.session_state.benchmark_leaderboard = out["leaderboard"]
+                export_benchmark_hub(out, out_dir=OUTPUT_DIR)
+                st.session_state.last_run = "Benchmark Hub"
+            st.success(f"Benchmark complete. Readiness: {out.get('readiness_score', 0)}/100")
 
     if st.button("Export Results", use_container_width=True):
         if st.session_state.benchmark_results:

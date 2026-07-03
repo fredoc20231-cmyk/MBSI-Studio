@@ -42,8 +42,10 @@ if st.button("Start Reconstruction", type="primary"):
         else:
             kw["max_outer_iter"] = 5
             kw["max_inner_iter"] = max(10, params["max_iter"] // 5)
-        demo = st.session_state.get("spatial_demo") or {}
-        img = st.session_state.uploaded_image or demo.get("histology_image")
+        from app.components.histology_viewer import get_active_histology_image, sync_histology_session_from_adata
+
+        sync_histology_session_from_adata(st.session_state.adata)
+        img, _ = get_active_histology_image(st.session_state.adata)
         st.session_state.reconstructed = fn(st.session_state.adata, image=img, **kw)
         path = save_reconstructed()
     st.session_state.last_run = "MBSI reconstruction"

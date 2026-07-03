@@ -5,7 +5,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import streamlit as st
 from app.components.layout import inject_styles
-from app.components.page_utils import init_session, guardrail_banner, ensure_advanced_demo, causal_warning
+from app.components.developer_mode import is_developer_mode, production_mode_message
+from app.components.page_utils import init_session, guardrail_banner, ensure_advanced_demo, causal_warning, has_real_adata
 from app.components.topnav import render_topnav
 from app.components.statusbar import render_statusbar
 from mbsi.copilot import (
@@ -32,7 +33,12 @@ st.caption(f"Allowed sources: {', '.join(ALLOWED_SOURCES)}")
 
 state = build_analysis_context(dict(st.session_state))
 if not state:
-    state = st.session_state.analysis_state or {"metrics": st.session_state.metrics}
+    if has_real_adata():
+        state = st.session_state.analysis_state or {"metrics": st.session_state.metrics}
+    elif not is_developer_mode():
+        st.info(production_mode_message())
+    else:
+        state = st.session_state.analysis_state or {"metrics": st.session_state.metrics}
 
 for t in QUERY_TEMPLATES:
     if st.button(t, key=f"tpl_{t}"):

@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode, production_mode_message
 from app.components.notification_center import push_notification
 from app.components.page_header import render_page_header
 from app.components.page_utils import OUTPUT_DIR
@@ -59,16 +60,19 @@ def render():
 
     with tabs[0]:
         render_results_notebook(compact=False)
-        st.divider()
-        st.markdown("#### Results Cockpit")
-        st.caption("Impressive multi-panel report view — histology, analytics, pathways, and export actions.")
-        if st.button("Open full-screen Results Cockpit", key="ws_open_cockpit"):
-            st.session_state.mbsi_dashboard_mode = True
-            st.query_params["dashboard"] = "1"
-            st.rerun()
-        from app.components.dashboard_cockpit import render_dashboard_cockpit
+        if is_developer_mode():
+            st.divider()
+            st.markdown("#### Results Cockpit (developer)")
+            st.caption("Synthetic multi-panel dashboard — requires DEVELOPER_MODE=true.")
+            if st.button("Open full-screen Results Cockpit", key="ws_open_cockpit"):
+                st.session_state.mbsi_dashboard_mode = True
+                st.query_params["dashboard"] = "1"
+                st.rerun()
+            from app.components.dashboard_cockpit import render_dashboard_cockpit
 
-        render_dashboard_cockpit(show_navbar=False, compact=True)
+            render_dashboard_cockpit(show_navbar=False, compact=True)
+        else:
+            st.caption(production_mode_message())
 
     with tabs[1]:
         analysis = st.session_state.get("analysis_results")

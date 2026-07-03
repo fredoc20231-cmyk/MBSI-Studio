@@ -1,4 +1,4 @@
-"""Shared Streamlit page utilities with demo fallbacks and system status."""
+"""Shared Streamlit page utilities — production real-data first."""
 
 import json
 from pathlib import Path
@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode, production_mode_message
 from mbsi.guardrails import GUARDRAIL_BANNER, CAUSAL_WARNING, SIMULATION_WARNING
 
 DEMO_ADVANCED = Path("data/demo/advanced")
@@ -132,7 +133,8 @@ def causal_warning():
 
 
 def simulation_warning():
-    st.warning(SIMULATION_WARNING)
+    if is_developer_mode():
+        st.warning(SIMULATION_WARNING)
 
 
 def check_backend_online(timeout: float = 1.0) -> bool:
@@ -152,7 +154,9 @@ def demo_data_available() -> bool:
 
 
 def load_advanced_demo_into_session(force: bool = False) -> bool:
-    """Generate or load advanced spatial demo into session state."""
+    """Generate or load advanced spatial demo into session state (developer mode only)."""
+    if not is_developer_mode():
+        return False
     if st.session_state.spatial_demo is not None and not force:
         return True
     try:
@@ -176,7 +180,11 @@ def load_advanced_demo_into_session(force: bool = False) -> bool:
 
 
 def ensure_advanced_demo(show_info: bool = False) -> bool:
-    """Ensure advanced demo is loaded; fallback to file-based or minimal demo."""
+    """Ensure advanced demo is loaded (developer mode only)."""
+    if not is_developer_mode():
+        if show_info:
+            st.info(production_mode_message())
+        return False
     if st.session_state.spatial_demo is not None:
         return True
     if load_advanced_demo_into_session():
@@ -194,7 +202,9 @@ def ensure_advanced_demo(show_info: bool = False) -> bool:
 
 
 def load_demo_into_session(advanced: bool = True) -> bool:
-    """Load demo h5ad files into session state. Returns True if loaded."""
+    """Load demo h5ad files into session state (developer mode only)."""
+    if not is_developer_mode():
+        return False
     import anndata as ad
 
     paths = [DEMO_ADVANCED, DEMO_BASIC] if advanced else [DEMO_BASIC, DEMO_ADVANCED]
@@ -227,7 +237,9 @@ def load_demo_into_session(advanced: bool = True) -> bool:
 
 
 def generate_synthetic_demo(n_spots: int = 120, n_genes: int = 300) -> None:
-    """Create synthetic Visium-like spot data when no demo files exist."""
+    """Create synthetic Visium-like spot data (developer mode only)."""
+    if not is_developer_mode():
+        return
     from mbsi.analysis.demo import make_synthetic_visium_adata
 
     st.session_state.adata = make_synthetic_visium_adata(n_spots=n_spots, n_genes=n_genes, seed=42)
@@ -253,11 +265,13 @@ def run_local_pipeline(quick: bool = True) -> None:
 
 
 def ensure_adata(show_warning: bool = True) -> bool:
-    """Return True when real or explicitly loaded demo AnnData is in session."""
-    if st.session_state.adata is not None:
+    """Return True when real uploaded AnnData is in session."""
+    if st.session_state.adata is not None and not st.session_state.get("using_synthetic_demo", False):
+        return True
+    if st.session_state.adata is not None and st.session_state.get("using_synthetic_demo") and is_developer_mode():
         return True
     if show_warning:
-        st.warning("No dataset loaded — upload spatial data in Study & Data, or use a labeled demo button.")
+        st.warning("No dataset loaded — upload spatial data in Study & Data.")
     return False
 
 
@@ -321,27 +335,27 @@ def render_status_panel():
     backend = check_backend_online()
     st.session_state.backend_online = backend
 
-    demo_ok = st.session_state.spatial_demo is not None or demo_data_available()
     try:
-        from mbsi.reconstruction.solver import run_mbsi
+        from mbsi.reconstruction.solver import run_mbsi  # noqa: F401
         mbsi_ok = True
     except Exception:
         mbsi_ok = False
     try:
-        from mbsi.segmentation import segment_tissue
+        from mbsi.segmentation import segment_tissue  # noqa: F401
         seg_ok = True
     except Exception:
         seg_ok = False
     try:
-        from mbsi.validation import run_validation_suite
+        from mbsi.validation import run_validation_suite  # noqa: F401
         val_ok = True
     except Exception:
         val_ok = False
     export_ok = OUTPUT_DIR.exists() or True
+    adata_ok = st.session_state.get("adata") is not None and not st.session_state.get("using_synthetic_demo", False)
 
     items = [
         ("Backend", "online" if backend else "offline (local)", status_color(backend, partial=not backend)),
-        ("Dataset bundle", "available" if demo_ok else "missing", status_color(demo_ok, partial=not demo_ok)),
+        ("Dataset", "loaded" if adata_ok else "not loaded", status_color(adata_ok)),
         ("MBSI engine", "ready" if mbsi_ok else "error", status_color(mbsi_ok)),
         ("Segmentation", "ready" if seg_ok else "error", status_color(seg_ok)),
         ("Validation", "ready" if val_ok else "error", status_color(val_ok)),

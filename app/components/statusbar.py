@@ -4,6 +4,7 @@ import platform
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode
 from app.components.page_utils import check_backend_online, OUTPUT_DIR
 
 
@@ -31,6 +32,7 @@ def render_statusbar(show_actions: bool = True) -> None:
 
     last_run = st.session_state.get("last_run") or "None"
     dot = "online" if backend_ok else "offline"
+    mode_label = "developer" if is_developer_mode() else "production"
 
     st.markdown(
         f"""
@@ -39,6 +41,7 @@ def render_statusbar(show_actions: bool = True) -> None:
             <span>Engine: MBSI v0.2</span>
             <span>GPU: {gpu_label}</span>
             <span>Memory: {mem_mb}</span>
+            <span>Mode: {mode_label}</span>
             <span>Last run: {last_run}</span>
             <span>Output: {OUTPUT_DIR}</span>
         </div>

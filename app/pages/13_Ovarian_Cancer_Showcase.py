@@ -9,6 +9,7 @@ import json
 import streamlit as st
 
 from app.components.layout import inject_styles
+from app.components.developer_mode import is_developer_mode, production_mode_message
 from app.components.page_utils import init_session, OUTPUT_DIR
 from app.components.topnav import render_topnav
 from app.components.statusbar import render_statusbar
@@ -41,6 +42,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.caption(SHOWCASE_GUARDRAIL)
+
+if not is_developer_mode():
+    st.info(production_mode_message())
+    st.caption("The HGSOC showcase pipeline uses synthetic demonstration data and is disabled in production.")
+    render_statusbar(show_actions=False)
+    st.stop()
 
 if st.button("Run Full Showcase Pipeline", type="primary"):
     with st.spinner("Running integrated HGSOC pipeline..."):

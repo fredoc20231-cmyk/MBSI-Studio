@@ -9,6 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from app.components.interactive_figures import render_interactive_plot
+from app.components.developer_mode import is_developer_mode
 from app.components.page_utils import load_advanced_demo_into_session
 from app.components.uploaders import data_readiness_score
 from app.workspaces._helpers import safe_register_finding
@@ -457,6 +458,10 @@ def _render_per_sample_upload_cards() -> None:
                     st.session_state.mbsi_platform = session_updates["mbsi_platform"]
                 if "using_synthetic_demo" in session_updates:
                     st.session_state.using_synthetic_demo = session_updates["using_synthetic_demo"]
+                if "uploaded_image" in session_updates:
+                    st.session_state.uploaded_image = session_updates["uploaded_image"]
+                if "histology_source" in session_updates:
+                    st.session_state.histology_source = session_updates["histology_source"]
                 if "sample_adatas" in session_updates:
                     st.session_state.sample_adatas = {
                         **(st.session_state.get("sample_adatas") or {}),
@@ -899,13 +904,31 @@ def _render_file_upload() -> None:
             if fig is not None:
                 render_interactive_plot(fig, title="Stereo-seq viewer", module="study_setup", key="ps_stereo_preview")
         else:
+            from app.components.histology_viewer import (
+                get_active_histology_image,
+                histology_status_caption,
+                render_histology_overlay,
+            )
+
             st.markdown("**Spatial preview**")
+            st.markdown(histology_status_caption(adata), unsafe_allow_html=True)
             color_by = "total_counts" if "total_counts" in adata.obs.columns else None
             if "cell_type" in adata.obs.columns:
                 color_by = "cell_type"
             elif "cluster" in adata.obs.columns:
                 color_by = "cluster"
-            if color_by:
+            elif "leiden" in adata.obs.columns:
+                color_by = "leiden"
+            histology, _ = get_active_histology_image(adata)
+            if histology is not None and "spatial" in adata.obsm:
+                fig = render_histology_overlay(
+                    adata=adata,
+                    image=histology,
+                    color=color_by,
+                    title="Study & Data — histology overlay",
+                    return_figure=True,
+                )
+            elif color_by:
                 fig = plot_qc_spatial(adata, color_by)
             else:
                 import plotly.express as px
@@ -923,20 +946,21 @@ def _render_file_upload() -> None:
         )
 
     st.divider()
-    if st.button("Load Demo Dataset (labeled demo)", key="ps_load_demo"):
-        load_advanced_demo_into_session(force=True)
-        st.session_state.using_synthetic_demo = True
-        st.session_state.mbsi_platform = "demo"
-        st.session_state.mbsi_readiness = {"status": "Synthetic demo data"}
-        from app.components.notification_center import push_notification
+    if is_developer_mode():
+        if st.button("Load Demo Dataset (labeled demo)", key="ps_load_demo"):
+            load_advanced_demo_into_session(force=True)
+            st.session_state.using_synthetic_demo = True
+            st.session_state.mbsi_platform = "demo"
+            st.session_state.mbsi_readiness = {"status": "Synthetic demo data"}
+            from app.components.notification_center import push_notification
 
-        push_notification(
-            "Sample demo dataset loaded for exploration.",
-            title="Sample dataset loaded",
-            level="info",
-            source="study_data",
-        )
-        st.rerun()
+            push_notification(
+                "Sample demo dataset loaded for exploration.",
+                title="Sample dataset loaded",
+                level="info",
+                source="study_data",
+            )
+            st.rerun()
 
 
 def _uploaded_file_summary() -> List[str]:

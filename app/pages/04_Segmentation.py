@@ -28,10 +28,10 @@ method = st.selectbox("Method", ["coordinate (Voronoi fallback)", "image"])
 
 if st.button("Run Segmentation", type="primary"):
     adata = st.session_state.adata
-    img = st.session_state.uploaded_image
-    demo = st.session_state.get("spatial_demo") or {}
-    if img is None and "histology_image" in demo:
-        img = demo["histology_image"]
+    from app.components.histology_viewer import get_active_histology_image, sync_histology_session_from_adata
+
+    sync_histology_session_from_adata(adata)
+    img, img_source = get_active_histology_image(adata)
     use_image = img is not None and "image" in method
     if use_image:
         try:

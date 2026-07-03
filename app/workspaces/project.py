@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode
 from app.components.page_header import render_page_header
 from app.workspaces._helpers import ensure_demo
 
@@ -14,10 +15,11 @@ def render_dashboard_summary() -> None:
     design = st.session_state.get("experimental_design", {})
     plat = st.session_state.get("platform_metadata", {})
     adata = st.session_state.get("adata")
-    adata_loaded = adata is not None
-    using_sample = bool(st.session_state.get("using_synthetic_demo")) and adata_loaded
+    adata_loaded = adata is not None and not st.session_state.get("using_synthetic_demo", False)
     if adata_loaded:
-        data_mode = "Sample dataset" if using_sample else "Uploaded"
+        data_mode = "Uploaded"
+    elif st.session_state.get("using_synthetic_demo") and is_developer_mode():
+        data_mode = "Developer demo"
     else:
         data_mode = "Not loaded"
 
@@ -38,10 +40,10 @@ def render_dashboard_summary() -> None:
     c3.metric("Data mode", data_mode)
     c4.metric("Completeness", f"{st.session_state.get('project_completeness', 0)}/100")
 
-    if adata is not None:
+    if adata_loaded:
         st.success(f"AnnData in session: {adata.n_obs:,} spots × {adata.n_vars:,} genes")
     else:
-        st.info("No spatial data loaded.")
+        st.info("No spatial data loaded — upload in Study & Data.")
 
     if plat.get("platforms"):
         st.caption(f"Platforms: {', '.join(plat['platforms'])}")
@@ -49,10 +51,22 @@ def render_dashboard_summary() -> None:
 
 def render() -> None:
     render_dashboard_summary()
-    demo = ensure_demo()
+    adata = st.session_state.get("adata")
     from app.components.cards import render_metric_strip
 
-    render_metric_strip(demo["summary"])
+    if adata is not None and not st.session_state.get("using_synthetic_demo", False):
+        summary = {
+            "cells": int(adata.n_obs),
+            "cell_types_n": int(adata.obs["cluster"].nunique()) if "cluster" in adata.obs.columns else 0,
+            "resolution_um": st.session_state.get("mbsi_readiness", {}).get("resolution_um", "—"),
+            "boundary_leakage": 0.0,
+            "morans_i": 0.0,
+        }
+        render_metric_strip(summary)
+    elif is_developer_mode():
+        demo = ensure_demo()
+        render_metric_strip(demo["summary"])
+
     if st.button("Open Project Setup & Data Upload", key="proj_go_setup", type="primary"):
         st.session_state.active_module = "project_setup"
         st.rerun()

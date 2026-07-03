@@ -5,6 +5,12 @@ from __future__ import annotations
 import numpy as np
 import streamlit as st
 
+from app.components.histology_viewer import (
+    get_active_histology_image,
+    histology_status_caption,
+    render_histology_overlay,
+    sync_histology_session_from_adata,
+)
 from app.components.interactive_figures import render_interactive_plot
 from app.components.page_header import render_page_header
 from app.components.page_utils import OUTPUT_DIR, init_session
@@ -43,43 +49,10 @@ def _ensure_adata():
     st.stop()
 
 
-def _synthetic_image():
-    rng = np.random.default_rng(42)
-    img = rng.integers(180, 240, (128, 128, 3), dtype=np.uint8)
-    img[20:100, 20:100] = rng.integers(80, 160, (80, 80, 3), dtype=np.uint8)
-    return img
-
-
-def _overlay_preview(image, mask=None, coords=None):
-    import plotly.graph_objects as go
-    fig = go.Figure()
-    if image is not None and image.ndim >= 2:
-        gray = image[..., 0] if image.ndim == 3 else image
-        fig.add_trace(go.Heatmap(z=gray, colorscale="Gray", showscale=False, opacity=0.85))
-    if mask is not None and mask.ndim >= 2:
-        fig.add_trace(go.Heatmap(z=mask.astype(float), colorscale="Viridis", showscale=False, opacity=0.35))
-    if coords is not None and len(coords):
-        fig.add_trace(
-            go.Scatter(
-                x=coords[:, 0],
-                y=coords[:, 1],
-                mode="markers",
-                marker=dict(size=4, color="red"),
-                name="spatial",
-            )
-        )
-    fig.update_layout(
-        title="Segmentation overlay",
-        xaxis=dict(scaleanchor="y"),
-        margin=dict(l=10, r=10, t=40, b=10),
-        height=360,
-    )
-    return fig
-
-
 def render():
     _init_segmentation_state()
     adata = _ensure_adata()
+    sync_histology_session_from_adata(adata)
     tech_key = st.session_state.get("selected_technology") or st.session_state.get("mbsi_platform", "")
     spec = get_technology(tech_key)
     plan = get_technology_segmentation_plan(tech_key)
@@ -92,19 +65,37 @@ def render():
         icon="🔲",
     )
 
+    image, image_source = get_active_histology_image(adata)
+    st.markdown(histology_status_caption(adata), unsafe_allow_html=True)
+
+    morph_upload = st.file_uploader(
+        "Upload DAPI / H&E / morphology image",
+        type=["png", "jpg", "jpeg", "tif", "tiff", "ome.tif", "ome.tiff"],
+        key="seg_morphology_upload",
+    )
+    if morph_upload is not None:
+        from PIL import Image
+
+        st.session_state.uploaded_image = np.asarray(Image.open(morph_upload).convert("RGB"))
+        st.session_state.histology_source = "Uploaded image (Segmentation page)"
+        image, image_source = get_active_histology_image(adata)
+        st.success("Morphology image stored for segmentation and visualization.")
+
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Input status**")
         st.write(f"Observations: {adata.n_obs:,}")
-        st.write(f"Image uploaded: {'yes' if st.session_state.get('uploaded_image') is not None else 'no (synthetic H&E used)'}")
+        st.write(f"Histology: {image_source}")
         st.write(f"Segmentation QC pass: {st.session_state.get('segmentation_qc', {}).get('qc_pass', '—')}")
     with col2:
         st.markdown("**Available backends**")
         st.write({k: v for k, v in backends.items() if v})
 
-    image = st.session_state.get("uploaded_image")
-    if image is None:
-        image = _synthetic_image()
+    if image is None and st.session_state.get("seg_source", "run_tissue") in ("run_tissue", "uploaded"):
+        st.warning(
+            "No histology/morphology image found. Upload an image in Study & Data or on this page, "
+            "or use Voronoi segmentation from coordinates only."
+        )
 
     imported_mask = st.session_state.get("tissue_mask")
 
@@ -168,11 +159,52 @@ def render():
         )
         st.text_area("Region selection notes (lasso / ROI)", key="ws_region_notes")
 
-    coords = np.asarray(adata.obsm["spatial"])
-    preview_fig = _overlay_preview(image, st.session_state.get("tissue_mask"), coords)
+    coords = np.asarray(adata.obsm["spatial"]) if "spatial" in adata.obsm else None
+    if image is not None and coords is not None:
+        preview_fig = render_histology_overlay(
+            adata=adata,
+            image=image,
+            color="total_counts" if "total_counts" in adata.obs.columns else None,
+            title="Segmentation preview",
+            show_image=True,
+            show_spots=True,
+            image_source=image_source,
+            return_figure=True,
+        )
+        if st.session_state.get("tissue_mask") is not None:
+            import plotly.graph_objects as go
+
+            mask = st.session_state.tissue_mask
+            preview_fig.add_trace(
+                go.Heatmap(
+                    z=np.asarray(mask, dtype=float),
+                    colorscale="Viridis",
+                    showscale=False,
+                    opacity=0.35,
+                )
+            )
+    else:
+        import plotly.graph_objects as go
+
+        preview_fig = go.Figure()
+        if coords is not None:
+            preview_fig.add_trace(
+                go.Scattergl(
+                    x=coords[:, 0],
+                    y=coords[:, 1],
+                    mode="markers",
+                    marker=dict(size=4, color="#4f7cff"),
+                )
+            )
+        preview_fig.update_layout(title="Segmentation preview (coordinates only)", height=360)
+        preview_fig.update_yaxes(autorange="reversed")
+
     render_interactive_plot(preview_fig, title="Segmentation preview", module="segment_register", key="seg_preview")
 
-    if st.button("Run segmentation", type="primary", key="ws_run_segment"):
+    image_required = st.session_state.seg_source == "run_tissue" and st.session_state.seg_tissue_method != "voronoi"
+    run_disabled = image_required and image is None and imported_mask is None
+
+    if st.button("Run segmentation", type="primary", key="ws_run_segment", disabled=run_disabled):
         with st.spinner("Running segmentation pipeline..."):
             run = run_segment_register_workflow(
                 adata,
@@ -184,6 +216,7 @@ def render():
                 segmentation_source=st.session_state.seg_source,
                 imported_mask=imported_mask if st.session_state.seg_source in ("uploaded", "imported") else None,
                 out_dir=OUTPUT_DIR,
+                allow_synthetic_image=False,
             )
             st.session_state.run_outputs["segment_register"] = run.to_dict()
             if run.status == "success":

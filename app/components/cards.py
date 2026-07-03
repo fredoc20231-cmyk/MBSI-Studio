@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 import plotly.graph_objects as go
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode
+
 DARK = dict(
     paper_bgcolor="#0d1828",
     plot_bgcolor="#07111f",
@@ -124,7 +126,7 @@ def export_all(
         "causal": demo["causal"].to_dict(orient="records"),
     }, indent=2))
 
-    if analysis_results is None:
+    if analysis_results is None and is_developer_mode():
         try:
             from mbsi.analysis.demo import make_synthetic_visium_adata
             from mbsi.analysis.pipeline import run_standard_spatial_analysis, export_analysis_results
@@ -149,21 +151,22 @@ def export_all(
 
         export_analysis_results(analysis_results, out_dir=out_dir)
 
-    try:
-        from mbsi.communication import run_communication_analysis, export_communication_results, make_communication_demo_adata
+    if is_developer_mode():
+        try:
+            from mbsi.communication import run_communication_analysis, export_communication_results, make_communication_demo_adata
 
-        comm = run_communication_analysis(make_communication_demo_adata(seed=42))
-        export_communication_results(comm, out_dir=out_dir)
-    except Exception:
-        pass
+            comm = run_communication_analysis(make_communication_demo_adata(seed=42))
+            export_communication_results(comm, out_dir=out_dir)
+        except Exception:
+            pass
 
-    try:
-        from mbsi.tme import run_tme_analysis, export_tme_results, generate_spatial_biomarker_report, make_tme_demo_adata
+        try:
+            from mbsi.tme import run_tme_analysis, export_tme_results, generate_spatial_biomarker_report, make_tme_demo_adata
 
-        tme = run_tme_analysis(make_tme_demo_adata(seed=42))
-        export_tme_results(tme, out_dir=out_dir)
-        generate_spatial_biomarker_report(tme, out_dir=out_dir)
-    except Exception:
-        pass
+            tme = run_tme_analysis(make_tme_demo_adata(seed=42))
+            export_tme_results(tme, out_dir=out_dir)
+            generate_spatial_biomarker_report(tme, out_dir=out_dir)
+        except Exception:
+            pass
 
     return out_dir

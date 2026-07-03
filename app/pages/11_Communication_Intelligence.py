@@ -8,7 +8,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import streamlit as st
 
 from app.components.layout import inject_styles
-from app.components.page_utils import init_session, ensure_adata, OUTPUT_DIR
+from app.components.developer_mode import is_developer_mode, production_mode_message
+from app.components.page_utils import init_session, ensure_adata, OUTPUT_DIR, has_real_adata
 from app.components.topnav import render_topnav
 from app.components.statusbar import render_statusbar
 from mbsi.communication import (
@@ -51,13 +52,20 @@ with ctrl:
     catalog = load_builtin_ligand_receptor_pairs()
     st.dataframe(catalog, use_container_width=True, hide_index=True, height=180)
 
-    use_demo = st.checkbox("Use synthetic demo data", value=True)
+    use_demo = False
+    if is_developer_mode():
+        use_demo = st.checkbox("Use synthetic demo data", value=False)
+    elif not has_real_adata():
+        st.warning(production_mode_message())
     k_neighbors = st.slider("Spatial neighbors (k)", 3, 15, 6)
 
     if st.button("Run Communication Analysis", type="primary", use_container_width=True):
-        adata = make_communication_demo_adata(seed=42) if use_demo else st.session_state.adata
-        if adata is None:
-            st.error("No data loaded.")
+        if use_demo and is_developer_mode():
+            adata = make_communication_demo_adata(seed=42)
+        else:
+            adata = st.session_state.adata
+        if adata is None or (not use_demo and not has_real_adata()):
+            st.error("No real data loaded — upload in Study & Data first.")
         else:
             with st.spinner("Scoring ligand-receptor pathways..."):
                 results = run_communication_analysis(adata, k=k_neighbors)

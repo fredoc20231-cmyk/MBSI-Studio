@@ -5,6 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import streamlit as st
 from app.components.layout import inject_styles
+from app.components.developer_mode import is_developer_mode
 from app.components.page_utils import (
     init_session,
     guardrail_banner,
@@ -43,7 +44,7 @@ if st.session_state.adata is not None:
     if coords is not None:
         st.scatter_chart({"x": coords[:, 0], "y": coords[:, 1]})
 
-if st.button("Load Advanced Demo Instead"):
+if is_developer_mode() and st.button("Load Advanced Demo Instead"):
     load_advanced_demo_into_session(force=True)
     st.rerun()
 

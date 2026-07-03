@@ -8,7 +8,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import streamlit as st
 
 from app.components.layout import inject_styles
-from app.components.page_utils import init_session, ensure_adata, OUTPUT_DIR
+from app.components.developer_mode import is_developer_mode, production_mode_message
+from app.components.page_utils import init_session, ensure_adata, OUTPUT_DIR, has_real_adata
 from app.components.topnav import render_topnav
 from app.components.statusbar import render_statusbar
 from mbsi.tme import (
@@ -46,21 +47,31 @@ NICHE_TABS = [
 ]
 
 with ctrl:
-    use_demo = st.checkbox("Use synthetic TME demo", value=True, key="tme_demo")
+    use_demo = False
+    if is_developer_mode():
+        use_demo = st.checkbox("Use synthetic TME demo", value=False, key="tme_demo")
+    elif not has_real_adata():
+        st.warning(production_mode_message())
     st.markdown("**Marker Programs**")
     for prog, spec in TME_MARKER_SETS.items():
         genes = [g for k, v in spec.items() if k != "label" and isinstance(v, list) for g in v]
         st.caption(f"**{spec.get('label', prog)}**: {', '.join(genes[:4])}...")
 
     if st.button("Run TME Analysis", type="primary", use_container_width=True):
-        adata = make_tme_demo_adata(seed=42) if use_demo else st.session_state.adata
-        with st.spinner("Detecting TME niches..."):
-            results = run_tme_analysis(adata)
-            st.session_state.tme_results = results
-            export_tme_results(results, OUTPUT_DIR)
-            generate_tme_report(results, OUTPUT_DIR)
-            st.session_state.last_run = "TME analysis"
-        st.success(f"Detected {len(results['summary'])} niche types.")
+        if use_demo and is_developer_mode():
+            adata = make_tme_demo_adata(seed=42)
+        else:
+            adata = st.session_state.adata
+        if adata is None or (not use_demo and not has_real_adata()):
+            st.error("No real data loaded — upload in Study & Data first.")
+        else:
+            with st.spinner("Detecting TME niches..."):
+                results = run_tme_analysis(adata)
+                st.session_state.tme_results = results
+                export_tme_results(results, OUTPUT_DIR)
+                generate_tme_report(results, OUTPUT_DIR)
+                st.session_state.last_run = "TME analysis"
+            st.success(f"Detected {len(results['summary'])} niche types.")
 
     if st.button("Download Spatial Biomarker Report", use_container_width=True):
         if st.session_state.get("tme_results"):

@@ -11,6 +11,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import streamlit as st
 
+from app.components.developer_mode import is_developer_mode
+
 st.set_page_config(
     page_title="MBSI Studio",
     page_icon="🧬",
@@ -20,6 +22,8 @@ st.set_page_config(
 
 
 def _dashboard_mode_enabled() -> bool:
+    if not is_developer_mode():
+        return False
     env_flag = os.environ.get("MBSI_DASHBOARD", "").lower() in ("1", "true", "yes")
     query_flag = st.query_params.get("dashboard") in ("1", "true", "yes")
     session_flag = bool(st.session_state.get("mbsi_dashboard_mode"))

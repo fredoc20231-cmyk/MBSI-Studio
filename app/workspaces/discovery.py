@@ -4,6 +4,7 @@ import streamlit as st
 
 from app.components.notification_center import push_notification
 from app.components.page_header import render_page_header
+from app.components.developer_mode import is_developer_mode, production_mode_message
 from app.components.page_utils import OUTPUT_DIR, load_advanced_demo_into_session
 from app.components.safe import safe_get
 from app.workspaces._discovery_runners import run_communication, run_tme
@@ -96,13 +97,13 @@ def render():
 
     if not _has_real_adata() and adata is None:
         st.warning("Discovery unavailable — upload real data in Study Setup & Data first.")
+    if is_developer_mode():
         if st.button("Load Demo Dataset (labeled demo)", key="disc_load_demo"):
             load_advanced_demo_into_session(force=True)
             st.session_state.using_synthetic_demo = True
             st.session_state.mbsi_platform = "demo"
             st.session_state.mbsi_readiness = {"status": "Synthetic demo data", "technology_key": "demo"}
             st.rerun()
-        return
 
     substeps = WORKFLOW_SUBSTEPS[WorkflowModule.DISCOVERY.value]
     tab_labels = [s.replace("_", " ").title() for s in substeps]

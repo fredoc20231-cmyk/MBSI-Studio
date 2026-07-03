@@ -29,6 +29,7 @@ from app.components.layout import (
     render_statusbar,
 )
 from app.components.network import interactions_bar, neighborhood_graph
+from app.components.developer_mode import is_developer_mode, production_mode_message
 from app.components.page_utils import init_session
 from app.components.tables import render_pathway_table
 
@@ -40,7 +41,10 @@ def _ensure_demo() -> dict:
 
 
 def render_dashboard_cockpit(*, show_navbar: bool = True, compact: bool = False) -> None:
-    """Render the full reference dashboard layout."""
+    """Render the full reference dashboard layout (developer mode only)."""
+    if not is_developer_mode():
+        st.warning(production_mode_message())
+        return
     init_session()
     demo = _ensure_demo()
     summary = demo["summary"]

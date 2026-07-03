@@ -5,15 +5,26 @@ from app.components.interactive_figures import render_interactive_plot
 from app.components.notification_center import push_notification
 from app.components.page_header import render_page_header
 from app.components.safe import safe_get
+from app.components.page_utils import has_real_adata
 from app.workspaces._helpers import add_finding, add_warning, safe_register_table
 
 
 def _run_benchmark() -> None:
+    if not has_real_adata():
+        st.warning("Benchmark requires uploaded real data. Upload in Study & Data first.")
+        return
     try:
         from mbsi.benchmarks.hub import run_benchmark_hub
         methods = st.session_state.get("rb_benchmark_methods", ["mbsi", "tangram"])
-        spots = int(st.session_state.get("rb_benchmark_spots", 40))
-        out = run_benchmark_hub(methods=methods, seed=42, n_spots=spots, synthetic_cells=100)
+        adata = st.session_state.adata
+        spots = int(adata.n_obs)
+        out = run_benchmark_hub(
+            methods=methods,
+            seed=42,
+            n_spots=spots,
+            session_adata=adata,
+            dataset_mode="session",
+        )
         st.session_state.benchmark_results = out
         st.session_state.last_run = "Benchmark Hub"
         add_finding("Benchmark", f"Readiness {out.get('readiness_score', 0)}/100", module="benchmark")

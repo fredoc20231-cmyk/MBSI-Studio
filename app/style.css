@@ -569,7 +569,132 @@ hr, .stDivider hr {
 
 .mbsi-check { color: var(--green); margin-right: 6px; }
 
+/* ── Reference dashboard cockpit (pixel-close polish) ── */
+.mbsi-app div[data-testid="column"]:has(.mbsi-nav-buttons-anchor) {
+  margin-top: -6px;
+}
+
+.mbsi-app div[data-testid="column"]:has(.mbsi-nav-buttons-anchor) .stButton > button {
+  font-size: 0.72rem !important;
+  padding: 6px 8px !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
+  white-space: nowrap;
+}
+
+.mbsi-app div[data-testid="column"]:has(.mbsi-nav-buttons-anchor) .stButton > button[kind="primary"] {
+  background: rgba(79, 124, 255, 0.15) !important;
+  border: 1px solid var(--blue) !important;
+  border-bottom: 2px solid var(--blue) !important;
+  color: var(--mbsi-text) !important;
+}
+
+.mbsi-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #0d1828 0%, #07111f 100%);
+  border: 1px solid var(--mbsi-border);
+  border-radius: 12px;
+  margin-bottom: 4px;
+}
+
+.mbsi-brand { display: flex; align-items: center; gap: 10px; }
+.mbsi-logo-mark {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #4f7cff, #30d5c8);
+  color: #fff; font-weight: 800; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.mbsi-brand-title { font-size: 0.95rem; font-weight: 700; color: var(--mbsi-text); line-height: 1.1; }
+.mbsi-brand-sub { font-size: 0.68rem; color: var(--mbsi-muted); }
+
+.mbsi-nav-right { display: flex; align-items: center; gap: 8px; }
+.mbsi-demo-btn {
+  background: var(--green); color: #04120a; font-size: 0.72rem; font-weight: 700;
+  padding: 5px 10px; border-radius: 6px;
+}
+.mbsi-icon-btn {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--mbsi-surface-alt);
+  border: 1px solid var(--mbsi-border); display: inline-flex; align-items: center; justify-content: center;
+  color: var(--mbsi-muted); font-size: 0.75rem;
+}
+.mbsi-avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--blue);
+  color: white; font-size: 0.7rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+.mbsi-panel {
+  background: var(--mbsi-surface); border: 1px solid var(--mbsi-border); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.mbsi-panel-title {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--mbsi-muted); text-transform: uppercase; margin-bottom: 8px;
+}
+.mbsi-panel-heading { font-size: 0.85rem; font-weight: 600; color: var(--mbsi-text); margin-bottom: 6px; }
+
+.mbsi-histology-card {
+  background: #07111f;
+  border: 1px solid var(--mbsi-border);
+  border-radius: 10px;
+  padding: 4px;
+  min-height: 420px;
+}
+.mbsi-histology-card-title { margin-bottom: 4px; }
+
+.mbsi-map-toolbar {
+  display: flex; gap: 6px; margin-bottom: 6px;
+  background: var(--mbsi-surface-alt); border: 1px solid var(--mbsi-border);
+  border-radius: 8px; padding: 4px 8px; width: fit-content;
+}
+.mbsi-map-tool {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--mbsi-muted); font-size: 0.8rem; cursor: default;
+  border: 1px solid transparent;
+}
+.mbsi-map-tool.active {
+  color: var(--mbsi-text); background: var(--mbsi-surface);
+  border-color: var(--mbsi-border);
+}
+
+.mbsi-row { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 2px 0; }
+.mbsi-row span:first-child { color: var(--mbsi-muted); }
+.mbsi-row span:last-child { color: var(--mbsi-text); font-weight: 600; }
+
+.mbsi-readiness-ring {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: conic-gradient(var(--green) 0 353deg, var(--mbsi-border) 353deg 360deg);
+  display: flex; align-items: center; justify-content: center; margin: 8px auto;
+}
+.mbsi-readiness-inner {
+  width: 54px; height: 54px; border-radius: 50%; background: var(--mbsi-surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; font-weight: 700; color: var(--green);
+}
+
+.mbsi-subtabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.mbsi-metric-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 8px 0; }
+.mbsi-metric-value { font-size: 1.35rem; font-weight: 800; line-height: 1; }
+.mbsi-metric-label { font-size: 0.68rem; color: var(--mbsi-muted); margin-top: 4px; }
+.mbsi-mv-blue { color: var(--blue); }
+.mbsi-mv-purple { color: var(--purple); }
+.mbsi-mv-cyan { color: var(--cyan); }
+.mbsi-mv-orange { color: var(--orange); }
+.mbsi-mv-green { color: var(--green); }
+
+.mbsi-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; margin: 2px 0; }
+.mbsi-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+[data-testid="stSidebarNav"], div[data-testid="stPageLink-NavLink"] { display: none !important; }
+
 @media (max-width: 900px) {
   .saas-top-meta { justify-content: flex-start; }
   .saas-app div[data-testid="column"]:has(.saas-workspace-anchor) { min-height: 40vh; }
+  .mbsi-metric-strip { grid-template-columns: repeat(2, 1fr); }
 }

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy import ndimage
+from skimage.measure import find_contours
 
 CELL_TYPE_COLORS = {
     "Tumor Epithelial": "#ff4f7b",
@@ -73,6 +74,66 @@ def _generate_he_image(width: int = 900, height: int = 700, seed: int = 42) -> n
     return np.clip(base, 0, 255).astype(np.uint8)
 
 
+def _build_tissue_regions(width: int = 900, height: int = 700, seed: int = 42) -> Dict[str, np.ndarray]:
+    """Synthetic tissue compartment masks for boundary extraction."""
+    rng = np.random.default_rng(seed + 7)
+    y, x = np.ogrid[:height, :width]
+    tumor = np.zeros((height, width), dtype=np.float32)
+    for tx, ty, r in [(0.42, 0.45, 0.16), (0.58, 0.38, 0.11), (0.35, 0.58, 0.09)]:
+        dist = np.sqrt(((x - tx * width) / (r * width)) ** 2 + ((y - ty * height) / (r * height)) ** 2)
+        tumor = np.maximum(tumor, np.clip(1.0 - dist, 0, 1))
+
+    stroma_band = ndimage.gaussian_filter(
+        np.clip(1.0 - ndimage.distance_transform_edt(tumor > 0.35) / 80.0, 0, 1),
+        sigma=6,
+    )
+    necrotic = ndimage.gaussian_filter(
+        np.exp(-((x - 0.48 * width) ** 2 + (y - 0.52 * height) ** 2) / (0.04 * width) ** 2),
+        sigma=4,
+    )
+    immune = ndimage.gaussian_filter(
+        np.exp(-((x - 0.62 * width) ** 2 + (y - 0.62 * height) ** 2) / (0.06 * width) ** 2),
+        sigma=3,
+    )
+    vessel = ndimage.gaussian_filter(
+        np.exp(-((x - 0.28 * width) ** 2 + (y - 0.35 * height) ** 2) / (0.03 * width) ** 2),
+        sigma=2,
+    )
+    noise = rng.normal(0, 0.04, (height, width))
+    region_maps = {
+        "tumor": tumor,
+        "stroma": stroma_band,
+        "necrotic": necrotic,
+        "immune": immune,
+        "vessel": vessel,
+    }
+    for key, arr in region_maps.items():
+        region_maps[key] = np.clip(arr + noise * 0.15, 0, 1).astype(np.float32)
+    return region_maps
+
+
+def _contour_from_mask(
+    mask: np.ndarray,
+    width: int,
+    height: int,
+    n_points: int = 80,
+    level: float = 0.45,
+) -> Tuple[List[float], List[float]]:
+    """Extract a smooth irregular contour in normalized 0–1 coordinates."""
+    contours = find_contours(mask, level=level * float(mask.max() or 1.0))
+    if not contours:
+        return [], []
+    verts = max(contours, key=len)
+    if len(verts) < 4:
+        return [], []
+
+    step = max(1, len(verts) // n_points)
+    sampled = verts[::step]
+    xs = (sampled[:, 1] / width).tolist()
+    ys = (sampled[:, 0] / height).tolist()
+    return xs, ys
+
+
 def _assign_cell_positions(n_visible: int, extent: float, seed: int) -> tuple[np.ndarray, np.ndarray, list]:
     rng = np.random.default_rng(seed + 1)
     types = list(CELL_COUNTS.keys())
@@ -97,6 +158,7 @@ def generate_dashboard_demo(seed: int = 42) -> Dict[str, Any]:
     n_visible = 6500
 
     histology = _generate_he_image(seed=seed)
+    regions = _build_tissue_regions(seed=seed)
     xs, ys, labels = _assign_cell_positions(n_visible, extent, seed)
 
     cells = pd.DataFrame({
@@ -190,13 +252,23 @@ def generate_dashboard_demo(seed: int = 42) -> Dict[str, Any]:
                 edges.append((i, j))
     network_edges = pd.DataFrame(edges, columns=["source", "target"])
 
-    boundaries = [
-        {"x0": 0.32, "y0": 0.30, "x1": 0.58, "y1": 0.55},
-        {"x0": 0.52, "y0": 0.35, "x1": 0.72, "y1": 0.62},
-    ]
+    h, w = histology.shape[:2]
+    tumor_x, tumor_y = _contour_from_mask(regions["tumor"], w, h, n_points=90, level=0.42)
+    stroma_x, stroma_y = _contour_from_mask(regions["stroma"], w, h, n_points=70, level=0.55)
+    boundaries: List[Dict] = []
+    if tumor_x:
+        boundaries.append({"x": tumor_x, "y": tumor_y, "color": "#f7c948", "label": "Tumor–Stroma"})
+    if stroma_x:
+        boundaries.append({"x": stroma_x, "y": stroma_y, "color": "#30d5c8", "label": "Stroma Interface"})
+    if not boundaries:
+        boundaries = [
+            {"x0": 0.32, "y0": 0.30, "x1": 0.58, "y1": 0.55},
+            {"x0": 0.52, "y0": 0.35, "x1": 0.72, "y1": 0.62},
+        ]
 
     return {
         "histology_image": histology,
+        "tissue_regions": regions,
         "cells": cells,
         "cell_types": cell_types,
         "pathways": pathways,

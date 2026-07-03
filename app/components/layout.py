@@ -1,8 +1,26 @@
-"""Layout helpers — CSS injection and HTML chrome."""
+"""Layout helpers — CSS injection, navbar, sidebar, and dashboard chrome."""
+
+from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import streamlit as st
+
+# Navigation targets relative to app/ (streamlit run app/streamlit_app.py)
+NAV_TARGETS = [
+    ("Dashboard", "streamlit_app.py"),
+    ("Upload & Data", "pages/02_Upload_Data.py"),
+    ("Preprocess", "pages/03_Preprocess.py"),
+    ("Segmentation", "pages/04_Segmentation.py"),
+    ("Run MBSI", "pages/05_Run_MBSI.py"),
+    ("Analysis", "streamlit_app.py"),
+    ("Validation", "pages/07_Validation.py"),
+    ("AI Copilot", "pages/08_AI_Copilot.py"),
+    ("Export", "pages/09_Export.py"),
+]
+
+APP_DIR = Path(__file__).resolve().parent.parent
 
 
 def inject_styles() -> None:
@@ -16,6 +34,82 @@ def inject_styles() -> None:
             css += p.read_text()
     if css:
         st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+
+def _resolve_page(relative: str) -> Optional[str]:
+    rel = relative.replace("\\", "/")
+    if (APP_DIR / rel).is_file():
+        return rel
+    return None
+
+
+def _go_nav(label: str, relative: str) -> None:
+    st.session_state.mbsi_nav_active = label
+    if label in ("Dashboard", "Analysis"):
+        st.session_state.mbsi_dashboard_mode = True
+        st.query_params["dashboard"] = "1"
+        st.rerun()
+        return
+    path = _resolve_page(relative)
+    if path is None:
+        st.warning(f"Navigation target missing: {relative}")
+        return
+    st.session_state.mbsi_dashboard_mode = False
+    st.query_params.pop("dashboard", None)
+    st.switch_page(path)
+
+
+def render_navbar(active: str = "Analysis") -> None:
+    """Custom navbar — HTML brand chrome + button row (no st.page_link)."""
+    st.markdown(
+        """
+        <div class="mbsi-navbar">
+          <div class="mbsi-brand">
+            <div class="mbsi-logo-mark">M</div>
+            <div>
+              <div class="mbsi-brand-title">MBSI Studio</div>
+              <div class="mbsi-brand-sub">Physics-Aware Spatial Biology Intelligence</div>
+            </div>
+          </div>
+          <div class="mbsi-nav-right">
+            <span class="mbsi-demo-btn">Demo Mode</span>
+            <span class="mbsi-icon-btn" title="Help">?</span>
+            <span class="mbsi-icon-btn" title="Settings">⚙</span>
+            <span class="mbsi-avatar">AU</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="mbsi-nav-buttons-anchor"></div>', unsafe_allow_html=True)
+    cols = st.columns(len(NAV_TARGETS))
+    for col, (label, path) in zip(cols, NAV_TARGETS):
+        with col:
+            is_active = label == active
+            if st.button(
+                label,
+                key=f"mbsi_nav_{label.replace(' ', '_')}",
+                use_container_width=True,
+                type="primary" if is_active else "secondary",
+            ):
+                _go_nav(label, path)
+
+
+def render_map_toolbar() -> None:
+    """Histology map toolbar — zoom / pan / reset controls."""
+    st.markdown(
+        """
+        <div class="mbsi-map-toolbar">
+          <span class="mbsi-map-tool active" title="Pan">✥</span>
+          <span class="mbsi-map-tool" title="Zoom in">＋</span>
+          <span class="mbsi-map-tool" title="Zoom out">－</span>
+          <span class="mbsi-map-tool" title="Reset view">⟲</span>
+          <span class="mbsi-map-tool" title="Screenshot">⎙</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_subtabs(active: str = "Spatial Map") -> None:
@@ -64,12 +158,26 @@ def render_left_sidebar(summary: dict) -> None:
     for label, val in rows:
         st.markdown(f'<div class="mbsi-row"><span>{label}</span><span>{val}</span></div>', unsafe_allow_html=True)
     st.markdown('<div class="mbsi-panel-title" style="margin-top:10px;">Data Modalities</div>', unsafe_allow_html=True)
-    for m in ["Spatial Transcriptomics (Visium HD)", "H&E Histology", "Nuclei Segmentation",
-              "Protein (CODEX)", "Mutation (WES)", "Clinical Data"]:
+    for m in [
+        "Spatial Transcriptomics (Visium HD)",
+        "H&E Histology",
+        "Nuclei Segmentation",
+        "Protein (CODEX)",
+        "Mutation (WES)",
+        "Clinical Data",
+    ]:
         st.markdown(f'<div style="font-size:0.75rem;"><span class="mbsi-check">✓</span>{m}</div>', unsafe_allow_html=True)
     st.markdown('<div class="mbsi-panel-title" style="margin-top:10px;">Analysis Status</div>', unsafe_allow_html=True)
-    for s in ["Data Loaded", "Preprocessing", "Segmentation", "MBSI Reconstruction", "Boundary Detection",
-              "Communication Analysis", "Causal Modeling", "All Modules Ready"]:
+    for s in [
+        "Data Loaded",
+        "Preprocessing",
+        "Segmentation",
+        "MBSI Reconstruction",
+        "Boundary Detection",
+        "Communication Analysis",
+        "Causal Modeling",
+        "All Modules Ready",
+    ]:
         st.markdown(f'<div style="font-size:0.75rem;"><span class="mbsi-check">✓</span>{s}</div>', unsafe_allow_html=True)
     st.markdown(
         """
@@ -85,15 +193,19 @@ def render_left_sidebar(summary: dict) -> None:
 
 
 def render_statusbar(show_actions: bool = True) -> None:
-    """Deprecated — use app.components.statusbar.render_statusbar."""
+    """Status bar — delegates to shared statusbar component when available."""
     from app.components.statusbar import render_statusbar as _render_statusbar
+
     _render_statusbar(show_actions=show_actions)
 
 
 __all__ = [
     "inject_styles",
+    "render_navbar",
+    "render_map_toolbar",
     "render_subtabs",
     "render_analysis_subtabs",
     "render_left_sidebar",
     "render_statusbar",
+    "NAV_TARGETS",
 ]

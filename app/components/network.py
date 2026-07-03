@@ -14,10 +14,10 @@ DARK = dict(
 def neighborhood_graph(nodes: pd.DataFrame, edges: pd.DataFrame, title: str = "Cell Neighborhood") -> go.Figure:
     fig = go.Figure()
     for ct, sub in nodes.groupby("cell_type"):
-        fig.add_trace(go.Scatter(
-            x=sub["x"], y=sub["y"], mode="markers+text",
-            marker=dict(size=12, color=sub["color"].iloc[0]),
-            text=[""] * len(sub), name=ct,
+        fig.add_trace(go.Scattergl(
+            x=sub["x"], y=sub["y"], mode="markers",
+            marker=dict(size=10, color=sub["color"].iloc[0], opacity=0.9),
+            name=ct,
         ))
     edge_x, edge_y = [], []
     for _, e in edges.iterrows():

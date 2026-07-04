@@ -2,9 +2,22 @@
 FastAPI main application for MBSI Studio.
 """
 
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+
+
+def _cors_allow_origins() -> list[str]:
+    """Resolve allowed CORS origins from MBSI_CORS_ALLOW_ORIGINS.
+
+    Defaults to "*" for local development. In production set an explicit,
+    comma-separated allowlist (e.g. "https://app.example.com").
+    """
+    raw = os.environ.get("MBSI_CORS_ALLOW_ORIGINS", "*").strip()
+    if not raw or raw == "*":
+        return ["*"]
+    return [o.strip() for o in raw.split(",") if o.strip()]
 
 from mbsi.api.routes import (
     upload_file,
@@ -52,14 +65,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware
+# Add CORS middleware. Origins come from MBSI_CORS_ALLOW_ORIGINS
+# (default "*" for local dev; set an explicit allowlist in production).
+_allow_origins = _cors_allow_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_allow_origins,
+    # credentials cannot be combined with a wildcard origin per the CORS spec
+    allow_credentials=_allow_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/readyz")
+async def readiness_check():
+    """Readiness probe: process is up and able to serve requests."""
+    return {"status": "ready", "version": "0.2.0"}
+
+
+@app.get("/healthz")
+async def health_alias():
+    """Liveness probe alias (kubernetes-style path)."""
+    return {"status": "healthy", "version": "0.2.0"}
 
 
 @app.get("/health", response_model=HealthResponse)

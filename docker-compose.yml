@@ -1,3 +1,5 @@
+# DEVELOPMENT profile — uses --reload and a source bind mount for live editing.
+# Do NOT use in production. For production, use docker-compose.prod.yml.
 version: '3.8'
 
 services:

@@ -1,5 +1,9 @@
 """Tests for full communication pipeline."""
 
+import pytest
+
+pytestmark = pytest.mark.heavy
+
 from pathlib import Path
 
 from mbsi.communication import (

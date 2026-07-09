@@ -5,6 +5,8 @@ Tests for optimal transport module.
 import pytest
 import numpy as np
 
+pytestmark = pytest.mark.heavy
+
 
 def test_solve_unbalanced_ot():
     """Test unbalanced optimal transport."""

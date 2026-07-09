@@ -41,6 +41,30 @@ def segment_cells(
     return segment_cells_watershed(image, min_size=min_size).astype(np.int32)
 
 
+def voronoi_label_mask_from_coords(
+    coords: np.ndarray,
+    shape: tuple[int, int],
+    clip_mask: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Rasterize Voronoi regions from centroid coordinates into a label mask."""
+    coords = np.asarray(coords, dtype=np.float64)
+    h, w = shape
+    if len(coords) == 0:
+        return np.zeros((h, w), dtype=np.int32)
+
+    Voronoi(coords)
+    ys, xs = np.mgrid[0:h, 0:w]
+    grid = np.column_stack([xs.ravel(), ys.ravel()])
+    tree = cKDTree(coords)
+    _, idx = tree.query(grid)
+    label_mask = (idx + 1).reshape(h, w).astype(np.int32)
+
+    if clip_mask is not None and clip_mask.shape == (h, w):
+        label_mask = label_mask.copy()
+        label_mask[~clip_mask.astype(bool)] = 0
+    return label_mask
+
+
 def generate_voronoi_cells(
     coords: np.ndarray,
     clip_mask: Optional[np.ndarray] = None,

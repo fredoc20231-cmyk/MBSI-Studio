@@ -10,7 +10,7 @@ import numpy as np
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
-from mbsi.api.job_store import get_job, job_exists, update_job
+from mbsi.api.job_store import InvalidJobIdError, OUTPUT_ROOT, get_job, job_exists, update_job, validate_job_id
 from mbsi.segmentation import segment_tissue, segment_nuclei, infer_cell_boundaries, assign_spots_to_compartments
 from mbsi.subcellular import infer_subcellular_compartments, partition_transcripts_by_compartment
 from mbsi.subcellular.membrane_model import estimate_membrane_receptor_maps, estimate_secreted_ligand_fields
@@ -26,6 +26,10 @@ from mbsi.pipeline import run_full_pipeline
 
 
 def _load_reconstructed(job_id: str) -> ad.AnnData:
+    try:
+        validate_job_id(job_id)
+    except InvalidJobIdError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not job_exists(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
     job = get_job(job_id, load_adata=True, load_reconstructed=True)
@@ -128,7 +132,11 @@ def copilot_query_endpoint(request: dict) -> Dict[str, Any]:
 
 def export_report_endpoint(request: dict) -> FileResponse:
     job_id = request["job_id"]
-    out_dir = Path("data/outputs") / job_id
+    try:
+        safe_id = validate_job_id(job_id)
+    except InvalidJobIdError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    out_dir = OUTPUT_ROOT / safe_id
     out_dir.mkdir(parents=True, exist_ok=True)
     report_path = out_dir / "report.html"
     metrics = request.get("metrics", {})

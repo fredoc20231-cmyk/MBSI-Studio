@@ -42,10 +42,24 @@ def sam_available() -> bool:
         return False
 
 
+def mesmer_available() -> bool:
+    from mbsi.segmentation.deepcell_mesmer_pipeline import mesmer_available as _mesmer_available
+
+    return _mesmer_available()
+
+
+def baseline_unet_available() -> bool:
+    from mbsi.segmentation.baseline_unet import baseline_unet_weights_available
+
+    return baseline_unet_weights_available()
+
+
 def available_backends() -> Dict[str, bool]:
     return {
         "cellpose": cellpose_available(),
         "stardist": stardist_available(),
+        "mesmer": mesmer_available(),
+        "baseline_unet": baseline_unet_available(),
         "sam": sam_available(),
         "otsu": True,
         "adaptive": True,
@@ -143,9 +157,9 @@ def get_technology_segmentation_plan(technology_key: str) -> Dict[str, Any]:
         },
         "xenium": {
             "tissue": ["imported", "otsu"],
-            "cells": ["imported", "cellpose"],
+            "cells": ["imported", "stardist", "cellpose", "mesmer", "watershed", "voronoi"],
             "registration": ["morphology", "affine"],
-            "notes": "Import cell boundaries GeoJSON/CSV; validate morphology image alignment.",
+            "notes": "Import cell boundaries GeoJSON/CSV/parquet; StarDist/Cellpose/Mesmer on morphology when needed.",
         },
         "merfish": {
             "tissue": ["otsu", "adaptive"],

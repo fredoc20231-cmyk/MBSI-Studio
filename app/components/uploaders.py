@@ -146,12 +146,17 @@ def image_uploader() -> Optional[np.ndarray]:
 def segmentation_uploader() -> Optional[np.ndarray]:
     uploaded_file = st.file_uploader(
         "Upload segmentation mask",
-        type=["png", "tif", "tiff"],
+        type=["png", "tif", "tiff", "npy"],
         key="segmentation_uploader",
     )
     if uploaded_file is None:
         return None
     try:
+        suffix = Path(uploaded_file.name).suffix.lower()
+        if suffix == ".npy":
+            import io
+
+            return np.load(io.BytesIO(uploaded_file.read()))
         from PIL import Image
 
         mask_array = np.array(Image.open(uploaded_file))
@@ -159,6 +164,44 @@ def segmentation_uploader() -> Optional[np.ndarray]:
         return mask_array
     except Exception as exc:
         st.error(f"Error loading mask: {exc}")
+        return None
+
+
+def boundary_uploader() -> Optional[str]:
+    """Upload cell boundary GeoJSON/CSV/parquet; returns temp path."""
+    uploaded_file = st.file_uploader(
+        "Upload cell boundaries (GeoJSON / CSV / parquet)",
+        type=["geojson", "csv", "parquet", "gz"],
+        key="boundary_uploader",
+    )
+    if uploaded_file is None:
+        return None
+    try:
+        temp_path = save_upload_to_temp(uploaded_file, Path(uploaded_file.name).suffix or ".csv")
+        st.success(f"Loaded boundary file: {uploaded_file.name}")
+        return temp_path
+    except Exception as exc:
+        st.error(f"Error loading boundaries: {exc}")
+        return None
+
+
+def transcript_uploader() -> Optional[pd.DataFrame]:
+    uploaded_file = st.file_uploader(
+        "Upload transcripts (CSV / parquet)",
+        type=["csv", "parquet", "gz"],
+        key="transcript_uploader",
+    )
+    if uploaded_file is None:
+        return None
+    try:
+        if uploaded_file.name.endswith(".parquet"):
+            df = pd.read_parquet(uploaded_file)
+        else:
+            df = pd.read_csv(uploaded_file)
+        st.success(f"Loaded {len(df):,} transcripts")
+        return df
+    except Exception as exc:
+        st.error(f"Error loading transcripts: {exc}")
         return None
 
 
@@ -248,6 +291,8 @@ def upload_panel(*, technology_key: Optional[str] = None) -> dict:
 
     with tab_seg:
         data["segmentation"] = segmentation_uploader()
+        data["boundaries_path"] = boundary_uploader()
+        data["transcripts"] = transcript_uploader()
 
     matrix = data.get("count_matrix")
     coords = data.get("coordinates")

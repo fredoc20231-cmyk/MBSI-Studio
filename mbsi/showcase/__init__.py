@@ -1,4 +1,8 @@
-"""MBSI Studio flagship disease showcases."""
+"""MBSI Studio flagship disease showcases.
+
+Status: DEVELOPER UI ONLY — requires DEVELOPER_MODE=true; synthetic showcase data.
+See docs/RESEARCH_MODULES.md.
+"""
 
 from mbsi.showcase.ovarian_hgsc import (
     make_ovarian_showcase_adata,

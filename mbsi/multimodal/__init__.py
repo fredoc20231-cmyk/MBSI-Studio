@@ -1,4 +1,8 @@
-"""Multimodal fusion engine."""
+"""Multimodal fusion engine.
+
+Status: RESEARCH — legacy API only; not Milestone 1 production.
+See docs/RESEARCH_MODULES.md.
+"""
 
 from mbsi.multimodal.fusion import fuse_rna_image_protein, build_multimodal_embedding
 from mbsi.multimodal.atac import add_atac_features

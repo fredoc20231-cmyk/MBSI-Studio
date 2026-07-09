@@ -1,5 +1,9 @@
 """Tests for Benchmark Hub orchestrator."""
 
+import pytest
+
+pytestmark = pytest.mark.heavy
+
 from mbsi.benchmarks.hub import run_benchmark_hub
 from mbsi.benchmarks.leaderboard import build_leaderboard
 from mbsi.benchmarks.export import export_benchmark_hub

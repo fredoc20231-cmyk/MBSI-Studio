@@ -1,5 +1,9 @@
 """Tests for benchmark adapters."""
 
+import pytest
+
+pytestmark = pytest.mark.heavy
+
 from mbsi.benchmarks.adapters import get_adapter, list_adapters
 from mbsi.benchmarks.pseudo_visium import make_synthetic_ground_truth, generate_pseudo_visium
 

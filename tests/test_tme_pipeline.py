@@ -1,5 +1,9 @@
 """Tests for TME pipeline."""
 
+import pytest
+
+pytestmark = pytest.mark.heavy
+
 from pathlib import Path
 
 from mbsi.tme import run_tme_analysis, export_tme_results, make_tme_demo_adata

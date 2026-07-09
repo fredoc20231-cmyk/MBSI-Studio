@@ -2,13 +2,14 @@
 
 from pathlib import Path
 
+import pytest
+
 from mbsi.reports import (
     generate_spatial_biomarker_report,
     generate_biomarker_report_text,
     BIOMARKER_DISCLAIMER,
 )
 from mbsi.discovery import run_discovery_engine
-
 
 def test_biomarker_disclaimer_exact():
     expected = (
@@ -19,6 +20,7 @@ def test_biomarker_disclaimer_exact():
     assert BIOMARKER_DISCLAIMER == expected
 
 
+@pytest.mark.heavy
 def test_generate_biomarker_report_text():
     results = run_discovery_engine(seed=42)
     text = generate_biomarker_report_text(
@@ -32,6 +34,7 @@ def test_generate_biomarker_report_text():
     assert "TME Intelligence" in text
 
 
+@pytest.mark.heavy
 def test_generate_spatial_biomarker_report_html(tmp_path: Path):
     results = run_discovery_engine(seed=7)
     path = generate_spatial_biomarker_report(

@@ -56,9 +56,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/mbsi-studio"
-Repository = "https://github.com/yourusername/mbsi-studio"
-Documentation = "https://github.com/yourusername/mbsi-studio#readme"
+Homepage = "https://github.com/fredoc20231-cmyk/MBSI-Studio"
+Repository = "https://github.com/fredoc20231-cmyk/MBSI-Studio"
+Documentation = "https://github.com/fredoc20231-cmyk/MBSI-Studio#readme"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -73,3 +73,8 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "unit: fast isolated tests (default CI selection)",
+    "integration: end-to-end workflow tests",
+    "heavy: slow tests using reconstruction, torch, or full scanpy pipelines",
+]

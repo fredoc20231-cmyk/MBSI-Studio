@@ -1,5 +1,9 @@
 """Tests for sparse top-k transport plan storage."""
 
+import pytest
+
+pytestmark = pytest.mark.heavy
+
 import numpy as np
 
 from mbsi.reconstruction.transport_sparse import (

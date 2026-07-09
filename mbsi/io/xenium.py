@@ -194,6 +194,41 @@ def read_xenium_bundle(root: Union[str, Path]) -> ad.AnnData:
     }
     if "transcript_counts" in adata.obs.columns:
         adata.obs["total_counts"] = pd.to_numeric(adata.obs["transcript_counts"], errors="coerce").fillna(0)
+
+    boundaries_path = optional.get("boundaries")
+    if boundaries_path:
+        adata = apply_xenium_boundaries(adata, boundaries_path)
+    return adata
+
+
+def apply_xenium_boundaries(adata: ad.AnnData, boundaries_path: Union[str, Path]) -> ad.AnnData:
+    """Import Xenium cell_boundaries when present and record segmentation status."""
+    from mbsi.segmentation.importers import load_xenium_boundaries
+
+    shape = None
+    if "morphology" in adata.uns.get("xenium", {}).get("optional_artifacts", {}):
+        try:
+            from skimage.io import imread
+
+            morph_path = adata.uns["xenium"]["optional_artifacts"]["morphology"]
+            morph = imread(morph_path)
+            shape = morph.shape[:2]
+        except Exception:
+            shape = None
+
+    result = load_xenium_boundaries(boundaries_path, shape=shape)
+    adata.uns.setdefault("mbsi_segmentation", {})
+    adata.uns["mbsi_segmentation"].update(
+        {
+            "methods": {"cells": "imported_xenium_boundaries"},
+            "segmentation_status": "Imported Xenium boundaries",
+            "cell_mask_shape": list(result["label_mask"].shape),
+            "n_cells": result["n_cells"],
+            "boundaries_source": str(boundaries_path),
+        }
+    )
+    adata.uns["mbsi_cell_label_mask"] = result["label_mask"]
+    adata.uns["mbsi_cell_boundaries"] = result["boundaries_df"]
     return adata
 
 

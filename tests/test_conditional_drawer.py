@@ -17,15 +17,16 @@ def test_drawer_only_for_insight_modules():
 
 def test_no_drawer_modules_full_width():
     no_drawer = [m["key"] for m in MODULES if not m.get("show_drawer")]
-    for key in ("study_setup", "settings", "report_export", "ai_review", "qc_preprocess"):
+    for key in ("study_data", "settings", "report_export", "ai_review", "qc_transformation"):
         assert key in no_drawer
         assert module_show_drawer(key) is False
 
 
 def test_intelligence_workflow_order():
-    intel = [m for m in MODULES if m.get("section") == "Intelligence"]
+    intel = [m for m in MODULES if m.get("section") == "MBSI Intelligence"]
     keys = [m["key"] for m in intel]
-    assert keys == ["ai_review"]
+    assert "discovery" in keys
+    assert "benchmark" in keys
     export = [m for m in MODULES if m.get("section") == "Export"]
     export_keys = [m["key"] for m in export]
     assert export_keys.index("report_export") < export_keys.index("settings")

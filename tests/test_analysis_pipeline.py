@@ -1,5 +1,9 @@
 """Tests for end-to-end analysis pipeline."""
 
+import pytest
+
+pytestmark = pytest.mark.heavy
+
 from pathlib import Path
 
 from mbsi.analysis.demo import make_synthetic_visium_adata

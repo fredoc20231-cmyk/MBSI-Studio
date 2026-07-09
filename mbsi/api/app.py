@@ -19,6 +19,7 @@ from mbsi.api.contracts import (
     ReportGenerateRequest,
     WorkflowRunRequest,
 )
+from mbsi.api.cors import cors_allow_origins
 from mbsi.schema.technology import MILESTONE_1_PLATFORMS
 
 
@@ -41,13 +42,14 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=cors_allow_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     @app.get("/health")
+    @app.get("/api/health")
     async def health_check():
         return {"status": "healthy", "version": "0.3.0", "milestone_1_platforms": list(MILESTONE_1_PLATFORMS)}
 

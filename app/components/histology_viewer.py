@@ -67,7 +67,7 @@ def extract_histology_from_adata(adata) -> Tuple[Optional[np.ndarray], Optional[
 
     Returns (image_array, image_source_label, library_id).
     """
-    if adata is None:
+    if adata is None or not hasattr(adata, "uns"):
         return None, None, None
 
     spatial_uns = adata.uns.get("spatial")

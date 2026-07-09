@@ -26,4 +26,4 @@ RUN mkdir -p data/demo data/uploads data/outputs
 EXPOSE 8000 8501
 
 # Default command (can be overridden)
-CMD ["uvicorn", "mbsi.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "mbsi.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -7,9 +7,10 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-    command: uvicorn mbsi.api.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn mbsi.api.app:app --host 0.0.0.0 --port 8000 --reload
     environment:
       - PYTHONUNBUFFERED=1
+      - MBSI_CORS_ORIGINS=http://localhost:8501,http://127.0.0.1:8501
 
   ui:
     build: .

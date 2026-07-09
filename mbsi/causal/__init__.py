@@ -1,4 +1,8 @@
-"""Spatial causal inference."""
+"""Spatial causal inference.
+
+Status: EXPERIMENTAL — legacy API and Discovery workspace; research-stage.
+See docs/RESEARCH_MODULES.md.
+"""
 
 from mbsi.causal.dag import build_spatial_causal_dag
 from mbsi.causal.interventions import run_spatial_intervention

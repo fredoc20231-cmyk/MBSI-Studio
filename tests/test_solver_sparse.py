@@ -7,6 +7,8 @@ from scipy.sparse import csr_matrix
 
 from mbsi.reconstruction.solver import run_mbsi
 
+pytestmark = pytest.mark.heavy
+
 
 def _spot_adata(n_spots=8, n_genes=20, sparse=False):
     if sparse:

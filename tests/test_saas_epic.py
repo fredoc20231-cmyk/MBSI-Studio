@@ -142,18 +142,19 @@ def test_legacy_workspace_redirects():
         assert callable(mod.render)
 
 
-def test_theme_module():
+def test_theme_module(monkeypatch):
     from app.components.theme import (
         THEME_PALETTES,
         apply_plotly_theme,
         get_plotly_theme_colors,
         VALID_THEMES,
+        THEME_KEY,
     )
 
     assert VALID_THEMES == ("dark", "light")
     assert "plot_paper" in THEME_PALETTES["light"]
-    assert THEME_PALETTES["light"]["bg"] == "#f4f7fb"
-    assert THEME_PALETTES["dark"]["bg"] == "#07111f"
+    assert THEME_PALETTES["light"]["bg"] == "#f8fafc"
+    assert THEME_PALETTES["dark"]["bg"] == "#0c1117"
 
     class _FakeFig:
         def __init__(self):
@@ -161,6 +162,14 @@ def test_theme_module():
 
         def update_layout(self, **kwargs):
             self.kwargs.update(kwargs)
+
+    class _FakeState(dict):
+        def get(self, key, default=None):
+            return super().get(key, default)
+
+    import app.components.theme as theme_mod
+
+    monkeypatch.setattr(theme_mod.st, "session_state", _FakeState({THEME_KEY: "dark"}))
 
     fig = _FakeFig()
     apply_plotly_theme(fig)

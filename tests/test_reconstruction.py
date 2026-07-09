@@ -6,6 +6,8 @@ import pytest
 import numpy as np
 import anndata as ad
 
+pytestmark = pytest.mark.heavy
+
 
 def test_run_mbsi():
     """Test MBSI reconstruction."""

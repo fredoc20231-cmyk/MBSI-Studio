@@ -1,14 +1,16 @@
-"""Attach segmentation outputs to AnnData and export masks."""
+"""Attach segmentation outputs to AnnData and export masks/boundaries."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import anndata as ad
 import numpy as np
 import pandas as pd
+from skimage import measure
+from skimage.segmentation import find_boundaries
 
 
 def attach_segmentation_to_adata(
@@ -39,6 +41,7 @@ def attach_segmentation_to_adata(
 
     if compartment_labels is not None and len(compartment_labels) == adata.n_obs:
         from mbsi.segmentation.compartments import COMPARTMENT_NAMES
+
         adata.obs["compartment"] = [
             COMPARTMENT_NAMES[int(c) % len(COMPARTMENT_NAMES)] if c >= 0 else "unknown"
             for c in compartment_labels
@@ -54,6 +57,76 @@ def attach_segmentation_to_adata(
     if segmentation_qc is not None:
         adata.uns["mbsi_segmentation_qc"] = segmentation_qc
     return adata
+
+
+def _mask_to_boundary_vertices(label_mask: np.ndarray) -> pd.DataFrame:
+    """Extract boundary vertices from a label mask for export."""
+    label_mask = np.asarray(label_mask, dtype=np.int32)
+    rows = []
+    for prop in measure.regionprops(label_mask):
+        label = int(prop.label)
+        coords = measure.find_contours(label_mask == label, 0.5)
+        if not coords:
+            continue
+        contour = coords[0]
+        ys, xs = contour[:, 0], contour[:, 1]
+        for x, y in zip(xs, ys):
+            rows.append({"cell_id": f"cell_{label}", "label_id": label, "vertex_x": float(x), "vertex_y": float(y)})
+    return pd.DataFrame(rows)
+
+
+def export_label_mask(path: Union[str, Path], label_mask: np.ndarray) -> str:
+    """Save label mask as .npy or TIFF based on extension."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix.lower() in (".tif", ".tiff"):
+        try:
+            from skimage.io import imsave
+        except ImportError as exc:
+            raise ImportError("skimage required for TIFF export") from exc
+        imsave(path, label_mask.astype(np.int32))
+    else:
+        if path.suffix.lower() != ".npy":
+            path = path.with_suffix(".npy")
+        np.save(path, label_mask)
+    return str(path)
+
+
+def export_boundaries(
+    path: Union[str, Path],
+    label_mask: Optional[np.ndarray] = None,
+    boundaries_df: Optional[pd.DataFrame] = None,
+) -> str:
+    """Export cell boundaries as GeoJSON or parquet."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if boundaries_df is None:
+        if label_mask is None:
+            raise ValueError("Provide label_mask or boundaries_df for boundary export")
+        boundaries_df = _mask_to_boundary_vertices(label_mask)
+
+    suffix = path.suffix.lower()
+    if suffix == ".parquet":
+        boundaries_df.to_parquet(path, index=False)
+    elif suffix == ".geojson":
+        features = []
+        for cell_id, group in boundaries_df.groupby("cell_id", sort=False):
+            coords = list(zip(group["vertex_x"].astype(float), group["vertex_y"].astype(float)))
+            if coords and coords[0] != coords[-1]:
+                coords.append(coords[0])
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"cell_id": str(cell_id)},
+                    "geometry": {"type": "Polygon", "coordinates": [coords]},
+                }
+            )
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"type": "FeatureCollection", "features": features}, handle)
+    else:
+        path = path.with_suffix(".parquet")
+        boundaries_df.to_parquet(path, index=False)
+    return str(path)
 
 
 def export_segmentation_masks(
@@ -83,30 +156,26 @@ def export_segmentation_masks(
 
 def import_segmentation_mask(path: str | Path) -> np.ndarray:
     """Import segmentation mask from .npy, .tif, or image file."""
-    path = Path(path)
-    suffix = path.suffix.lower()
-    if suffix == ".npy":
-        return np.load(path)
-    try:
-        from skimage.io import imread
-        arr = imread(path)
-        if arr.ndim >= 3:
-            arr = arr[..., 0]
-        return (arr > 0).astype(np.uint8) if arr.max() <= 1 else arr.astype(np.int32)
-    except Exception as exc:
-        raise ValueError(f"Cannot import mask from {path}: {exc}") from exc
+    from mbsi.segmentation.importers import load_segmentation_mask
+
+    return load_segmentation_mask(path)
 
 
 def import_cell_boundaries(path: str | Path) -> Dict[str, Any]:
-    """Import cell boundaries from GeoJSON or CSV."""
+    """Import cell boundaries from GeoJSON, CSV, or parquet."""
     path = Path(path)
     suffix = path.suffix.lower()
     if suffix == ".geojson":
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
-        return {"format": "geojson", "data": data, "n_features": len(data.get("features", []))}
-    if suffix == ".csv":
-        df = pd.read_csv(path)
-        coords_cols = [c for c in df.columns if c.lower() in ("x", "y", "cell_id", "boundary")]
-        return {"format": "csv", "dataframe": df, "columns": coords_cols, "n_rows": len(df)}
+        from mbsi.segmentation.importers import load_boundary_geojson
+
+        df = load_boundary_geojson(path)
+        return {"format": "geojson", "dataframe": df, "n_features": df["cell_id"].nunique()}
+    if suffix in (".csv", ".gz") or path.name.endswith(".csv.gz"):
+        from mbsi.segmentation.importers import load_boundary_csv
+
+        df = load_boundary_csv(path)
+        return {"format": "csv", "dataframe": df, "n_rows": len(df)}
+    if suffix == ".parquet":
+        df = pd.read_parquet(path)
+        return {"format": "parquet", "dataframe": df, "n_rows": len(df)}
     raise ValueError(f"Unsupported boundary format: {suffix}")

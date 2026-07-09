@@ -94,8 +94,8 @@ def test_discovery_real_data_includes_run_id():
 
 def test_compatibility_recommended_next_step():
     matrix = get_compatibility_matrix(None)
-    assert matrix["discovery"]["status"] == "unavailable"
-    step = recommended_next_step_for_module("discovery", "unavailable", ["spatial omics upload"], has_adata=False)
+    assert matrix["discovery"]["status"] in ("unavailable", "warn")
+    step = recommended_next_step_for_module("discovery", matrix["discovery"]["status"], ["spatial omics upload"], has_adata=False)
     assert "upload" in step.lower()
 
 

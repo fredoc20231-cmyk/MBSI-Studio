@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import anndata as ad
+import numpy as np
 import pandas as pd
 
 from mbsi.schema.technology import (
@@ -285,11 +286,19 @@ def apply_ingestion_to_session(
         updates["using_synthetic_demo"] = False
         from app.components.histology_viewer import extract_histology_from_adata
 
-        if st.session_state.get("uploaded_image") is None:
-            img, source, _ = extract_histology_from_adata(adata)
-            if img is not None:
-                updates["uploaded_image"] = img
-                updates["histology_source"] = source
+        img, source, _ = extract_histology_from_adata(adata)
+        if img is not None:
+            updates["uploaded_image"] = img
+            updates["histology_source"] = source
+
+        adata_uns = getattr(adata, "uns", {}) or {}
+        seg_status = adata_uns.get("mbsi_segmentation", {}).get("segmentation_status")
+        if seg_status:
+            updates["segmentation_status"] = seg_status
+        xenium_mask = adata_uns.get("mbsi_cell_label_mask")
+        if isinstance(xenium_mask, np.ndarray):
+            updates["cell_mask"] = xenium_mask
+            updates["seg_imported_mask"] = xenium_mask
     else:
         updates["sample_adatas"] = {sample_id: adata}
         updates["sample_adata_paths"] = {sample_id: upload_state.get("adata_path", "")}

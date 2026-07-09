@@ -23,7 +23,15 @@ from mbsi.benchmarks.metrics import compute_all_metrics
 from mbsi.benchmarks.ablation import run_ablation_suite
 
 
-from mbsi.api.job_store import get_job, job_exists, save_job, update_job
+from mbsi.api.job_store import (
+    InvalidJobIdError,
+    get_job,
+    job_exists,
+    resolve_download_path,
+    save_job,
+    update_job,
+    validate_job_id,
+)
 
 async def upload_file(
     file: UploadFile = File(...),
@@ -223,6 +231,11 @@ def download_file(job_id: str, file_type: str = "reconstructed"):
     """
     Download results file.
     """
+    try:
+        validate_job_id(job_id)
+    except InvalidJobIdError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     if not job_exists(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -232,12 +245,15 @@ def download_file(job_id: str, file_type: str = "reconstructed"):
     if file_type == "reconstructed":
         if "reconstructed_path" not in job:
             raise HTTPException(status_code=404, detail="No reconstruction file available")
-        file_path = job["reconstructed_path"]
+        try:
+            file_path = resolve_download_path(job["reconstructed_path"])
+        except InvalidJobIdError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
     else:
         raise HTTPException(status_code=400, detail=f"Unknown file type: {file_type}")
-    
+
     return FileResponse(
-        file_path,
+        str(file_path),
         filename=f"{job_id}_{file_type}.h5ad",
-        media_type="application/octet-stream"
+        media_type="application/octet-stream",
     )

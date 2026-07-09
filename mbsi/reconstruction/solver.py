@@ -143,8 +143,8 @@ def run_mbsi(
     # Reconstruct cell expression using transport plan
     reconstructed_expression = apply_transport_to_expression(spot_expression, transport_plan)
 
-    # Apply sheaf regularization if enabled
-    if use_sheaf:
+    # Apply sheaf Laplacian regularization when enabled (see apply_sheaf_regularization)
+    if use_sheaf and lambda_sheaf > 0:
         graph = build_cell_graph(cell_coords, k=k_graph)
         reconstructed_expression = apply_sheaf_regularization(
             reconstructed_expression,
@@ -246,8 +246,13 @@ def apply_sheaf_regularization(
     """
     Minimize 0.5||X - X0||^2 + 0.5 * lambda * tr(X^T L X).
 
+    Closed-form solve via graph/sheaf Laplacian (``mbsi.sheaf.sheaf_laplacian``);
+    objective matches ``mbsi.sheaf.regularizer.compute_sheaf_regularization``.
     Factorizes (I + lambda * L) once and solves gene RHS in batches.
     """
+    if lambda_sheaf <= 0:
+        return np.asarray(expression, dtype=np.float32)
+
     if hasattr(expression, "toarray"):
         expression = expression.toarray()
 
@@ -354,7 +359,7 @@ def run_iterative_mbsi(
     a = np.ones(n_spots) / n_spots
     b = np.ones(n_cells) / n_cells
 
-    graph = build_cell_graph(cell_coords, k=k_graph) if use_sheaf else None
+    graph = build_cell_graph(cell_coords, k=k_graph) if use_sheaf and lambda_sheaf > 0 else None
     reconstructed_expression = None
     transport_plan = None
     ot_log = {}
@@ -368,7 +373,7 @@ def run_iterative_mbsi(
             max_iter=max_inner_iter
         )
         reconstructed_expression = apply_transport_to_expression(spot_expression, transport_plan)
-        if graph is not None:
+        if graph is not None and lambda_sheaf > 0:
             reconstructed_expression = apply_sheaf_regularization(
                 reconstructed_expression,
                 graph,

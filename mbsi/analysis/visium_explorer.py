@@ -15,7 +15,7 @@ def spatial_qc_summary(adata) -> dict:
     layer = "counts" if "counts" in adata.layers else None
     matrix = adata.layers[layer] if layer else adata.X
     if sparse.issparse(matrix):
-        n_detected = np.asarray(matrix.getnnz(axis=1), dtype=float)
+        n_detected = np.asarray((matrix != 0).getnnz(axis=1), dtype=float)
         totals = np.asarray(matrix.sum(axis=1)).reshape(-1).astype(float)
         values = matrix.data
     else:

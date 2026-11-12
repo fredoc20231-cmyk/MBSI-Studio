@@ -16,6 +16,7 @@ import plotly.express as px
 import streamlit as st
 
 from mbsi.comparative import compare_samples, spatial_coordinates
+from mbsi.comparative.neighborhoods import neighborhood_matrix
 
 
 @st.cache_data(show_spinner=False, max_entries=6)
@@ -63,6 +64,30 @@ def _spatial_plot(adata, label_key, title):
     frame = pd.DataFrame({"x": coords[:, 0], "y": coords[:, 1], "Population": labels})
     fig = px.scatter(frame, x="x", y="y", color="Population", title=title,
                      render_mode="webgl", opacity=0.8)
+    fig.update_traces(marker={"size": 3})
+    fig.update_yaxes(autorange="reversed", scaleanchor="x", scaleratio=1)
+    fig.update_layout(height=450, margin=dict(l=15, r=15, t=45, b=15))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _gene_spatial_plot(adata, gene, title):
+    coords = spatial_coordinates(adata)
+    if coords is None:
+        st.info(f"{title}: spatial coordinates not available.")
+        return
+    if gene not in adata.var_names:
+        st.warning(f"{gene} is missing from {title}")
+        return
+    matrix = adata[:, [gene]].X
+    if hasattr(matrix, "toarray"):
+        matrix = matrix.toarray()
+    values = np.asarray(matrix).ravel()
+    if len(coords) > 100000:
+        coords, values = coords[:100000], values[:100000]
+    frame = pd.DataFrame({"x": coords[:, 0], "y": coords[:, 1], "Expression": values})
+    fig = px.scatter(frame, x="x", y="y", color="Expression",
+                     color_continuous_scale="Viridis", title=f"{title}: {gene}",
+                     render_mode="webgl")
     fig.update_traces(marker={"size": 3})
     fig.update_yaxes(autorange="reversed", scaleanchor="x", scaleratio=1)
     fig.update_layout(height=450, margin=dict(l=15, r=15, t=45, b=15))
@@ -155,13 +180,19 @@ def render():
     for warning in result["warnings"]:
         st.caption("⚠ " + warning)
 
-    tabs = st.tabs(["Tissue maps", "Populations", "Gene expression", "Export"])
+    tabs = st.tabs(["Tissue maps", "Populations", "Gene expression", "Neighborhoods", "Export"])
     with tabs[0]:
         map_a, map_b = st.columns(2)
         with map_a:
             _spatial_plot(left, label_a, "Reference spatial map")
         with map_b:
             _spatial_plot(right, label_b, "Comparison spatial map")
+        overlay_gene = st.selectbox("Gene expression overlay", genes, key="cmp_overlay_gene")
+        g1, g2 = st.columns(2)
+        with g1:
+            _gene_spatial_plot(left, overlay_gene, "Reference")
+        with g2:
+            _gene_spatial_plot(right, overlay_gene, "Comparison")
     with tabs[1]:
         comp = result["composition"]
         st.dataframe(comp, use_container_width=True, hide_index=True)
@@ -184,7 +215,33 @@ def render():
                             var_name="Sample", value_name="Mean expression"),
                             x="gene", y="Mean expression", color="Sample", barmode="group")
             st.plotly_chart(chart, use_container_width=True)
+            matrix = expr.pivot(index="population", columns="gene", values="delta_mean").fillna(0)
+            if not matrix.empty:
+                fig = px.imshow(matrix, aspect="auto",
+                                title="Mean-expression difference (B minus A)",
+                                color_continuous_scale="RdBu_r",
+                                color_continuous_midpoint=0)
+                st.plotly_chart(fig, use_container_width=True)
     with tabs[3]:
+        st.caption("Observed neighborhood fractions, not statistical enrichment.")
+        k = st.slider("Number of spatial neighbors", min_value=1, max_value=12,
+                      value=6, key="cmp_neighborhood_k")
+        n1, n2 = st.columns(2)
+        for panel, adata, ann, title in (
+            (n1, left, label_a, "Reference"),
+            (n2, right, label_b, "Comparison"),
+        ):
+            with panel:
+                try:
+                    matrix = neighborhood_matrix(adata, ann, k=min(k, adata.n_obs - 1))
+                    st.plotly_chart(
+                        px.imshow(matrix, aspect="auto", zmin=0, zmax=1,
+                                  title=f"{title} neighborhood fractions"),
+                        use_container_width=True
+                    )
+                except Exception as exc:
+                    st.info(f"{title} neighborhood analysis unavailable: {exc}")
+    with tabs[4]:
         st.download_button("Download population comparison CSV",
             result["composition"].to_csv(index=False).encode("utf-8"),
             file_name="mbsi_population_comparison.csv", mime="text/csv")

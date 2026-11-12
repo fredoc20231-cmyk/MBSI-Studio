@@ -31,6 +31,7 @@ Open **http://localhost:8501** and select **Tissue Comparison** from the left na
 - Independent annotation selectors, overlapping gene selection, Run button.
 - Side-by-side spatial cell/spot maps, gene-expression overlays.
 - Descriptive matched-label composition table, proportion bar chart.
+- Cross-tissue cluster-signature cosine similarity matrix; candidate correspondence only.
 - Per-population gene-expression table, bar plot, difference heatmap.
 - Within-section k-nearest-neighbor label fraction heatmaps.
 - CSV exports and JSON method manifest.

@@ -23,13 +23,14 @@
 2. **Study & Samples**: create project; upload H5AD or supported Space Ranger ZIP with progress; inspect validation/warnings; list dataset IDs; edit condition/subject metadata only where backend implements persistence.
 3. **10x Visium Analysis**: sample QC and tissue maps; gene explorer with gene search; display assay resolution and spatial coordinate caveats. Native HD 2/8/16 µm bin selection **not yet implemented**. Present clearly labeled roadmap.
 4. **Spatial Atlas**: linked gene and annotation tissue plots, legend, pan/zoom, real coordinate systems; display raw counts versus normalized values correctly.
-5. **Cluster & Cell Types**: annotations, proportions, cluster-similarity matrix; unknown/unmatched labels clearly displayed.
-6. **Compare Tissues**: select 2 uploaded samples, their compatible annotation fields and a shared gene panel, submit `/api/v2/comparisons/preview`, render composition charts, differential mean heatmaps, similarity and limitations.
-7. **Spatial Neighborhoods**: connect only to validated backend outputs; the current Streamlit exploratory neighbor matrix must not be silently substituted for inferential enrichment.
-8. **Pathways / Communication**: capability-aware; buttons disabled and explain requirements unless an actual supported backend route is confirmed by OpenAPI.
-9. **AI Interpretation**: only evidence-bound result summaries; no invented biomarkers, mechanisms, p-values or clinically actionable claims.
-10. **Reports**: display provenance, real downloadable outputs via existing supported API; build export from frontend preview only when supported and explicitly label as descriptive.
-11. **Settings**: backend URL (read-only indication), auth status, theme, data policy, method/version labels.
+5. **Region of Interest (ROI)**: enable a draggable rectangle on the tissue scatter map in source-data coordinates. Call `POST /api/v2/datasets/{id}/roi/summary` and display actual region cell/spot counts, annotation fractions, and selected gene means; show empty-region warnings. ROI is descriptive and not a registered cross-sample shape.
+6. **Cluster & Cell Types**: annotations, proportions, cluster-similarity matrix; unknown/unmatched labels clearly displayed.
+7. **Compare Tissues**: select 2 uploaded samples, their compatible annotation fields and a shared gene panel, submit `/api/v2/comparisons/preview`, render composition charts, differential mean heatmaps, similarity and limitations.
+8. **Spatial Neighborhoods**: connect only to validated backend outputs; the current Streamlit exploratory neighbor matrix must not be silently substituted for inferential enrichment.
+9. **Pathways / Communication**: capability-aware; buttons disabled and explain requirements unless an actual supported backend route is confirmed by OpenAPI.
+10. **AI Interpretation**: only evidence-bound result summaries; no invented biomarkers, mechanisms, p-values or clinically actionable claims.
+11. **Reports**: display provenance, real downloadable outputs via existing supported API; build export from frontend preview only when supported and explicitly label as descriptive.
+12. **Settings**: backend URL (read-only indication), auth status, theme, data policy, method/version labels.
 
 ## Screens and interactions
 - Each navigation item must lead to a real route; every visible control must have an effect, validation message, or clearly disabled state.
@@ -53,8 +54,10 @@ Expected higher-level analytics compared to basic aggregation: cross-sample clus
 - `POST /api/dataset/upload` (multipart `file`; query `project_id`, `sample_id`, `technology_hint`)
 - `POST /api/dataset/inspect` and `GET /api/dataset/readiness?dataset_id=...`
 - `GET /api/v2/datasets/{dataset_id}/summary`
+- `GET /api/v2/datasets/{dataset_id}/qc`
 - `GET /api/v2/datasets/{dataset_id}/genes`
 - `GET /api/v2/datasets/{dataset_id}/spatial-points`
+- `POST /api/v2/datasets/{dataset_id}/roi/summary`
 - `POST /api/v2/comparisons/preview`
 - `POST /api/workflow/run`, `GET /api/workflow/status?run_id=...`
 - `POST /api/report/generate` only where supported by actual backend response

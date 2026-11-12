@@ -80,3 +80,13 @@ def test_frontend_rejects_unknown_datasets_and_path_ids(api):
         "reference_annotation": "cell_type", "comparison_annotation": "cell_type",
         "genes": ["EPCAM"]
     }).status_code == 422
+
+
+@pytest.mark.unit
+def test_visium_qc_contract(api):
+    response = api.get("/api/v2/datasets/a/qc")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["n_observations"] == 4
+    assert data["matrix_is_integer_counts"] is True
+    assert data["detected_features_per_observation"]["median"] == 2

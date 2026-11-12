@@ -145,6 +145,27 @@ export const mbsi = {
         limit: String(limit),
       }).toString()
     ),
+  roiSummary: (id: string, body: {
+    xmin: number; xmax: number; ymin: number; ymax: number;
+    annotation: string; genes: string[];
+  }) => request<{
+    dataset_id: string;
+    n_units: number;
+    fraction_of_tissue: number;
+    composition: Array<{ population: string; n_units: number; fraction: number }>;
+    expression: Array<{ gene: string; mean_expression: number }>;
+    warnings: string[];
+  }>("/api/v2/datasets/" + encodeURIComponent(id) + "/roi/summary", {
+    method: "POST", body: JSON.stringify(body),
+  }),
+  qc: (id: string) => request<{
+    dataset_id: string;
+    n_observations: number;
+    n_genes: number;
+    matrix_is_integer_counts: boolean;
+    measurement_label: string;
+    warnings: string[];
+  }>("/api/v2/datasets/" + encodeURIComponent(id) + "/qc"),
   compare: (body: ComparisonRequest) =>
     request<ComparisonResult>("/api/v2/comparisons/preview", {
       method: "POST",

@@ -46,7 +46,7 @@ def test_unmatched_labels_not_falsely_corresponded():
 def test_no_shared_genes_rejected():
     a, b = make_sample(), make_sample()
     b.var_names = ["OTHER1", "OTHER2"]
-    with pytest.raises(ValueError, match="common gene"):
+    with pytest.raises(ValueError, match="gene identifiers"):
         compare_samples(a, b)
 
 

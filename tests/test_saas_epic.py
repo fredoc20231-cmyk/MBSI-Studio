@@ -7,7 +7,7 @@ import pytest
 def test_module_registry():
     from app.components.module_registry import MODULES, MODULE_KEYS, get_module, resolve_module, SECTION_ORDER
 
-    assert len(MODULES) == 16
+    assert len(MODULES) == 17
     assert len(SECTION_ORDER) == 4
     assert "discovery" in MODULE_KEYS
     assert "study_data" in MODULE_KEYS

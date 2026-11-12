@@ -17,6 +17,7 @@ import streamlit as st
 
 from mbsi.comparative import compare_samples, spatial_coordinates
 from mbsi.comparative.neighborhoods import neighborhood_matrix
+from mbsi.comparative.cluster_matching import cluster_similarity
 
 
 @st.cache_data(show_spinner=False, max_entries=6)
@@ -180,7 +181,7 @@ def render():
     for warning in result["warnings"]:
         st.caption("⚠ " + warning)
 
-    tabs = st.tabs(["Tissue maps", "Populations", "Gene expression", "Neighborhoods", "Export"])
+    tabs = st.tabs(["Tissue maps", "Populations", "Cluster similarity", "Gene expression", "Neighborhoods", "Export"])
     with tabs[0]:
         map_a, map_b = st.columns(2)
         with map_a:
@@ -202,6 +203,19 @@ def render():
                                barmode="group", title="Annotated population fractions"),
                         use_container_width=True)
     with tabs[2]:
+        st.caption("Candidate cluster correspondence based on normalized mean expression "
+                   "profiles of selected genes. It is NOT validated cell-type matching.")
+        try:
+            matrix = cluster_similarity(left, right, label_a, label_b, genes)
+            st.dataframe(matrix, use_container_width=True)
+            st.plotly_chart(px.imshow(matrix, aspect="auto", zmin=-1, zmax=1,
+                                      color_continuous_scale="RdBu_r",
+                                      color_continuous_midpoint=0,
+                                      title="Cross-tissue cluster signature similarity"),
+                            use_container_width=True)
+        except Exception as exc:
+            st.warning(f"Cluster-similarity analysis unavailable: {exc}")
+    with tabs[3]:
         expr = result["expression"]
         if expr.empty:
             st.warning("No matching annotation labels between samples; expression matching is unavailable.")
@@ -222,7 +236,7 @@ def render():
                                 color_continuous_scale="RdBu_r",
                                 color_continuous_midpoint=0)
                 st.plotly_chart(fig, use_container_width=True)
-    with tabs[3]:
+    with tabs[4]:
         st.caption("Observed neighborhood fractions, not statistical enrichment.")
         k = st.slider("Number of spatial neighbors", min_value=1, max_value=12,
                       value=6, key="cmp_neighborhood_k")
@@ -241,7 +255,7 @@ def render():
                     )
                 except Exception as exc:
                     st.info(f"{title} neighborhood analysis unavailable: {exc}")
-    with tabs[4]:
+    with tabs[5]:
         st.download_button("Download population comparison CSV",
             result["composition"].to_csv(index=False).encode("utf-8"),
             file_name="mbsi_population_comparison.csv", mime="text/csv")

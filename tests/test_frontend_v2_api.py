@@ -90,3 +90,20 @@ def test_visium_qc_contract(api):
     assert data["n_observations"] == 4
     assert data["matrix_is_integer_counts"] is True
     assert data["detected_features_per_observation"]["median"] == 2
+
+
+@pytest.mark.unit
+def test_roi_real_data_summaries(api):
+    response = api.post("/api/v2/datasets/a/roi/summary", json={
+        "xmin": -1, "xmax": 2, "ymin": -1, "ymax": 3,
+        "annotation": "cell_type", "genes": ["EPCAM", "CD3D"]
+    })
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["n_units"] == 2
+    assert data["composition"][0]["population"] == "epithelial"
+    assert data["expression"][0]["mean_expression"] == pytest.approx(3.5)
+    assert api.post("/api/v2/datasets/a/roi/summary", json={
+        "xmin": 2, "xmax": 1, "ymin": 1, "ymax": 2,
+        "annotation": "cell_type", "genes": ["EPCAM"]
+    }).status_code == 422

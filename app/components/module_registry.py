@@ -31,6 +31,12 @@ NAV_MODULES: List[Dict[str, Any]] = [
         "description": "Spatial feature, quilt, cluster maps, UMAP/PCA, violin/dot/heatmap",
     },
     {
+        "key": "comparative_spatial",
+        "label": "Tissue Comparison",
+        "icon": "🔀",
+        "description": "Interactive cross-sample spatial gene expression and population comparison",
+    },
+    {
         "key": "reconstruction",
         "label": "Reconstruction",
         "icon": "🧩",
@@ -145,6 +151,14 @@ MODULES: List[Dict[str, Any]] = [
         "icon": "🌊",
         "section": "Core Spatial Analysis",
         "description": "Domain-centered, tumor-margin, boundary distance, ligand diffusion",
+        "show_drawer": False,
+    },
+    {
+        "key": "comparative_spatial",
+        "label": "Tissue Comparison",
+        "icon": "🔀",
+        "section": "Core Spatial Analysis",
+        "description": "Two-tissue H5AD comparisons, spatial maps and exports",
         "show_drawer": False,
     },
     # MBSI Intelligence

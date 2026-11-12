@@ -11,6 +11,7 @@ from fastapi import FastAPI, File, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from mbsi.api import handlers
+from mbsi.api.frontend_v2 import router as frontend_v2_router
 from mbsi.api.contracts import (
     DatasetInspectRequest,
     DatasetUploadRequest,
@@ -132,6 +133,7 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
     async def api_report_generate(body: ReportGenerateRequest):
         return handlers.generate_report(body)
 
+    app.include_router(frontend_v2_router)
     return app
 
 

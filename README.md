@@ -14,6 +14,33 @@ Full workflow guide: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 
 **Coming later (research / experimental):** CosMx, MERFISH, Stereo-seq, digital twin simulation, causal inference APIs, and other advanced modules. See [docs/RESEARCH_MODULES.md](docs/RESEARCH_MODULES.md).
 
+## MBSI Studio 2.0 — Lovable frontend integration (preview)
+
+A new React/Lovable integration package is available in
+[frontend/lovable/](frontend/lovable/README.md).
+Use the [Master Build Prompt](frontend/lovable/MASTER_PROMPT.md)
+and [typed client](frontend/lovable/mbsi-api.ts) to build a functional
+frontend against the real FastAPI scientific backend.
+
+The current `/api/v2` routes provide:
+
+- `GET /api/v2/capabilities` — accurate implementation status
+- `GET /api/v2/datasets/{id}/summary` — real dataset metadata
+- `GET /api/v2/datasets/{id}/qc` — raw-vs-normalized QC summaries
+- `GET /api/v2/datasets/{id}/genes` — bounded gene search
+- `GET /api/v2/datasets/{id}/spatial-points` — bounded spatial overlays
+- `POST /api/v2/comparisons/preview` — descriptive cross-tissue comparisons
+
+Read [docs/COMPARATIVE_TESTING.md](docs/COMPARATIVE_TESTING.md) to test
+the existing Streamlit interface. Visium HD segmented data, spatial tile
+serving, and replicate-aware inferential analysis remain future milestones,
+not completed production capabilities.
+
+**Safety:** this API currently has no authentication and is suitable only
+for controlled local development. Do not expose human research data over
+the public internet until appropriate authentication, access control,
+security and institutional review have been implemented.
+
 ## Quick start (local)
 
 ```bash

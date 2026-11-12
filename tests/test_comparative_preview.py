@@ -7,6 +7,7 @@ from anndata import AnnData
 
 from mbsi.comparative import compare_samples, spatial_coordinates
 from mbsi.comparative.neighborhoods import neighborhood_matrix
+from mbsi.comparative.cluster_matching import cluster_similarity
 
 
 def make_sample(means=(2, 4), annotations=("T", "T", "B", "B")):
@@ -70,3 +71,12 @@ def test_missing_spatial_coordinates_rejected():
 def test_no_missing_count_layers_silently_selected():
     with pytest.raises(ValueError, match="Layer"):
         compare_samples(make_sample(), make_sample(), layer="counts")
+
+
+@pytest.mark.unit
+def test_cross_tissue_cluster_similarity():
+    a, b = make_sample(), make_sample(means=(3, 8))
+    matrix = cluster_similarity(a, b, "cell_type", "cell_type", ["CD3D", "MS4A1"])
+    assert matrix.shape == (2, 2)
+    assert np.isfinite(matrix.to_numpy()).all()
+    assert ((matrix >= -1) & (matrix <= 1)).all().all()

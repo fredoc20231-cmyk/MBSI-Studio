@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from app.components.page_header import render_page_header
+from app.components.developer_mode import is_developer_mode
 from app.workspaces._study_setup_core import (
     ANALYSIS_ROWS,
     SAMPLE_COLUMNS,

@@ -17,6 +17,7 @@ from mbsi.api import handlers
 from mbsi.comparative import compare_samples, spatial_coordinates
 from mbsi.comparative.cluster_matching import cluster_similarity
 from mbsi.analysis.visium_explorer import spatial_qc_summary
+from mbsi.comparative.roi import roi_summary
 
 router = APIRouter(prefix="/api/v2", tags=["MBSI Studio frontend"])
 
@@ -41,6 +42,15 @@ def _annotations(adata):
             or is_string_dtype(adata.obs[k]))
         and 1 <= adata.obs[k].nunique() <= 100
     ]
+
+
+class ROIRequest(BaseModel):
+    xmin: float
+    xmax: float
+    ymin: float
+    ymax: float
+    annotation: str = Field(min_length=1, max_length=128)
+    genes: list[str] = Field(min_length=1, max_length=100)
 
 
 class ComparisonRequest(BaseModel):
@@ -151,6 +161,19 @@ def spatial_points(
         "coordinate_units": "source_dataset_units_unverified",
         "points": points,
     }
+
+
+@router.post("/datasets/{dataset_id}/roi/summary")
+def roi_preview(dataset_id: str, request: ROIRequest):
+    a = _get(dataset_id)
+    try:
+        return {"dataset_id": dataset_id, **roi_summary(
+            a, xmin=request.xmin, xmax=request.xmax,
+            ymin=request.ymin, ymax=request.ymax,
+            annotation=request.annotation, genes=request.genes,
+        )}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/comparisons/preview")

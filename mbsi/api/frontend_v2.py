@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from mbsi.api import handlers
 from mbsi.comparative import compare_samples, spatial_coordinates
 from mbsi.comparative.cluster_matching import cluster_similarity
+from mbsi.analysis.visium_explorer import spatial_qc_summary
 
 router = APIRouter(prefix="/api/v2", tags=["MBSI Studio frontend"])
 
@@ -89,6 +90,14 @@ def dataset_summary(dataset_id: str):
         "platform": str(a.uns.get("mbsi_platform", "unknown")),
         "expression_space": "adata.X; verify matching normalization across samples",
     }
+
+
+@router.get("/datasets/{dataset_id}/qc")
+def dataset_qc(dataset_id: str):
+    try:
+        return {"dataset_id": dataset_id, **spatial_qc_summary(_get(dataset_id))}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/datasets/{dataset_id}/genes")

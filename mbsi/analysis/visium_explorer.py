@@ -36,7 +36,10 @@ def spatial_qc_summary(adata) -> dict:
         "assay": str(adata.uns.get("mbsi_platform", "unspecified")),
         "matrix_source": "layers.counts" if layer else "X",
         "matrix_is_integer_counts": is_raw_counts,
-        "measurement_label": "counts" if is_raw_counts else "expression_units",
+        "raw_counts_declared": layer is not None,
+        "measurement_label": ("declared_raw_counts" if layer else
+                              "integer_like_X_unverified" if is_raw_counts else
+                              "expression_units"),
         "detected_features_per_observation": {
             "median": float(np.median(n_detected)),
             "q25": float(np.quantile(n_detected, 0.25)),
@@ -52,6 +55,8 @@ def spatial_qc_summary(adata) -> dict:
     if "in_tissue" in adata.obs:
         values = adata.obs["in_tissue"].fillna(False).astype(bool)
         result["in_tissue_fraction"] = float(values.mean())
+    if layer is None:
+        result["warnings"].append("Raw count provenance for adata.X is unverified even if values are integers.")
     if not is_raw_counts:
         result["warnings"].append(
             "Matrix is not raw integer counts; totals are expression-scale sums, not UMI counts."

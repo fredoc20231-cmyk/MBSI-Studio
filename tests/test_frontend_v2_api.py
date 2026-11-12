@@ -32,7 +32,7 @@ def samples(monkeypatch):
 
 @pytest.mark.unit
 def test_v2_routes_in_app():
-    paths = {route.path for route in create_app().routes}
+    paths = {route.path for route in create_app().routes if hasattr(route, 'path')}
     assert "/api/v2/capabilities" in paths
     assert "/api/v2/datasets/{dataset_id}/summary" in paths
     assert "/api/v2/datasets/{dataset_id}/roi/summary" in paths

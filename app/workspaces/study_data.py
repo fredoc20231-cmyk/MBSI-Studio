@@ -8,6 +8,8 @@ import pandas as pd
 import streamlit as st
 
 from app.components.page_header import render_page_header
+from app.components.developer_mode import is_developer_mode
+from app.components.spatialge_panel import render_spatialge_panel
 from app.workspaces._study_setup_core import (
     ANALYSIS_ROWS,
     SAMPLE_COLUMNS,
@@ -152,6 +154,7 @@ def render() -> None:
     _render_summary_card(recommended, compatibility_df, _uploaded_file_summary())
 
     _render_start_analysis_button(tech_key)
+    render_spatialge_panel()
 
     if st.button("Continue to QC & Transformation", key="sd_continue_qc"):
         st.session_state.active_module = WorkflowModule.QC_TRANSFORMATION.value

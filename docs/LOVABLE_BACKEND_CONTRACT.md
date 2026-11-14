@@ -102,3 +102,54 @@ accessible keyboard navigation, responsive layout and clear provenance.
 environment but should never advertise results as computed until the API
 returns real observed outputs. Backend and frontend changes enter main
 through separate PRs with contract and integration tests.
+
+
+## Lovable PR #9 / #10 integration update (November 2026)
+
+Lovable is developing `frontend/` on `frontend/mbsi-studio-initial` and
+`frontend/reference-interface`. Do not replace their components or overwrite
+their branches. The backend now provides:
+
+- `GET /api/v1/datasets?project_id=...` → `{datasets: [{dataset_id,
+  sample_id, project_id, platform, readiness, summary, has_spatial_data}]}`
+- `GET /api/v1/datasets/{dataset_id}/features?query=CD8A&limit=50` →
+  `{dataset_id, genes, annotations, total_genes}`
+- `GET /api/v1/datasets/{dataset_id}/spatial?gene=CD8A&limit=5000` →
+  `{dataset_id, feature, categorical, source_layer, total_observations,
+  returned_observations, downsampled, coordinate_system, points}`
+- `GET /api/v1/datasets/{dataset_id}/spatial?annotation=cluster&limit=5000`
+  → the same envelope with string category values.
+
+Each point is `{barcode, x, y, value}`. This is an *observed* sampled
+scatter, not a histology image. Values come from AnnData.X without
+automatic normalization. Display coordinates are source `obsm["spatial"]`
+and may not be directly aligned across samples.
+
+**Frontend integration actions:**
+
+1. Replace the hardcoded `queryFn: () => []` in
+   `frontend/src/components/mbsi/Workspace.tsx` with an API call to
+   `GET /api/v1/datasets`, and share the returned list across Explore,
+   Compare and the sample selector. Do not show uploaded datasets only in
+   browser session memory.
+2. In `frontend/src/routes/index.tsx`, request `features` after
+   selecting a dataset, then `spatial` after selecting a gene/annotation.
+   Render returned points in the white viewer. Show an explicit unavailable
+   state for unsupported tabs rather than invented cluster/niche results.
+3. After upload, invalidate the dataset-list query and select the returned
+   dataset ID. Surface readiness warnings.
+4. Retain backend-returned provenance: feature, source_layer, downsampled,
+   total_observations and coordinate_system. Do not imply that display
+   downsampling is an analysis subset.
+5. Use `VITE_MBSI_API_URL` for the deployed HTTPS backend URL. Never point
+   a hosted Lovable preview at `localhost:8000` (that refers to the
+   preview visitor's machine).
+6. Keep API methods in `frontend/src/lib/mbsi-api.ts`. Add integration
+   tests against OpenAPI and a locally running FastAPI service.
+7. Do not expose a hosted deployment with restricted human data before
+   authentication and per-project authorization are implemented.
+
+Current limitation: `/api/workflow/run` executes synchronously and the
+server stores run state in-process; frontend polling is not a reliable
+distributed-job implementation yet. A persistent queue is a future backend
+milestone.

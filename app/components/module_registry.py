@@ -25,6 +25,12 @@ NAV_MODULES: List[Dict[str, Any]] = [
         "description": "Tissue/cell segmentation and image registration",
     },
     {
+        "key": "spatial_browser",
+        "label": "Explore · Spatial Browser",
+        "icon": "🗺️",
+        "description": "Linked tissue maps, genes, regions and multi-sample comparison",
+    },
+    {
         "key": "spatial_analysis",
         "label": "Spatial Analysis",
         "icon": "🗺️",
@@ -91,6 +97,14 @@ MODULES: List[Dict[str, Any]] = [
         "show_drawer": False,
     },
     # Core Spatial Analysis
+    {
+        "key": "spatial_browser",
+        "label": "Explore · Spatial Browser",
+        "icon": "🗺️",
+        "section": "Core Spatial Analysis",
+        "description": "White interactive spatial browser with linked sample comparisons",
+        "show_drawer": False,
+    },
     {
         "key": "visualization",
         "label": "Visualization",

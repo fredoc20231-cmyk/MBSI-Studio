@@ -36,9 +36,15 @@ def test_export_two_real_samples_and_orientation(tmp_path):
         "tumor": ObservedSample([[1, 0], [3, 2]], sparse_input=True),
         "control": ObservedSample([[2, 1], [0, 4]])
     }
-    path = prepare_spatialge_inputs(samples, tmp_path / "bridge")
+    path = prepare_spatialge_inputs(samples, tmp_path / "bridge",
+        sample_metadata={"tumor": {"condition": "Case", "batch_id": "B1"},
+                         "control": {"condition": "Control", "batch_id": "B2"}})
     manifest = json.loads(path.read_text())
     assert [row["original_id"] for row in manifest["samples"]] == ["tumor", "control"]
+    meta = pd.read_csv(path.parent / "samples.csv")
+    assert meta["condition"].tolist() == ["Case", "Control"]
+    assert meta["batch_id"].tolist() == ["B1", "B2"]
+    assert "patient_id" not in meta.columns
     with (path.parent / "MB000001_counts.tsv").open() as f:
         rows = list(csv.reader(f, delimiter="\t"))
     assert rows == [["gene", "spot_0", "spot_1"], ["TP53", "1", "3"], ["CD3D", "0", "2"]]

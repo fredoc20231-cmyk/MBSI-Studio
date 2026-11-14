@@ -22,6 +22,7 @@ class ObservedSample:
         self.n_obs, self.n_vars = x.shape
         self.var_names = pd.Index(genes)
         self.obs_names = pd.Index(f"spot_{i}" for i in range(self.n_obs))
+        self.obs = pd.DataFrame({"cluster": ["C1"] * self.n_obs}, index=self.obs_names)
         self.obsm = {}
         if coords:
             self.obsm["spatial"] = np.column_stack(
@@ -45,6 +46,10 @@ def test_export_two_real_samples_and_orientation(tmp_path):
         coords = list(csv.reader(f, delimiter="\t"))
     assert coords[0] == ["libname", "ypos", "xpos"]
     assert coords[1] == ["spot_0", "7.0", "0.0"]
+    assert manifest["samples"][0]["annotations"] == "MB000001_annotations.tsv"
+    with (path.parent / "MB000001_annotations.tsv").open() as f:
+        labels = list(csv.reader(f, delimiter="\t"))
+    assert labels == [["libname", "cluster"], ["spot_0", "C1"], ["spot_1", "C1"]]
 
 
 def test_rejects_noncounts_missing_coords_and_overlarge_export(tmp_path):

@@ -126,9 +126,20 @@ def render_spatialge_panel() -> None:
                 if not samples:
                     raise ValueError("Upload and ingest real spatial samples first")
                 destination = Path("data/outputs/spatialge") / uuid4().hex
+                sample_table = st.session_state.get("sample_metadata")
+                rows = (
+                    sample_table.to_dict("records")
+                    if hasattr(sample_table, "to_dict")
+                    else sample_table if isinstance(sample_table, list) else []
+                )
+                sample_meta = {
+                    str(row["sample_id"]): row for row in rows
+                    if isinstance(row, dict) and row.get("sample_id")
+                }
                 with st.spinner("Running upstream spatialGE in R..."):
                     manifest = prepare_spatialge_inputs(
                         samples, destination, max_export_elements=int(limit),
+                        sample_metadata=sample_meta,
                     )
                     summary = run_spatialge(manifest, operations)
                 st.session_state["spatialge_last_run"] = {

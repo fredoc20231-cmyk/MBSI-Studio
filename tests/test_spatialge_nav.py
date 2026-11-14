@@ -1,4 +1,4 @@
-"""Tests for 16-module spatialGE navigation."""
+"""Tests for expanded spatialGE navigation."""
 
 from app.components.module_registry import (
     LEGACY_MODULE_ALIASES,
@@ -11,8 +11,8 @@ from app.components.module_registry import (
 
 
 def test_sixteen_modules():
-    assert len(MODULES) == 16
-    assert len(MODULE_KEYS) == 16
+    assert len(MODULES) == 17
+    assert len(MODULE_KEYS) == 17
 
 
 def test_four_sections():
@@ -26,7 +26,7 @@ def test_section_counts():
     for m in MODULES:
         grouped.setdefault(m["section"], []).append(m["key"])
     assert len(grouped["Setup"]) == 2
-    assert len(grouped["Core Spatial Analysis"]) == 7
+    assert len(grouped["Core Spatial Analysis"]) == 8
     assert len(grouped["MBSI Intelligence"]) == 5
     assert len(grouped["Export"]) == 2
 

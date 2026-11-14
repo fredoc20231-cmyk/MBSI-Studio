@@ -53,6 +53,7 @@ def prepare_spatialge_inputs(
     output_dir: str | Path,
     *,
     max_export_elements: int = DEFAULT_MAX_EXPORT_ELEMENTS,
+    annotation_columns: Sequence[str] = ("cluster", "leiden", "cell_type", "domain"),
 ) -> Path:
     """Export valid raw AnnData samples to spatialGE's documented TSV interface.
 
@@ -105,11 +106,31 @@ def prepare_spatialge_inputs(
             writer.writerow(["libname", "ypos", "xpos"])
             for observation, (x, y) in zip(sample.obs_names, coords):
                 writer.writerow([str(observation), float(y), float(x)])
+        # Only selected, fully observed spot-level labels are passed to R.
+        # Patient IDs and free-text metadata are never exported implicitly.
+        valid_columns = [
+            name for name in annotation_columns
+            if name in sample.obs.columns
+            and name.isidentifier()
+            and name != "libname"
+            and not sample.obs[name].isna().any()
+        ]
+        annotation_file = None
+        if valid_columns:
+            annotation_file = alias + "_annotations.tsv"
+            with (out / annotation_file).open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\\t")
+                writer.writerow(["libname", *valid_columns])
+                for j, observation in enumerate(sample.obs_names):
+                    writer.writerow(
+                        [str(observation), *[str(sample.obs.iloc[j][name]) for name in valid_columns]]
+                    )
         sample_metadata.append({"sample_id": alias, "original_sample_id": sample_id})
         manifest["samples"].append({
             "alias": alias, "original_id": sample_id,
             "counts": counts_file, "coordinates": coords_file,
-            "n_observations": sample.n_obs, "n_genes": sample.n_vars
+            "n_observations": sample.n_obs, "n_genes": sample.n_vars,
+            "annotations": annotation_file
         })
     with (out / "samples.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=["sample_id", "original_sample_id"])

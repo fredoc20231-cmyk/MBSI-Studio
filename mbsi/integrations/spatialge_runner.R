@@ -30,6 +30,27 @@ st <- spatialGE::STlist(rnacounts = unname(counts), spotcoords = unname(coords),
                         samples = metadata, cores = 1L, verbose = FALSE)
 if (length(st@counts) != length(sample_names))
   stop("STlist did not ingest all requested samples")
+# Preserve pre-existing tissue-domain/cell-type labels from MBSI obs metadata.
+# Align strictly by spot barcode; never assume that upstream retained row order.
+for (sample in manifest$samples) {
+  if (is.null(sample$annotations)) next
+  path <- file.path(root, sample$annotations)
+  if (!file.exists(path)) stop("Missing per-sample annotations file")
+  labels <- utils::read.delim(path, check.names = FALSE,
+                               stringsAsFactors = FALSE)
+  if (!("libname" %in% names(labels)) || anyDuplicated(labels$libname))
+    stop("Invalid annotation barcodes")
+  tissue <- st@spatial_meta[[sample$alias]]
+  if (is.null(tissue)) stop("Sample alias missing from STlist")
+  ix <- match(tissue$libname, labels$libname)
+  if (anyNA(ix)) stop("Annotations are not aligned to all STlist barcodes")
+  for (key in setdiff(names(labels), "libname")) {
+    if (key %in% names(tissue))
+      stop(paste("Annotation would overwrite spatialGE column:", key))
+    tissue[[key]] <- labels[[key]][ix]
+  }
+  st@spatial_meta[[sample$alias]] <- tissue
+}
 allowed <- c(
   "transform_data", "filter_data", "STclust", "SThet", "compare_SThet",
   "STenrich", "STgradient", "STdiff", "STniche", "plot_stniche", "STplot",

@@ -50,3 +50,27 @@ def test_shared_genes_only():
 def test_requires_two_samples():
     with pytest.raises(ValueError, match="two samples"):
         combine_visium_samples({"only": sample([[1]], genes=("A",))})
+
+
+def test_pseudobulk_sums_raw_counts_by_sample():
+    from mbsi.analysis.visium_comparison import pseudobulk_counts
+    merged = combine_visium_samples({
+        "a": sample([[1, 2], [3, 4]]),
+        "b": sample([[5, 6]]),
+    })
+    bulk, metadata = pseudobulk_counts(merged)
+    assert bulk.n_obs == 2
+    assert bulk.n_vars == 2
+    assert metadata.set_index("sample_id").loc["a", "n_spots"] == 2
+    totals = {sid: int(bulk.X[i].sum()) for i, sid in enumerate(bulk.obs["sample_id"])}
+    assert totals == {"a": 10, "b": 11}
+
+
+def test_pseudobulk_requires_raw_counts_and_complete_metadata():
+    from mbsi.analysis.visium_comparison import pseudobulk_counts
+    a = sample([[1, 2]])
+    with pytest.raises(ValueError, match="Raw counts"):
+        pseudobulk_counts(a)
+    a.layers["counts"] = a.X.copy()
+    with pytest.raises(ValueError, match="Missing metadata"):
+        pseudobulk_counts(a, group_keys=("patient_id",))

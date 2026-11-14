@@ -136,10 +136,18 @@ def render() -> None:
     main, compare, info = st.columns([4.6, 3.4, 2.0], gap="small")
     with main:
         st.markdown("**Spatial tissue map**")
-        event = st.plotly_chart(_figure(primary, selected=st.session_state.get("browser_selected_barcodes"),
-                                        height=540), use_container_width=True,
-                                key="browser_main_plot", on_select="rerun",
-                                selection_mode=("points", "lasso", "box"))
+        main_figure = _figure(primary, selected=st.session_state.get("browser_selected_barcodes"),
+                              height=540)
+        try:
+            event = st.plotly_chart(main_figure, use_container_width=True,
+                                    key="browser_main_plot", on_select="rerun",
+                                    selection_mode=("points", "lasso", "box"))
+        except TypeError:
+            # Streamlit 1.28-1.34 predates Plotly selection events.
+            st.plotly_chart(main_figure, use_container_width=True,
+                            key="browser_main_plot_legacy")
+            st.caption("Update Streamlit to >=1.35 for interactive lasso selection.")
+            event = None
         new_selection = _selected_barcodes(event)
         if new_selection:
             st.session_state["browser_selected_barcodes"] = new_selection

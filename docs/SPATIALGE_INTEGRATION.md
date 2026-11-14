@@ -87,7 +87,7 @@ print(result["status"], result["version"])
 - Input uses **real nonnegative integer raw counts**, genes x observations and
   finite x/y coordinates in `obsm["spatial"]`. If a validated `counts`
   layer exists, it is preferred over `X`.
-- Each sample has a separate counts/coordinates file; a stable generated
+- Existing nonmissing spot-level `cluster`, `leiden`, `cell_type`, or `domain` labels are exported into a separate TSV and strictly matched by observation barcode; no patient identifiers are exported by default. Custom STdiff/STgradient calls can reference these labels via their `annot` parameter.\n- Each sample has a separate counts/coordinates file; a stable generated
   `MB000001` alias prevents sample-name substring collisions in upstream
   file parsing. The manifest records original identifiers.
 - This first bridge uses spatialGE's documented **tabular count interface**

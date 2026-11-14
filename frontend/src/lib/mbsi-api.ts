@@ -18,26 +18,78 @@ export type EmbeddingRequest = {
   metadata?: Record<string, Record<string, string>>;
   method: "pca" | "tsne";
 };
-export type EmbeddingPoint = { image_id: string; x: number; y: number; platform?: string; sample_id?: string; [k: string]: unknown };
+export type EmbeddingPoint = {
+  image_id: string;
+  x: number;
+  y: number;
+  platform?: string;
+  sample_id?: string;
+  [k: string]: unknown;
+};
 export type EmbeddingResponse = { status: string; source: string; coordinates: EmbeddingPoint[] };
+
+export type DatasetUploadResponse = {
+  dataset_id: string;
+  adata_path: string;
+  platform: string;
+  technology_profile: Record<string, unknown>;
+  readiness: Record<string, unknown>;
+  compatibility: Record<string, unknown>;
+  warnings: string[];
+  summary: Record<string, unknown>;
+};
+
+export type WorkflowRunRequest = {
+  project_id?: string;
+  dataset_id: string;
+  module: string;
+  params: Record<string, unknown>;
+  allow_demo: false;
+};
+
+export type WorkflowRunResponse = {
+  run_id: string;
+  status: string;
+  module: string;
+  outputs: Record<string, unknown>;
+  warnings: string[];
+};
+
+export type ResultsListResponse = {
+  dataset_id: string;
+  results: Record<string, unknown>[];
+};
 
 export const mbsi = {
   health: () => req<Record<string, unknown>>("/api/health"),
   technologies: () => req<unknown>("/api/technologies"),
-  readiness: () => req<unknown>("/api/dataset/readiness"),
-  results: () => req<unknown>("/api/results/list"),
+  readiness: (datasetId: string) =>
+    req<unknown>(`/api/dataset/readiness?dataset_id=${encodeURIComponent(datasetId)}`),
+  results: (datasetId = "default") =>
+    req<ResultsListResponse>(`/api/results/list?dataset_id=${encodeURIComponent(datasetId)}`),
   findings: () => req<unknown>("/api/findings/list"),
   evidence: () => req<unknown>("/api/evidence/list"),
-  workflowStatus: (runId: string) => req<{ status?: string }>(`/api/workflow/status?run_id=${encodeURIComponent(runId)}`),
+  workflowStatus: (runId: string) =>
+    req<WorkflowRunResponse>(`/api/workflow/status?run_id=${encodeURIComponent(runId)}`),
+  runWorkflow: (body: WorkflowRunRequest) =>
+    req<WorkflowRunResponse>("/api/workflow/run", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   embedding: (body: EmbeddingRequest) =>
-    req<EmbeddingResponse>("/api/v1/imaging/embedding", { method: "POST", body: JSON.stringify(body) }),
+    req<EmbeddingResponse>("/api/v1/imaging/embedding", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   upload: (file: File, params: Record<string, string>) => {
     const fd = new FormData();
     fd.append("file", file);
     const q = new URLSearchParams(params).toString();
-    return fetch(`${API_URL}/api/dataset/upload?${q}`, { method: "POST", body: fd }).then(async (r) => {
-      if (!r.ok) throw new Error(`[${r.status}] ${await r.text()}`);
-      return r.json();
-    });
+    return fetch(`${API_URL}/api/dataset/upload?${q}`, { method: "POST", body: fd }).then(
+      async (r) => {
+        if (!r.ok) throw new Error(`[${r.status}] ${await r.text()}`);
+        return (await r.json()) as DatasetUploadResponse;
+      },
+    );
   },
 };

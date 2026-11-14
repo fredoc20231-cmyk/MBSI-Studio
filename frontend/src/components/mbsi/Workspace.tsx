@@ -37,7 +37,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { API_URL, mbsi } from "@/lib/mbsi-api";
+import { API_URL, mbsi, type DatasetUploadResponse } from "@/lib/mbsi-api";
 
 const NAV = [
   { to: "/", label: "Explore", icon: Map },
@@ -175,6 +175,13 @@ function StudySidebar({ gene, setGene }: { gene: string; setGene: (value: string
   const [view, setView] = useState("Expression");
   const [scale, setScale] = useState("Auto");
   const [spotSize, setSpotSize] = useState(55);
+  const datasetsQuery = useQuery<DatasetUploadResponse[]>({
+    queryKey: ["uploaded-datasets"],
+    queryFn: () => [],
+    initialData: [],
+    enabled: false,
+  });
+  const datasets = datasetsQuery.data;
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-card">
@@ -194,10 +201,26 @@ function StudySidebar({ gene, setGene }: { gene: string; setGene: (value: string
         </div>
       </SidebarSection>
 
-      <SidebarSection title="Samples (0)">
-        <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-          Uploaded samples will appear here.
-        </div>
+      <SidebarSection title={`Samples (${datasets.length})`}>
+        {datasets.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+            Uploaded samples will appear here.
+          </div>
+        ) : (
+          <div className="scrollbar-thin max-h-40 space-y-1 overflow-y-auto">
+            {datasets.map((dataset) => (
+              <div
+                key={dataset.dataset_id}
+                className="rounded-lg border border-border bg-panel-subtle/50 px-3 py-2"
+              >
+                <p className="truncate text-xs font-medium" title={dataset.dataset_id}>
+                  {dataset.dataset_id}
+                </p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">{dataset.platform}</p>
+              </div>
+            ))}
+          </div>
+        )}
         <UploadButton
           label="Add sample"
           variant="ghost"

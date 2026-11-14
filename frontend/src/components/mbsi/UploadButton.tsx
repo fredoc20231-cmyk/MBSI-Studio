@@ -3,18 +3,20 @@ import { LoaderCircle, Plus, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { mbsi } from "@/lib/mbsi-api";
+import { mbsi, type DatasetUploadResponse } from "@/lib/mbsi-api";
 
 export function UploadButton({
   label = "Upload dataset",
   variant = "default",
   className,
   sample = false,
+  onUploaded,
 }: {
   label?: string;
   variant?: ButtonProps["variant"];
   className?: string;
   sample?: boolean;
+  onUploaded?: (dataset: DatasetUploadResponse) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,8 +39,18 @@ export function UploadButton({
             setBusy(true);
             try {
               const result = await mbsi.upload(file, {});
+              queryClient.setQueryData<DatasetUploadResponse[]>(
+                ["uploaded-datasets"],
+                (current = []) => [
+                  ...current.filter((dataset) => dataset.dataset_id !== result.dataset_id),
+                  result,
+                ],
+              );
               queryClient.setQueryData(["last-upload"], result);
-              await queryClient.invalidateQueries();
+              onUploaded?.(result);
+              await queryClient.invalidateQueries({
+                predicate: (query) => query.queryKey[0] !== "uploaded-datasets",
+              });
               toast.success("Dataset uploaded", {
                 description: `${file.name} was accepted by the scientific backend.`,
               });

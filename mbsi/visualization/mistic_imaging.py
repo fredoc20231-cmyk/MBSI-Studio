@@ -55,6 +55,8 @@ def image_cohort_embedding(
     """
     values = _validate(image_ids, features)
     scaled = StandardScaler().fit_transform(values)
+    if method == "pca" and min(scaled.shape) < 2:
+        raise ValueError("PCA visualization requires at least two measured image features")
     if method == "pca":
         coords = PCA(n_components=2, random_state=random_state).fit_transform(scaled)
     elif method == "tsne":

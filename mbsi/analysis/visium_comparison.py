@@ -75,3 +75,51 @@ def compare_gene_expression(adata: ad.AnnData, gene: str) -> pd.DataFrame:
         n_spots=("counts", "size"), mean_counts=("counts", "mean"),
         median_counts=("counts", "median"),
         detection_fraction=("counts", lambda x: float((x > 0).mean()))).reset_index()
+
+
+def pseudobulk_counts(
+    adata: ad.AnnData,
+    *,
+    group_keys: tuple[str, ...] = ("sample_id",),
+    min_spots: int = 1,
+) -> tuple[ad.AnnData, pd.DataFrame]:
+    """Sum observed raw spot counts per biological unit, not per-spot pseudo-replicates.
+
+    Pass group_keys such as ("patient_id", "condition") for patient-level units.
+    This function produces aggregated counts only; it does not perform significance
+    testing or infer independence of tissue sections from the same patient.
+    """
+    if not group_keys or min_spots < 1:
+        raise ValueError("Specify group_keys and min_spots >= 1")
+    absent = [key for key in group_keys if key not in adata.obs]
+    if absent:
+        raise ValueError(f"Missing metadata columns: {absent}")
+    if "counts" not in adata.layers:
+        raise ValueError("Raw counts layer is required for pseudobulk")
+    x = adata.layers["counts"]
+    values = x.data if sparse.issparse(x) else np.asarray(x)
+    if not np.isfinite(values).all() or (values < 0).any() or not np.allclose(values, np.round(values)):
+        raise ValueError("Pseudobulk requires nonnegative integer raw counts")
+    metadata = adata.obs.loc[:, list(group_keys)]
+    if metadata.isna().any().any():
+        raise ValueError("Grouping metadata contains missing values")
+    grouped = metadata.groupby(list(group_keys), sort=True, observed=True, dropna=False).indices
+    matrices, records = [], []
+    for key, indices in grouped.items():
+        if len(indices) < min_spots:
+            continue
+        key_values = (key,) if len(group_keys) == 1 else tuple(key)
+        records.append({**dict(zip(group_keys, key_values)), "n_spots": len(indices)})
+        matrices.append(sparse.csr_matrix(x[indices].sum(axis=0)))
+    if not matrices:
+        raise ValueError("No groups satisfy min_spots")
+    obs = pd.DataFrame.from_records(records)
+    obs.index = pd.Index(["unit_" + str(i) for i in range(len(obs))], name="unit_id")
+    result = ad.AnnData(X=sparse.vstack(matrices, format="csr"), obs=obs,
+                        var=adata.var.copy())
+    result.layers["counts"] = result.X.copy()
+    result.uns["mbsi_pseudobulk"] = {
+        "group_keys": list(group_keys), "min_spots": min_spots,
+        "statistical_note": "Aggregated counts; no independence or differential-expression claim"
+    }
+    return result, obs.copy()

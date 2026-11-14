@@ -37,6 +37,7 @@ WORKSPACE_ROUTES = {
     "study_data": "app.workspaces.study_data",
     "qc_transformation": "app.workspaces.qc_transformation",
     "visualization": "app.workspaces.visualization",
+    "spatial_browser": "app.workspaces.spatial_browser",
     "spatial_variable_genes": "app.workspaces.spatial_variable_genes",
     "spatial_gene_sets": "app.workspaces.spatial_gene_sets",
     "spatial_domains": "app.workspaces.spatial_domains",

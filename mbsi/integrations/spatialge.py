@@ -119,7 +119,7 @@ def prepare_spatialge_inputs(
         if valid_columns:
             annotation_file = alias + "_annotations.tsv"
             with (out / annotation_file).open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.writer(handle, delimiter="\\t")
+                writer = csv.writer(handle, delimiter="\t")
                 writer.writerow(["libname", *valid_columns])
                 for j, observation in enumerate(sample.obs_names):
                     writer.writerow(

@@ -30,7 +30,6 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AnalysisDock } from "@/components/mbsi/AnalysisDock";
 import { UploadButton } from "@/components/mbsi/UploadButton";
-import { Slider } from "@/components/ui/slider";
 import {
   Sheet,
   SheetContent,
@@ -175,7 +174,7 @@ function SidebarSection({ title, children }: { title: string; children: ReactNod
 function StudySidebar({ gene, setGene }: { gene: string; setGene: (value: string) => void }) {
   const [view, setView] = useState("Expression");
   const [scale, setScale] = useState("Auto");
-  const [spotSize, setSpotSize] = useState([55]);
+  const [spotSize, setSpotSize] = useState(55);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-card">
@@ -291,15 +290,20 @@ function StudySidebar({ gene, setGene }: { gene: string; setGene: (value: string
           <div>
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>Spot size</span>
-              <span>{spotSize[0]}%</span>
+              <span>{spotSize}%</span>
             </div>
-            <Slider
+            <input
+              type="range"
               aria-label="Spot size"
               min={10}
               max={100}
               step={1}
               value={spotSize}
-              onValueChange={setSpotSize}
+              onChange={(event) => setSpotSize(Number(event.target.value))}
+              className="spot-size-slider"
+              style={{
+                background: `linear-gradient(to right, var(--primary) ${spotSize}%, var(--accent) ${spotSize}%)`,
+              }}
             />
           </div>
         </div>

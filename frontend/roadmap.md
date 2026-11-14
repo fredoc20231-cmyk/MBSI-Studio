@@ -6,6 +6,7 @@
 - [x] Apply the new visual system to Analyze, Compare, Integrate, Annotation, Imaging and Reports.
 - [x] Verify desktop and compact layouts, navigation and existing tests.
 - [x] Publish this frontend-only update to the existing repository through a separate pull request: https://github.com/fredoc20231-cmyk/MBSI-Studio/pull/10.
+- [x] Replace the crash-prone spot-size slider with an accessible native control; verify all pages, keyboard updates and reloads, then update the pull request.
 
 ## Repository integration
 

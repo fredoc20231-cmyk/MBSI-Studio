@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from mbsi.api import handlers
 from mbsi.api.imaging_routes import router as imaging_router
+from mbsi.api.spatial_routes import router as spatial_router
 from mbsi.api.contracts import (
     DatasetInspectRequest,
     DatasetUploadRequest,
@@ -42,6 +43,7 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
         lifespan=_lifespan,
     )
     app.include_router(imaging_router)
+    app.include_router(spatial_router)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_allow_origins(),

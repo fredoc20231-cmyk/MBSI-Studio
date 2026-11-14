@@ -9,7 +9,7 @@ from mbsi.analysis.visium_comparison import (
 
 
 def sample(counts, genes=("A", "B"), spatial=True):
-    a = ad.AnnData(X=csr_matrix(np.asarray(counts)), dtype=np.int64)
+    a = ad.AnnData(X=csr_matrix(np.asarray(counts)))
     a.var_names = list(genes)
     a.obs_names = [f"spot{i}" for i in range(a.n_obs)]
     if spatial:
@@ -69,6 +69,7 @@ def test_pseudobulk_sums_raw_counts_by_sample():
 def test_pseudobulk_requires_raw_counts_and_complete_metadata():
     from mbsi.analysis.visium_comparison import pseudobulk_counts
     a = sample([[1, 2]])
+    a.obs["sample_id"] = "s1"
     with pytest.raises(ValueError, match="Raw counts"):
         pseudobulk_counts(a)
     a.layers["counts"] = a.X.copy()

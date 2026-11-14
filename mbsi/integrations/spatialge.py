@@ -54,6 +54,7 @@ def prepare_spatialge_inputs(
     *,
     max_export_elements: int = DEFAULT_MAX_EXPORT_ELEMENTS,
     annotation_columns: Sequence[str] = ("cluster", "leiden", "cell_type", "domain"),
+    sample_metadata: Mapping[str, Mapping[str, object]] | None = None,
 ) -> Path:
     """Export valid raw AnnData samples to spatialGE's documented TSV interface.
 
@@ -85,7 +86,7 @@ def prepare_spatialge_inputs(
     out.mkdir(parents=True, exist_ok=True)
     manifest = {"format": "mbsi-spatialge-tsv-v1", "samples": [],
                 "source": "observed_raw_counts", "coordinate_unit": "as_supplied"}
-    sample_metadata = []
+    sample_metadata_rows = []
     for alias, sample_id, sample, matrix, coords in validated:
         counts_file = alias + "_counts.tsv"
         coords_file = alias + "_coords.tsv"
@@ -125,7 +126,14 @@ def prepare_spatialge_inputs(
                     writer.writerow(
                         [str(observation), *[str(sample.obs.iloc[j][name]) for name in valid_columns]]
                     )
-        sample_metadata.append({"sample_id": alias, "original_sample_id": sample_id})
+        # User-supplied nonidentifying sample-level attributes support plots
+        # comparing patients, conditions, timepoints and batches.
+        safe_fields = ("condition", "timepoint", "batch_id", "replicate_id", "tissue_region")
+        entered = (sample_metadata or {}).get(sample_id, {})
+        sample_metadata_rows.append({
+            "sample_id": alias, "original_sample_id": sample_id,
+            **{key: str(entered.get(key, "")) for key in safe_fields}
+        })
         manifest["samples"].append({
             "alias": alias, "original_id": sample_id,
             "counts": counts_file, "coordinates": coords_file,
@@ -133,9 +141,9 @@ def prepare_spatialge_inputs(
             "annotations": annotation_file
         })
     with (out / "samples.csv").open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["sample_id", "original_sample_id"])
+        writer = csv.DictWriter(handle, fieldnames=list(sample_metadata_rows[0]))
         writer.writeheader()
-        writer.writerows(sample_metadata)
+        writer.writerows(sample_metadata_rows)
     path = out / "manifest.json"
     path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return path

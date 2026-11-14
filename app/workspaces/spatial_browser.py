@@ -73,7 +73,16 @@ def _navigate(module: str) -> None:
 
 
 def render() -> None:
-    st.markdown('<div class="mbsi-browser-anchor"></div>', unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+      .stApp:has(.mbsi-browser-anchor) {background:#f8fafc !important;color:#1e293b}
+      .stApp:has(.mbsi-browser-anchor) .saas-app {--mbsi-bg:#f8fafc;--mbsi-surface:#fff;--mbsi-surface-alt:#f8fafc;--mbsi-text:#1e293b;--mbsi-muted:#64748b;--mbsi-border:#e2e8f0;--mbsi-accent:#6d28d9}
+      .stApp:has(.mbsi-browser-anchor) div[data-testid="stPlotlyChart"] {background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:5px}
+      .stApp:has(.mbsi-browser-anchor) div[data-testid="stTabs"] {background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+      .stApp:has(.mbsi-browser-anchor) .stButton>button[kind="primary"] {background:#6d28d9!important;border-color:#6d28d9!important;color:#fff!important}
+    </style>
+    <div class="mbsi-browser-anchor"></div>
+    """, unsafe_allow_html=True)
     st.markdown("### Explore · Spatial Browser")
     st.caption("Linked tissue maps and sample comparisons • observed data only")
     if st.session_state.get("using_synthetic_demo"):
@@ -120,6 +129,9 @@ def render() -> None:
         feature = mode
 
     selected_id = st.selectbox("Main tissue", selected_ids, key="browser_main_sample")
+    if st.session_state.get("browser_selection_sample") != selected_id:
+        st.session_state["browser_selected_barcodes"] = set()
+        st.session_state["browser_selection_sample"] = selected_id
     primary = adapter.view(selected_id, feature)
     main, compare, info = st.columns([4.6, 3.4, 2.0], gap="small")
     with main:

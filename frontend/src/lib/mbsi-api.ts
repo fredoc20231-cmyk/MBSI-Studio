@@ -1,15 +1,43 @@
 // Typed client for the MBSI FastAPI backend (single source of truth: mbsi.api.app:app).
 // Regenerate full types from <API>/openapi.json with openapi-typescript when available.
-export const API_URL: string =
-  (import.meta.env["VITE_MBSI_API_URL"] as string | undefined) ?? "http://localhost:8000";
+import { getApiUrl, isMbsiHealth } from "@/lib/mbsi-connection";
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
+export { getApiUrl } from "@/lib/mbsi-connection";
+
+async function responseJson<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`[${res.status}] ${await res.text()}`);
+  if (!res.headers.get("content-type")?.includes("application/json")) {
+    throw new Error("The service returned a web page instead of MBSI data. Check its address.");
+  }
   return res.json() as Promise<T>;
+}
+
+async function req<T>(path: string, init?: RequestInit, baseUrl = getApiUrl()): Promise<T> {
+  if (!baseUrl) {
+    throw new Error(
+      "No scientific service connected. Open Scientific backend to connect the running MBSI service.",
+    );
+  }
+  const headers = new Headers(init?.headers);
+  headers.set("Accept", "application/json");
+  // Do not send JSON headers on GETs or overwrite the multipart file boundary.
+  if (typeof init?.body === "string") headers.set("Content-Type", "application/json");
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, { ...init, headers });
+  } catch {
+    throw new Error(
+      "Cannot reach the MBSI service. Check that it is running and allows this app’s address.",
+    );
+  }
+  return responseJson<T>(res);
+}
+
+export async function checkMbsiConnection(baseUrl = getApiUrl()) {
+  const health = await req<unknown>("/api/health", { signal: AbortSignal.timeout(10000) }, baseUrl);
+  if (!isMbsiHealth(health))
+    throw new Error("This address did not return the repository’s MBSI health response.");
+  return health;
 }
 
 export type EmbeddingRequest = {
@@ -61,7 +89,7 @@ export type ResultsListResponse = {
 };
 
 export const mbsi = {
-  health: () => req<Record<string, unknown>>("/api/health"),
+  health: () => checkMbsiConnection(),
   technologies: () => req<unknown>("/api/technologies"),
   readiness: (datasetId: string) =>
     req<unknown>(`/api/dataset/readiness?dataset_id=${encodeURIComponent(datasetId)}`),
@@ -85,11 +113,9 @@ export const mbsi = {
     const fd = new FormData();
     fd.append("file", file);
     const q = new URLSearchParams(params).toString();
-    return fetch(`${API_URL}/api/dataset/upload?${q}`, { method: "POST", body: fd }).then(
-      async (r) => {
-        if (!r.ok) throw new Error(`[${r.status}] ${await r.text()}`);
-        return (await r.json()) as DatasetUploadResponse;
-      },
-    );
+    return req<DatasetUploadResponse>(`/api/dataset/upload${q ? `?${q}` : ""}`, {
+      method: "POST",
+      body: fd,
+    });
   },
 };

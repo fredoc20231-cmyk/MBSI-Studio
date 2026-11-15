@@ -23,8 +23,9 @@
 
 ## Repository integration
 
-- [ ] Inspect the repository's current API and deployment setup and wire the frontend to its existing backend.
-- [ ] Test the connection/upload contract and publish frontend-only connection changes through a new pull request.
+- [x] Inspect the repository's current API and deployment setup and wire every API request to a checked scientific service address.
+- [x] Test the connection/upload contract and unavailable-service UI on desktop and compact screens; live uploads remain blocked on the deployed HTTPS API address.
+- [x] Publish frontend-only connection changes through a separate pull request stacked on #10: https://github.com/fredoc20231-cmyk/MBSI-Studio/pull/11.
 - [x] Verify access to the existing MBSI-Studio repository and inspect its backend.
 - [x] Add the current frontend under frontend/ through a separate pull request: https://github.com/fredoc20231-cmyk/MBSI-Studio/pull/9 (open for review and merge).
 - [x] Verify frontend tests, all seven page openings, and that every original repository entry remains unchanged.

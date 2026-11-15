@@ -22,6 +22,7 @@ import {
   Search,
   Tag,
   UserRound,
+  Users,
   Workflow,
   X,
   type LucideIcon,
@@ -30,6 +31,7 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AnalysisDock } from "@/components/mbsi/AnalysisDock";
 import { UploadButton } from "@/components/mbsi/UploadButton";
+import { BackendConnection } from "@/components/mbsi/BackendConnection";
 import {
   Sheet,
   SheetContent,
@@ -37,10 +39,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { API_URL, mbsi, type DatasetUploadResponse } from "@/lib/mbsi-api";
+import { type DatasetUploadResponse } from "@/lib/mbsi-api";
 
 const NAV = [
   { to: "/", label: "Explore", icon: Map },
+  { to: "/samples", label: "Samples", icon: Users },
   { to: "/analyze", label: "Analyze", icon: BarChart3 },
   { to: "/compare", label: "Compare", icon: GitCompare },
   { to: "/integrate", label: "Integrate", icon: Workflow },
@@ -58,34 +61,6 @@ const VIEWS = [
   { label: "Trajectories", icon: Route },
   { label: "Spatial stats", icon: MoreHorizontal },
 ];
-
-function ApiStatus({ compact = false }: { compact?: boolean }) {
-  const query = useQuery({
-    queryKey: ["health"],
-    queryFn: mbsi.health,
-    retry: false,
-    refetchInterval: 30000,
-  });
-  const connected = query.isSuccess;
-  const label = query.isLoading
-    ? "Checking backend"
-    : connected
-      ? "Backend connected"
-      : "Backend unavailable";
-
-  return (
-    <div
-      className="flex items-center gap-2 text-xs text-muted-foreground"
-      title={`${label} · ${API_URL}`}
-    >
-      <span
-        className={`h-2 w-2 shrink-0 rounded-full ${connected ? "bg-success" : query.isLoading ? "bg-warning" : "bg-destructive"}`}
-        aria-hidden
-      />
-      {!compact && <span className="hidden 2xl:inline">{label}</span>}
-    </div>
-  );
-}
 
 export function EmptyState({
   title,
@@ -484,7 +459,7 @@ export function Workspace({
           })}
         </nav>
         <div className="ml-auto flex items-center gap-1 pl-2">
-          <ApiStatus compact />
+          <BackendConnection />
           <a
             href="https://github.com/fredoc20231-cmyk/MBSI-Studio"
             target="_blank"

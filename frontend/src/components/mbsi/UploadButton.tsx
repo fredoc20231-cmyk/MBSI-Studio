@@ -31,34 +31,57 @@ export function UploadButton({
         <input
           ref={inputRef}
           type="file"
+          multiple
           className="sr-only"
           disabled={busy}
           onChange={async (event) => {
-            const file = event.target.files?.[0];
-            if (!file) return;
+            const files = Array.from(event.target.files ?? []);
+            if (!files.length) return;
             setBusy(true);
-            try {
-              const result = await mbsi.upload(file, {});
-              queryClient.setQueryData<DatasetUploadResponse[]>(
-                ["uploaded-datasets"],
-                (current = []) => [
-                  ...current.filter((dataset) => dataset.dataset_id !== result.dataset_id),
-                  result,
-                ],
-              );
-              queryClient.setQueryData(["last-upload"], result);
-              onUploaded?.(result);
+            const uploaded: DatasetUploadResponse[] = [];
+            const failed: { name: string; reason: string }[] = [];
+            for (const file of files) {
+              try {
+                const result = await mbsi.upload(file, {});
+                uploaded.push(result);
+                queryClient.setQueryData<DatasetUploadResponse[]>(
+                  ["uploaded-datasets"],
+                  (current = []) => [
+                    ...current.filter((dataset) => dataset.dataset_id !== result.dataset_id),
+                    result,
+                  ],
+                );
+                queryClient.setQueryData(["last-upload"], result);
+                onUploaded?.(result);
+              } catch (error) {
+                failed.push({
+                  name: file.name,
+                  reason: error instanceof Error ? error.message : "Upload failed.",
+                });
+              }
+            }
+            setBusy(false);
+            if (inputRef.current) inputRef.current.value = "";
+            if (uploaded.length) {
               await queryClient.invalidateQueries({
                 predicate: (query) => query.queryKey[0] !== "uploaded-datasets",
               });
-              toast.success("Dataset uploaded", {
-                description: `${file.name} was accepted by the scientific backend.`,
+              toast.success(
+                uploaded.length === 1 ? "Dataset uploaded" : `${uploaded.length} datasets uploaded`,
+                {
+                  description:
+                    uploaded.length === 1
+                      ? "One dataset was accepted by the scientific backend."
+                      : failed.length
+                        ? `${failed.length} file(s) were not accepted: ${failed.map((file) => `${file.name}: ${file.reason}`).join("; ")}`
+                        : "All files were accepted by the scientific backend.",
+                },
+              );
+            }
+            if (failed.length && !uploaded.length) {
+              toast.error("Upload failed", {
+                description: failed.map((file) => `${file.name}: ${file.reason}`).join("; "),
               });
-            } catch (error) {
-              toast.error("Upload failed", { description: (error as Error).message });
-            } finally {
-              setBusy(false);
-              if (inputRef.current) inputRef.current.value = "";
             }
           }}
         />

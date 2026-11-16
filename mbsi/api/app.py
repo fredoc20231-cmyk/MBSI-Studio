@@ -57,6 +57,10 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
     async def api_technologies():
         return handlers.list_technologies()
 
+    @app.get("/api/capabilities")
+    async def api_capabilities():
+        return handlers.list_capabilities()
+
     @app.post("/api/project/create")
     async def api_project_create(body: ProjectCreateRequest):
         return handlers.create_project(body)

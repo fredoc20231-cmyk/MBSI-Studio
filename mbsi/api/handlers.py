@@ -332,6 +332,19 @@ def run_workflow(req: WorkflowRunRequest) -> WorkflowRunResponse:
             warnings.extend(record.warnings)
             run.status = record.status
             run.outputs = outputs
+        elif req.module.startswith("visium_"):
+            from mbsi.visium_core import MODULE_NAMES, run_visium_module
+
+            if req.module not in MODULE_NAMES:
+                raise ValueError(f"Unknown Visium module '{req.module}'")
+            result = run_visium_module(req.module, adata, params)
+            outputs = {**result.get("outputs", {}), "provenance": result.get("provenance")}
+            if result["status"] == "blocked":
+                outputs = {"blocked_reason": result["blocked_reason"], "requirement": result["requirement"], "provenance": result["provenance"]}
+                warnings.append(result["blocked_reason"])
+            run.status = result["status"]
+            run.outputs = to_json_serializable(outputs)
+            outputs = run.outputs
         else:
             run.status = "stub"
             warnings.append(f"Workflow module '{req.module}' handler is a stub — wire to mbsi.workflows")
@@ -475,3 +488,9 @@ def generate_report(req: ReportGenerateRequest) -> ReportGenerateResponse:
         report=payload,
         output_files=report.output_files,
     )
+
+
+def list_capabilities() -> Dict[str, Any]:
+    from mbsi.visium_core import capabilities
+
+    return {"modules": capabilities()}

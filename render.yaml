@@ -1,0 +1,21 @@
+# Render Blueprint: deploy the FastAPI backend separately from Lovable.
+# For a production deployment, provision authenticated storage and durable workers first.
+services:
+  - type: web
+    name: mbsi-studio-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONPATH
+        value: /app
+      - key: MBSI_CORS_ORIGINS
+        value: https://mbsi-studio.cronus.life
+    disk:
+      name: mbsi-data
+      mountPath: /app/data
+      sizeGB: 10

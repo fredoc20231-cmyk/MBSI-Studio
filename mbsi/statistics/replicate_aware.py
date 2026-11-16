@@ -42,21 +42,32 @@ def run_replicate_aware_tests(
                 adata.obs[col] = meta[col].values
 
     sample_key = "sample_id" if "sample_id" in adata.obs.columns else replicate_key
-    if sample_key not in adata.obs.columns:
-        warnings.append(f"Missing {sample_key} — falling back to spot-level condition DE.")
-        from mbsi.statistics.differential import run_condition_de
+    if sample_key not in adata.obs.columns or condition_key not in adata.obs.columns:
+        warnings.append("BLOCKED: biological sample identifiers and condition labels are required; spots are not replicates.")
+        return {"de_results": pd.DataFrame(), "de_table": pd.DataFrame(),
+                "method": "blocked", "status": "blocked",
+                "reason": "missing_biological_design", "warnings": warnings}
 
-        de = run_condition_de(adata, condition_key=condition_key)
-        return {"de_results": de, "method": "spot_level", "warnings": warnings}
+    design = adata.obs[[sample_key, condition_key]].drop_duplicates()
+    if design.groupby(sample_key)[condition_key].nunique().gt(1).any():
+        warnings.append("BLOCKED: a biological sample is assigned to multiple conditions.")
+        return {"de_results": pd.DataFrame(), "de_table": pd.DataFrame(),
+                "method": "blocked", "status": "blocked",
+                "reason": "ambiguous_sample_condition", "warnings": warnings}
 
-    n_reps = adata.obs[replicate_key].nunique() if replicate_key in adata.obs.columns else 0
-    if n_reps < 2:
-        warnings.append("Fewer than 2 replicates — pseudobulk may be underpowered.")
+    counts = design.groupby(condition_key)[sample_key].nunique()
+    if len(counts) != 2 or (counts < 2).any():
+        warnings.append("BLOCKED: at least two independent biological samples per condition are required.")
+        return {"de_results": pd.DataFrame(), "de_table": pd.DataFrame(),
+                "method": "blocked", "status": "blocked",
+                "reason": "insufficient_biological_replicates",
+                "n_samples_per_condition": counts.to_dict(), "warnings": warnings}
 
-    de = run_pseudobulk_de(adata, sample_key=sample_key, group_key=condition_key)
-    return {
-        "de_results": de,
-        "method": "pseudobulk",
-        "n_replicates": n_reps,
-        "warnings": warnings,
-    }
+    # The legacy MWU-on-summed-counts implementation is not a validated
+    # negative-binomial differential-expression model. Do not publish its
+    # p-values as condition-level evidence until PyDESeq2/edgeR is integrated.
+    warnings.append("BLOCKED: validated negative-binomial pseudobulk backend is not configured.")
+    return {"de_results": pd.DataFrame(), "de_table": pd.DataFrame(),
+            "method": "blocked", "status": "blocked",
+            "reason": "validated_de_backend_unavailable",
+            "n_samples_per_condition": counts.to_dict(), "warnings": warnings}

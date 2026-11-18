@@ -3,7 +3,7 @@ import { LoaderCircle, Plus, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { mbsi, type DatasetUploadResponse } from "@/lib/mbsi-api";
+import { mbsi, type DatasetSummary, type DatasetUploadResponse } from "@/lib/mbsi-api";
 
 export function UploadButton({
   label = "Upload dataset",
@@ -39,21 +39,33 @@ export function UploadButton({
             setBusy(true);
             try {
               const result = await mbsi.upload(file, {});
-              queryClient.setQueryData<DatasetUploadResponse[]>(
+              queryClient.setQueryData<DatasetSummary[]>(
                 ["uploaded-datasets"],
                 (current = []) => [
                   ...current.filter((dataset) => dataset.dataset_id !== result.dataset_id),
-                  result,
+                  {
+                    dataset_id: result.dataset_id,
+                    project_id: "",
+                    sample_id: "",
+                    platform: result.platform,
+                    readiness: result.readiness,
+                    summary: result.summary,
+                    has_spatial_data: Boolean(result.adata_path),
+                  },
                 ],
               );
               queryClient.setQueryData(["last-upload"], result);
               onUploaded?.(result);
-              await queryClient.invalidateQueries({
-                predicate: (query) => query.queryKey[0] !== "uploaded-datasets",
-              });
-              toast.success("Dataset uploaded", {
-                description: `${file.name} was accepted by the scientific backend.`,
-              });
+              await queryClient.invalidateQueries({ queryKey: ["uploaded-datasets"] });
+              await queryClient.invalidateQueries({ queryKey: ["results"] });
+              const ready = String(result.readiness?.status ?? "").toLowerCase() === "ready";
+              if (ready) {
+                toast.success("Dataset uploaded and ready", { description: file.name });
+              } else {
+                toast.warning("Dataset uploaded; readiness not confirmed", {
+                  description: [file.name, ...result.warnings].join(" — ").slice(0, 300),
+                });
+              }
             } catch (error) {
               toast.error("Upload failed", { description: (error as Error).message });
             } finally {

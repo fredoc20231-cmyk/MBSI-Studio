@@ -13,8 +13,8 @@ def cors_allow_origins() -> list[str]:
     """
     raw = os.environ.get(
         "MBSI_CORS_ORIGINS",
-        "http://localhost:8501,http://127.0.0.1:8501,http://localhost:3000,http://127.0.0.1:3000",
+        "https://mbsi-studio.cronus.life,http://localhost:8501,http://127.0.0.1:8501,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173",
     )
     if raw.strip() == "*":
         return ["*"]
-    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]

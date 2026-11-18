@@ -1,29 +1,29 @@
+# API container for Render; scientific GPU workers should use a separate image.
 FROM python:3.11-slim
 
-WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    git \
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc g++ libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt pyproject.toml README.md ./
+# PyPI's default torch wheel may pull in a large CUDA stack on Linux.
+# This service runs CPU workloads; keep GPU training in dedicated workers.
+RUN python -m pip install --upgrade pip \
+    && python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.5.1+cpu"
 
-# Copy project
 COPY . .
+RUN python -m pip install -r requirements.txt \
+    && python -m pip install --no-deps .
 
-# Install package
-RUN pip install -e .
+RUN mkdir -p /app/data/uploads /app/data/outputs /app/data/registry/ingested
 
-# Create data directories
-RUN mkdir -p data/demo data/uploads data/outputs
-
-# Expose ports
-EXPOSE 8000 8501
-
-# Default command (can be overridden)
-CMD ["uvicorn", "mbsi.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Render injects PORT. Do not hardcode 8000: a live container must listen
+# on the port that Render routes external traffic to.
+EXPOSE 10000
+CMD ["sh", "-c", "exec python -m uvicorn mbsi.api.app:app --host 0.0.0.0 --port ${PORT:-10000}"]

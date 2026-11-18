@@ -43,6 +43,24 @@ export type DatasetSummary = {
   has_spatial_data: boolean;
 };
 export type DatasetListResponse = { datasets: DatasetSummary[] };
+export type FeatureSearchResponse = {
+  dataset_id: string;
+  genes: string[];
+  annotations: string[];
+  total_genes: number;
+};
+export type SpatialPoint = { barcode: string; x: number; y: number; value: number | string };
+export type SpatialResponse = {
+  dataset_id: string;
+  feature: string;
+  categorical: boolean;
+  source_layer: string;
+  total_observations: number;
+  returned_observations: number;
+  downsampled: boolean;
+  coordinate_system: string;
+  points: SpatialPoint[];
+};
 
 export type DatasetUploadResponse = {
   dataset_id: string;
@@ -80,6 +98,19 @@ export const mbsi = {
   health: () => req<Record<string, unknown>>("/api/health"),
   technologies: () => req<unknown>("/api/technologies"),
   datasets: () => req<DatasetListResponse>("/api/v1/datasets"),
+  features: (id: string, query = "") =>
+    req<FeatureSearchResponse>(
+      `/api/v1/datasets/${encodeURIComponent(id)}/features?query=${encodeURIComponent(query)}`,
+    ),
+  spatial: (id: string, selection: { gene?: string; annotation?: string; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (selection.gene) params.set("gene", selection.gene);
+    if (selection.annotation) params.set("annotation", selection.annotation);
+    params.set("limit", String(selection.limit ?? 5000));
+    return req<SpatialResponse>(
+      `/api/v1/datasets/${encodeURIComponent(id)}/spatial?${params.toString()}`,
+    );
+  },
   readiness: (datasetId: string) =>
     req<unknown>(`/api/dataset/readiness?dataset_id=${encodeURIComponent(datasetId)}`),
   results: (datasetId = "default") =>

@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { mbsi, type DatasetSummary, type SpatialResponse } from "@/lib/mbsi-api";
 import { EmptyState, Workspace } from "@/components/mbsi/Workspace";
 import { UploadButton } from "@/components/mbsi/UploadButton";
+import { ObservedExpressionDistribution } from "@/components/mbsi/ObservedExpressionDistribution";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -315,7 +316,11 @@ function Explore() {
                 ))}
               </div>
             </div>
-            <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 p-3">
+            <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-3">
+              {spatialQuery.data && !spatialQuery.data.categorical && (
+                <ObservedExpressionDistribution data={spatialQuery.data} />
+              )}
+              <div className="mt-3 grid grid-cols-2 gap-2">
               {datasets.slice(0, 4).map((dataset) => (
                 <div
                   key={dataset.dataset_id}
@@ -330,6 +335,7 @@ function Explore() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </section>
         </div>

@@ -1,13 +1,18 @@
 // Typed client for the MBSI FastAPI backend (single source of truth: mbsi.api.app:app).
 // Regenerate full types from <API>/openapi.json with openapi-typescript when available.
-export const API_URL: string =
-  (import.meta.env["VITE_MBSI_API_URL"] as string | undefined) ?? "http://localhost:8000";
+// In production never call the visitor's own localhost.
+export const API_URL: string = (
+  (import.meta.env["VITE_MBSI_API_URL"] as string | undefined)?.trim() ||
+  (import.meta.env.PROD ? "https://mbsi-studio.onrender.com" : "http://localhost:8000")
+).replace(/\/+$/, "");
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
+  const headers = new Headers(init?.headers);
+  // A Content-Type on GET triggers needless cross-origin preflights.
+  if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!res.ok) throw new Error(`[${res.status}] ${await res.text()}`);
   return res.json() as Promise<T>;
 }
@@ -27,6 +32,17 @@ export type EmbeddingPoint = {
   [k: string]: unknown;
 };
 export type EmbeddingResponse = { status: string; source: string; coordinates: EmbeddingPoint[] };
+
+export type DatasetSummary = {
+  dataset_id: string;
+  project_id: string;
+  sample_id: string;
+  platform: string;
+  readiness: Record<string, unknown>;
+  summary: Record<string, unknown>;
+  has_spatial_data: boolean;
+};
+export type DatasetListResponse = { datasets: DatasetSummary[] };
 
 export type DatasetUploadResponse = {
   dataset_id: string;
@@ -63,6 +79,7 @@ export type ResultsListResponse = {
 export const mbsi = {
   health: () => req<Record<string, unknown>>("/api/health"),
   technologies: () => req<unknown>("/api/technologies"),
+  datasets: () => req<DatasetListResponse>("/api/v1/datasets"),
   readiness: (datasetId: string) =>
     req<unknown>(`/api/dataset/readiness?dataset_id=${encodeURIComponent(datasetId)}`),
   results: (datasetId = "default") =>

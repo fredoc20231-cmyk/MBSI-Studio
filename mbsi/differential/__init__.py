@@ -32,10 +32,10 @@ def run_de(
     if mode == "condition":
         if replicate_key and replicate_key in adata.obs.columns:
             result = run_replicate_aware_tests(adata, condition_key=condition_key, replicate_key=replicate_key)
-            de = result.get("de_table")
-            if isinstance(de, pd.DataFrame) and not de.empty:
-                return de
-        return run_condition_de(adata, condition_key=condition_key, test=test)
+            return result["de_results"]
+        # Never infer condition effects from individual spots.
+        return pd.DataFrame()
     if mode == "pseudobulk":
-        return run_pseudobulk_de(adata, group_key=condition_key)
+        return run_replicate_aware_tests(adata, condition_key=condition_key,
+                                         replicate_key=replicate_key or "replicate_id")["de_results"]
     return run_cluster_de(adata, groupby=groupby, test=test)

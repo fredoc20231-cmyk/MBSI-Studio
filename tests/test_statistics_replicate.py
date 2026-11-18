@@ -17,5 +17,7 @@ def test_replicate_aware_pseudobulk():
         "replicate_id": ["1", "2", "1", "2"],
     })
     out = run_replicate_aware_tests(adata, sample_metadata=meta)
-    assert out["method"] in ("pseudobulk", "spot_level")
+    assert out["method"] == "blocked"
+    assert out["reason"] == "validated_de_backend_unavailable"
+    assert out["de_results"].empty
     assert "de_results" in out

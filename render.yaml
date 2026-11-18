@@ -1,8 +1,11 @@
+# Existing Render service: srv-dbshsbjbc2fs73bk3d30. Blueprint settings are only
+# applied if the service is managed via Render Blueprints; otherwise update
+# the service in its Render dashboard and redeploy latest main.
 # Render Blueprint: deploy the FastAPI backend separately from Lovable.
 # For a production deployment, provision authenticated storage and durable workers first.
 services:
   - type: web
-    name: mbsi-studio-api
+    name: mbsi-studio
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
@@ -13,6 +16,8 @@ services:
         value: "1"
       - key: PYTHONPATH
         value: /app
+      - key: PORT
+        value: "10000"
       - key: MBSI_CORS_ORIGINS
         value: https://mbsi-studio.cronus.life
     disk:

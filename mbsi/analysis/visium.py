@@ -118,7 +118,7 @@ def read_visium_spaceranger(outs_dir: str, image_res: str = "lowres") -> ad.AnnD
     adata.obs["array_row"] = pos["array_row"].astype(int).values if "array_row" in pos.columns else 0
     adata.obs["array_col"] = pos["array_col"].astype(int).values if "array_col" in pos.columns else 0
 
-    library_id = "sample"
+    # Space Ranger library identity must be unique across merged slides.\n    library_id = outs_dir.resolve().name\n    if library_id == "outs":\n        library_id = outs_dir.resolve().parent.name\n    adata.obs["library_id"] = library_id
     scalefactors = load_scalefactors(outs_dir)
     images: Dict[str, Any] = {}
     for res_key, fname in [("hires", "tissue_hires_image.png"), ("lowres", "tissue_lowres_image.png")]:
@@ -130,5 +130,5 @@ def read_visium_spaceranger(outs_dir: str, image_res: str = "lowres") -> ad.AnnD
                 pass
 
     adata.uns["spatial"] = {library_id: {"images": images, "scalefactors": scalefactors}}
-    adata.uns["spatial"]["library_id"] = library_id
+    adata.uns["spatial_library_id"] = library_id
     return adata

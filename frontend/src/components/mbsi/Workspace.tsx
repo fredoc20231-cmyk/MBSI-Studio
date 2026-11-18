@@ -37,7 +37,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { API_URL, mbsi, type DatasetUploadResponse } from "@/lib/mbsi-api";
+import { API_URL, mbsi, type DatasetSummary } from "@/lib/mbsi-api";
 
 const NAV = [
   { to: "/", label: "Explore", icon: Map },
@@ -175,13 +175,12 @@ function StudySidebar({ gene, setGene }: { gene: string; setGene: (value: string
   const [view, setView] = useState("Expression");
   const [scale, setScale] = useState("Auto");
   const [spotSize, setSpotSize] = useState(55);
-  const datasetsQuery = useQuery<DatasetUploadResponse[]>({
+  const datasetsQuery = useQuery<DatasetSummary[]>({
     queryKey: ["uploaded-datasets"],
-    queryFn: () => [],
-    initialData: [],
-    enabled: false,
+    queryFn: async () => (await mbsi.datasets()).datasets,
+    retry: 1,
   });
-  const datasets = datasetsQuery.data;
+  const datasets = datasetsQuery.data ?? [];
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-card">
@@ -202,6 +201,11 @@ function StudySidebar({ gene, setGene }: { gene: string; setGene: (value: string
       </SidebarSection>
 
       <SidebarSection title={`Samples (${datasets.length})`}>
+        {datasetsQuery.isError && (
+          <p role="alert" className="mb-2 text-xs text-destructive">
+            Unable to load datasets: {(datasetsQuery.error as Error).message}
+          </p>
+        )}
         {datasets.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
             Uploaded samples will appear here.

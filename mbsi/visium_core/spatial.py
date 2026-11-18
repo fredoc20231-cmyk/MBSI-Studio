@@ -31,7 +31,7 @@ def build_spatial_graph(adata, params: Dict[str, Any]) -> Dict[str, Any]:
     sq = require("squidpy", "Install squidpy>=1.4 on the scientific service.")
     if "spatial" not in adata.obsm:
         raise BlockedAnalysis("Dataset has no spatial coordinates (obsm['spatial']).", "Upload Space Ranger output with spatial positions.")
-    coord_type = params.get("coord_type", "grid")  # Visium hex grid
+    coord_type = params.get("coord_type", "grid")  # Squidpy uses grid, not "visium"
     kwargs = {"coord_type": coord_type}
     if coord_type == "grid":
         kwargs["n_rings"] = int(params.get("n_rings", 1))
@@ -48,7 +48,7 @@ def spatially_variable_genes(adata, params: Dict[str, Any]) -> Dict[str, Any]:
     mode = params.get("mode", "moran")
     n_top = int(params.get("n_top", 2000))
     genes = adata.var_names[adata.var["highly_variable"]] if "highly_variable" in adata.var else adata.var_names[:n_top]
-    df = sq.gr.spatial_autocorr(adata, mode=mode, genes=list(genes)[:n_top], n_perms=None, copy=True)
+    df = sq.gr.spatial_autocorr(adata, mode=mode, genes=list(genes)[:n_top], n_perms=int(params.get("n_perms", 100)), copy=True)
     pcol = "pval_norm"
     df["fdr_bh"] = bh_fdr(df[pcol].to_numpy())
     alpha = float(params.get("fdr_alpha", 0.05))
@@ -59,7 +59,7 @@ def spatially_variable_genes(adata, params: Dict[str, Any]) -> Dict[str, Any]:
         "n_tested": int(len(df)),
         "n_significant": int(len(sig)),
         "fdr_alpha": alpha,
-        "svg_table": sig.head(200).reset_index(names="gene").to_dict(orient="records"),
+        "svg_table": df.reset_index(names="gene").rename(columns={"I": "morans_i", "fdr_bh": "pval_norm_fdr_bh"}).to_dict(orient="records"),\n        "significant_genes": sig.index.astype(str).tolist(),
     }
 
 

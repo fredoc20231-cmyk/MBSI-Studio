@@ -52,6 +52,12 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
         allow_headers=["*"],
     )
 
+    @app.get("/", include_in_schema=False)
+    async def service_index():
+        """Friendly response for Render root health checks and browser navigation."""
+        return {"service": "MBSI Studio FastAPI", "status": "healthy",
+                "health": "/api/health", "openapi": "/openapi.json", "docs": "/docs"}
+
     @app.get("/health")
     @app.get("/api/health")
     async def health_check():

@@ -29,7 +29,7 @@ import {
   getObservedDetails,
   type ComparisonLevel,
 } from "@/lib/comparison";
-import { mbsi, type DatasetSummary, type WorkflowRunResponse } from "@/lib/mbsi-api";
+import { mbsi, type DatasetUploadResponse, type WorkflowRunResponse } from "@/lib/mbsi-api";
 
 export const Route = createFileRoute("/compare")({
   head: () => ({
@@ -80,13 +80,13 @@ function SampleResult({
   error,
 }: {
   datasetId: string;
-  dataset: DatasetSummary | undefined;
+  dataset: DatasetUploadResponse | undefined;
   level: ComparisonLevel;
   run: WorkflowRunResponse | undefined;
   error: string | undefined;
 }) {
   const details = run ? getObservedDetails(run.outputs, level.detailPaths) : {};
-  const failed = Boolean(run && !["complete", "completed", "complete_with_warnings"].includes(run.status));
+  const failed = run?.status === "failed" || run?.status === "stub";
 
   return (
     <article className="flex min-h-56 min-w-0 flex-col rounded-xl border border-border bg-card shadow-panel">
@@ -166,12 +166,13 @@ function Compare() {
   const [running, setRunning] = useState(false);
   const [runs, setRuns] = useState<Record<string, WorkflowRunResponse>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const datasetsQuery = useQuery<DatasetSummary[]>({
+  const datasetsQuery = useQuery<DatasetUploadResponse[]>({
     queryKey: ["uploaded-datasets"],
-    queryFn: async () => (await mbsi.datasets()).datasets,
-    retry: 1,
+    queryFn: () => [],
+    initialData: [],
+    enabled: false,
   });
-  const datasets = datasetsQuery.data ?? [];
+  const datasets = datasetsQuery.data;
   const activeLevel: ComparisonLevel =
     COMPARISON_LEVELS.find((level) => level.id === activeId) ?? COMPARISON_LEVELS[0];
   const currentRuns = selectedIds.flatMap((datasetId) => {
@@ -179,7 +180,7 @@ function Compare() {
     return run ? [{ datasetId, run }] : [];
   });
   const completedRuns = currentRuns.filter(
-    ({ run }) => ["complete", "completed", "complete_with_warnings"].includes(run.status),
+    ({ run }) => run.status !== "failed" && run.status !== "stub",
   );
   const metricRows = alignScalarMetrics(
     completedRuns.map(({ datasetId, run }) => ({ datasetId, outputs: run.outputs })),
@@ -222,7 +223,7 @@ function Compare() {
     const failed = settled.filter(
       (result) =>
         result.status === "rejected" ||
-        (result.status === "fulfilled" && !["complete", "completed", "complete_with_warnings"].includes(result.value.status)),
+        (result.status === "fulfilled" && ["failed", "stub"].includes(result.value.status)),
     ).length;
     if (failed > 0) {
       toast.error(`${failed} sample workflow${failed === 1 ? "" : "s"} did not complete`, {
@@ -262,7 +263,7 @@ function Compare() {
               1. Select samples
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              {selectedIds.length} selected · datasets available from the scientific backend
+              {selectedIds.length} selected · datasets uploaded in this session
             </p>
           </div>
           {datasets.length > 1 && (
@@ -275,14 +276,11 @@ function Compare() {
             </button>
           )}
         </div>
-        {datasetsQuery.isError && (
-          <p role="alert" className="mt-3 text-xs text-destructive">Backend dataset listing failed: {(datasetsQuery.error as Error).message}</p>
-        )}
         {datasets.length === 0 ? (
           <div className="mt-4 h-44">
             <EmptyState
-              title="No datasets available"
-              body="Upload at least two observed datasets. If the backend is disconnected, check its deployment and API URL."
+              title="No uploaded samples in this session"
+              body="Add at least two observed datasets. Their returned dataset identifiers will become available for comparison here."
               icon={<GitCompare className="h-6 w-6" strokeWidth={1.5} />}
             />
           </div>

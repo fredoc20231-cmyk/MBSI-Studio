@@ -1,20 +1,50 @@
 // Typed client for the MBSI FastAPI backend (single source of truth: mbsi.api.app:app).
 // Regenerate full types from <API>/openapi.json with openapi-typescript when available.
-// In production never call the visitor's own localhost.
-export const API_URL: string = (
-  (import.meta.env["VITE_MBSI_API_URL"] as string | undefined)?.trim() ||
-  (import.meta.env.PROD ? "https://mbsi-studio.onrender.com" : "http://localhost:8000")
-).replace(/\/+$/, "");
+import { getApiUrl, isMbsiHealth } from "@/lib/mbsi-connection";
+import {
+  LoupeCapabilitiesSchema,
+  LoupeRunSchema,
+  loupeArtifactPath,
+  loupeBlockedReason,
+  type LoupeRequest,
+} from "@/lib/loupe";
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers(init?.headers);
-  // A Content-Type on GET triggers needless cross-origin preflights.
-  if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+export { getApiUrl } from "@/lib/mbsi-connection";
+
+async function responseJson<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`[${res.status}] ${await res.text()}`);
+  if (!res.headers.get("content-type")?.includes("application/json")) {
+    throw new Error("The service returned a web page instead of MBSI data. Check its address.");
+  }
   return res.json() as Promise<T>;
+}
+
+async function req<T>(path: string, init?: RequestInit, baseUrl = getApiUrl()): Promise<T> {
+  if (!baseUrl) {
+    throw new Error(
+      "No scientific service connected. Open Scientific backend to connect the running MBSI service.",
+    );
+  }
+  const headers = new Headers(init?.headers);
+  headers.set("Accept", "application/json");
+  // Do not send JSON headers on GETs or overwrite the multipart file boundary.
+  if (typeof init?.body === "string") headers.set("Content-Type", "application/json");
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, { ...init, headers });
+  } catch {
+    throw new Error(
+      "Cannot reach the MBSI service. Check that it is running and allows this app’s address.",
+    );
+  }
+  return responseJson<T>(res);
+}
+
+export async function checkMbsiConnection(baseUrl = getApiUrl()) {
+  const health = await req<unknown>("/api/health", { signal: AbortSignal.timeout(10000) }, baseUrl);
+  if (!isMbsiHealth(health))
+    throw new Error("This address did not return the repository’s MBSI health response.");
+  return health;
 }
 
 export type EmbeddingRequest = {
@@ -32,35 +62,6 @@ export type EmbeddingPoint = {
   [k: string]: unknown;
 };
 export type EmbeddingResponse = { status: string; source: string; coordinates: EmbeddingPoint[] };
-
-export type DatasetSummary = {
-  dataset_id: string;
-  project_id: string;
-  sample_id: string;
-  platform: string;
-  readiness: Record<string, unknown>;
-  summary: Record<string, unknown>;
-  has_spatial_data: boolean;
-};
-export type DatasetListResponse = { datasets: DatasetSummary[] };
-export type FeatureSearchResponse = {
-  dataset_id: string;
-  genes: string[];
-  annotations: string[];
-  total_genes: number;
-};
-export type SpatialPoint = { barcode: string; x: number; y: number; value: number | string };
-export type SpatialResponse = {
-  dataset_id: string;
-  feature: string;
-  categorical: boolean;
-  source_layer: string;
-  total_observations: number;
-  returned_observations: number;
-  downsampled: boolean;
-  coordinate_system: string;
-  points: SpatialPoint[];
-};
 
 export type DatasetUploadResponse = {
   dataset_id: string;
@@ -94,23 +95,75 @@ export type ResultsListResponse = {
   results: Record<string, unknown>[];
 };
 
+export type Capability = {
+  module: string;
+  phase: number;
+  label: string;
+  evidence_tier: string;
+  packages: Record<string, string | null>;
+  installed: boolean;
+};
+
 export const mbsi = {
-  health: () => req<Record<string, unknown>>("/api/health"),
-  technologies: () => req<unknown>("/api/technologies"),
-  datasets: () => req<DatasetListResponse>("/api/v1/datasets"),
-  features: (id: string, query = "") =>
-    req<FeatureSearchResponse>(
-      `/api/v1/datasets/${encodeURIComponent(id)}/features?query=${encodeURIComponent(query)}`,
-    ),
-  spatial: (id: string, selection: { gene?: string; annotation?: string; limit?: number }) => {
-    const params = new URLSearchParams();
-    if (selection.gene) params.set("gene", selection.gene);
-    if (selection.annotation) params.set("annotation", selection.annotation);
-    params.set("limit", String(selection.limit ?? 5000));
-    return req<SpatialResponse>(
-      `/api/v1/datasets/${encodeURIComponent(id)}/spatial?${params.toString()}`,
-    );
+  // Optional proposed Loupe v1 contract. Missing endpoints remain unavailable.
+  loupe: {
+    capabilities: async (signal?: AbortSignal) =>
+      LoupeCapabilitiesSchema.parse(
+        await req<unknown>("/api/loupe/capabilities", signal ? { signal } : undefined),
+      ),
+    run: async (body: LoupeRequest, baseUrl = getApiUrl()) => {
+      const caps = LoupeCapabilitiesSchema.parse(
+        await req<unknown>("/api/loupe/capabilities", undefined, baseUrl),
+      );
+      const blocked = loupeBlockedReason(caps, body.function, body.dataset_id);
+      if (blocked) throw new Error(blocked);
+      const result = LoupeRunSchema.parse(
+        await req<unknown>(
+          "/api/loupe/run",
+          {
+            method: "POST",
+            body: JSON.stringify({ ...body, allow_demo: false }),
+          },
+          baseUrl,
+        ),
+      );
+      if (result.dataset_id !== body.dataset_id || result.function !== body.function)
+        throw new Error(
+          "The scientific service returned a run for a different dataset or function.",
+        );
+      return result;
+    },
+    status: async (id: string, signal?: AbortSignal) =>
+      LoupeRunSchema.parse(
+        await req<unknown>(
+          `/api/loupe/status?run_id=${encodeURIComponent(id)}`,
+          signal ? { signal } : undefined,
+        ),
+      ),
+    runs: async (datasetId: string, signal?: AbortSignal) => {
+      const result = await req<unknown>(
+        `/api/loupe/runs?dataset_id=${encodeURIComponent(datasetId)}`,
+        signal ? { signal } : undefined,
+      );
+      const parsed = LoupeRunSchema.array().parse(result);
+      if (parsed.some((run) => run.dataset_id !== datasetId))
+        throw new Error("Results contain a different dataset.");
+      return parsed;
+    },
+    download: async (artifactId: string, baseUrl = getApiUrl()) => {
+      if (!baseUrl) throw new Error("No scientific service connected.");
+      const response = await fetch(`${baseUrl}${loupeArtifactPath(artifactId)}`, {
+        headers: { Accept: "application/octet-stream" },
+      });
+      if (!response.ok) throw new Error(`[${response.status}] ${await response.text()}`);
+      if (response.headers.get("content-type")?.includes("text/html"))
+        throw new Error("The service returned a web page instead of an artifact.");
+      return response.blob();
+    },
   },
+  capabilities: () => req<{ modules: Capability[] }>("/api/capabilities"),
+  health: () => checkMbsiConnection(),
+  technologies: () => req<unknown>("/api/technologies"),
   readiness: (datasetId: string) =>
     req<unknown>(`/api/dataset/readiness?dataset_id=${encodeURIComponent(datasetId)}`),
   results: (datasetId = "default") =>
@@ -133,11 +186,9 @@ export const mbsi = {
     const fd = new FormData();
     fd.append("file", file);
     const q = new URLSearchParams(params).toString();
-    return fetch(`${API_URL}/api/dataset/upload?${q}`, { method: "POST", body: fd }).then(
-      async (r) => {
-        if (!r.ok) throw new Error(`[${r.status}] ${await r.text()}`);
-        return (await r.json()) as DatasetUploadResponse;
-      },
-    );
+    return req<DatasetUploadResponse>(`/api/dataset/upload${q ? `?${q}` : ""}`, {
+      method: "POST",
+      body: fd,
+    });
   },
 };

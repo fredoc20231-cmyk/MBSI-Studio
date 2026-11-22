@@ -236,7 +236,7 @@ function Loupe() {
         aria-label="Loupe views"
         className="mb-5 flex flex-wrap gap-1 border-b border-border"
       >
-        {["Export", "Checks & utilities", "Outcomes", "Images"].map((item) => (
+        {["Export", "Import & view", "Checks & utilities", "Outcomes", "Images"].map((item) => (
           <Button
             key={item}
             role="tab"
@@ -255,7 +255,31 @@ function Loupe() {
         ))}
       </div>
       <div role="tabpanel" aria-label={tab}>
-        {tab !== "Outcomes" && (
+        {tab === "Import & view" && (
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Import a .cloupe file</h2>
+            <UploadButton label="Upload .cloupe files" accept=".cloupe" />
+            <div role="status" className="border-y border-border py-4 text-xs leading-5">
+              <p className="font-semibold">.cloupe visualization unavailable on this service</p>
+              <p className="mt-2 text-muted-foreground">
+                Files can be submitted, but the connected service has no supported .cloupe reader or
+                interactive viewing API. LoupeR creates Loupe files; it does not read existing
+                .cloupe files. No genes, clusters or images will be shown unless the scientific
+                service actually decodes the file.
+              </p>
+              <Button asChild variant="link" size="sm" className="mt-2 px-0">
+                <a
+                  href="https://www.10xgenomics.com/support/software/loupe-browser"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open official 10x Loupe Browser page <ArrowRight />
+                </a>
+              </Button>
+            </div>
+          </section>
+        )}
+        {tab !== "Outcomes" && tab !== "Import & view" && (
           <form
             onSubmit={(e) => {
               e.preventDefault();

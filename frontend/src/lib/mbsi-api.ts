@@ -34,7 +34,7 @@ async function req<T>(path: string, init?: RequestInit, baseUrl = getApiUrl()): 
     res = await fetch(`${baseUrl}${path}`, { ...init, headers });
   } catch {
     throw new Error(
-      "Cannot reach the MBSI service. Check that it is running and allows this app’s address.",
+      `Cannot reach ${baseUrl}. The service may be starting or blocking this app. ${typeof window !== "undefined" ? `On Render, include ${window.location.origin} in MBSI_CORS_ORIGINS and redeploy the service.` : "Check that the service is running and allows this app’s address."}`,
     );
   }
   return responseJson<T>(res);
@@ -182,13 +182,21 @@ export const mbsi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  upload: (file: File, params: Record<string, string>) => {
+  upload: async (file: File, params: Record<string, string>) => {
     const fd = new FormData();
     fd.append("file", file);
     const q = new URLSearchParams(params).toString();
-    return req<DatasetUploadResponse>(`/api/dataset/upload${q ? `?${q}` : ""}`, {
+    const result = await req<DatasetUploadResponse>(`/api/dataset/upload${q ? `?${q}` : ""}`, {
       method: "POST",
       body: fd,
     });
+    if (result.readiness?.["status"] === "unsupported") {
+      const reason =
+        result.warnings?.join("; ") || "The scientific service cannot read this file format.";
+      throw new Error(
+        `${reason} The file was received, but no usable dataset or visualization was loaded.`,
+      );
+    }
+    return result;
   },
 };

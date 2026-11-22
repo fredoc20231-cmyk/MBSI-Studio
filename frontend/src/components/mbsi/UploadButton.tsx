@@ -10,12 +10,14 @@ export function UploadButton({
   variant = "default",
   className,
   sample = false,
+  accept,
   onUploaded,
 }: {
   label?: string;
   variant?: ButtonProps["variant"];
   className?: string;
   sample?: boolean;
+  accept?: string;
   onUploaded?: (dataset: DatasetUploadResponse) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -31,6 +33,7 @@ export function UploadButton({
         <input
           ref={inputRef}
           type="file"
+          accept={accept}
           multiple
           className="sr-only"
           disabled={busy}
@@ -71,7 +74,7 @@ export function UploadButton({
                 {
                   description:
                     uploaded.length === 1
-                      ? "One dataset was accepted by the scientific backend."
+                      ? `${uploaded[0]?.warnings?.join("; ") || "One dataset was accepted by the scientific backend."}${failed.length ? ` Not accepted: ${failed.map((file) => `${file.name}: ${file.reason}`).join("; ")}` : ""}`
                       : failed.length
                         ? `${failed.length} file(s) were not accepted: ${failed.map((file) => `${file.name}: ${file.reason}`).join("; ")}`
                         : "All files were accepted by the scientific backend.",

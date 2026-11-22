@@ -11,10 +11,12 @@ describe("existing MBSI backend connection", () => {
     sessionStorage.clear();
   });
 
-  it("uses localhost only in local development, never in a hosted preview", () => {
+  it("uses Render when a hosted build has no configured service, never hosted localhost", () => {
     expect(resolveApiUrl(undefined, "localhost")).toBe("http://localhost:8000");
-    expect(resolveApiUrl("", "mbsi-studio.cronus.life")).toBe("");
-    expect(resolveApiUrl(undefined, "spatial-omics-studio.lovable.app")).toBe("");
+    expect(resolveApiUrl("", "mbsi-studio.cronus.life")).toBe("https://mbsi-studio.onrender.com");
+    expect(resolveApiUrl(undefined, "spatial-omics-studio.lovable.app")).toBe(
+      "https://mbsi-studio.onrender.com",
+    );
     expect(resolveApiUrl("https://service.example/", "mbsi-studio.cronus.life")).toBe(
       "https://service.example",
     );
@@ -77,5 +79,37 @@ describe("existing MBSI backend connection", () => {
     await expect(mbsi.upload(new File(["data"], "reads.fastq"), {})).rejects.toThrow(
       '[422] {"detail":"Unsupported FASTQ input"}',
     );
+  });
+
+  it("does not treat a received but unsupported TIFF as a usable scientific dataset", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          dataset_id: "received-only",
+          readiness: { status: "unsupported", score: 0 },
+          warnings: ["Unsupported or unrecognized source format: upload.tif"],
+        }),
+      ),
+    );
+    await expect(mbsi.upload(new File(["bytes"], "slide.tif"), {})).rejects.toThrow(
+      "Unsupported or unrecognized source format: upload.tif",
+    );
+  });
+
+  it("allows .cloupe bytes to be submitted but preserves an unsupported reader response", async () => {
+    const file = new File(["opaque-loupe-bytes"], "sample.cloupe");
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        dataset_id: "received-loupe",
+        readiness: { status: "unsupported" },
+        warnings: ["Unsupported or unrecognized source format: upload.cloupe"],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(mbsi.upload(file, {})).rejects.toThrow(
+      "no usable dataset or visualization was loaded",
+    );
+    expect((fetchMock.mock.calls[0]?.[1]?.body as FormData).get("file")).toBe(file);
   });
 });

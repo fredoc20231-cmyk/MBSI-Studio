@@ -1,11 +1,18 @@
 # MBSI Studio
 
+## Upload connection and .cloupe viewing
+
+- [x] Keep the deployed Render address available when a hosted build has no environment setting; 19 focused tests pass and the browser shows the Render default.
+- [x] Allow explicit .cloupe file selection and expose the reader limitation without claiming a file was decoded; live browser failure verified with no runtime errors.
+- [ ] Verify live browser uploads: blocked until Render allows the frontend origins through MBSI_CORS_ORIGINS.
+- [ ] Read and visualize .cloupe contents: blocked on an authorized reader and observed-data viewing contract in the external scientific service; deployed OpenAPI has no Loupe endpoints.
+
 ## Loupe integration
 
 - [x] Inspect uploaded loupeR 1.1.5: all 15 exports, dependencies, validation, license and image limitations.
 - [x] Add the Loupe workspace, capability-gated external API adapter, configuration, outcomes and artifact views.
 - [x] Test function availability, request integrity, service changes, downloads and compact layout: 27 tests passed; controlled browser fixtures verified, not live conversion.
-- [ ] Publish frontend-only changes to the existing repository in a separate pull request.
+- [x] Publish frontend-only changes to the existing repository in separate PR #15: https://github.com/fredoc20231-cmyk/MBSI-Studio/pull/15; all 620 non-frontend tree entries unchanged.
 - [ ] Execute real Loupe conversion and image generation: blocked on the backend team's licensed R/Louper integration, observed-data renderer and deployed HTTPS service.
 
 ## Reference interface

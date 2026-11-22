@@ -1,6 +1,8 @@
 // Connection preferences are tab-scoped; datasets and credentials are never stored here.
 const CONNECTION_KEY = "mbsi-api-connection";
 const CONNECTION_EVENT = "mbsi-api-connection-changed";
+// Public deployed scientific service, retained in hosted builds without Vite environment settings.
+export const DEFAULT_MBSI_API_URL = "https://mbsi-studio.onrender.com";
 
 export function subscribeApiConnection(listener: () => void): () => void {
   window.addEventListener(CONNECTION_EVENT, listener);
@@ -24,7 +26,7 @@ export function resolveApiUrl(configured: string | undefined, hostname?: string)
   if (configured?.trim()) return configured.trim().replace(/\/+$/, "");
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
     ? "http://localhost:8000"
-    : "";
+    : DEFAULT_MBSI_API_URL;
 }
 
 export function getApiUrl(): string {

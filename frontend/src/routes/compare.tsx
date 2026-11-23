@@ -22,6 +22,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, Workspace } from "@/components/mbsi/Workspace";
 import { UploadButton } from "@/components/mbsi/UploadButton";
+import { LinkedSpatialAtlas } from "@/components/mbsi/LinkedSpatialAtlas";
 import {
   alignScalarMetrics,
   buildComparisonRequests,
@@ -321,6 +322,8 @@ function Compare() {
           </div>
         )}
       </section>
+
+      <LinkedSpatialAtlas selectedIds={selectedIds} datasets={datasets} />
 
       <section
         aria-labelledby="comparison-level-title"

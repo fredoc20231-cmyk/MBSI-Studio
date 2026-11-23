@@ -205,7 +205,9 @@ export function LinkedSpatialAtlas({
                   </span>
                 </div>
                 <div className="p-3">
-                  {query.isPending ? (
+                  {!feature ? (
+                    <p className="py-16 text-center text-xs text-muted-foreground">Enter a gene or annotation to view observed tissue.</p>
+                  ) : query.isPending ? (
                     <p className="py-20 text-center text-xs text-muted-foreground">Loading observed tissue…</p>
                   ) : query.isError ? (
                     <p role="alert" className="py-16 text-center text-xs text-destructive">
@@ -319,6 +321,17 @@ export function LinkedSpatialAtlas({
               </article>
             );
           })}
+        </div>
+      )}
+      {ids.length > 0 && mode === "annotation" && categories.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          {categories.slice(0, 12).map((category) => (
+            <span key={category} className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color(category) }} />
+              {category}
+            </span>
+          ))}
+          {categories.length > 12 && <span>+ {categories.length - 12} additional categories</span>}
         </div>
       )}
       {ids.length > 0 && feature && mode === "gene" && (

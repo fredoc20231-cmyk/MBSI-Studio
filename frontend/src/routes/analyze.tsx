@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowUpRight, FlaskConical } from "lucide-react";
 import { ANALYSIS_TOOLS } from "@/components/mbsi/AnalysisDock";
 import { EmptyState, PageHeader, Workspace } from "@/components/mbsi/Workspace";
-import { UploadButton } from "@/components/mbsi/UploadButton";
+import { UploadButton } from "@/components/mbsi/UploadButton";\nimport { MorphologySTIEPanel } from "@/components/mbsi/MorphologySTIEPanel";
 
 export const Route = createFileRoute("/analyze")({
   head: () => ({
@@ -56,7 +56,7 @@ function Analyze() {
           );
         })}
       </div>
-      <div className="mt-4 h-52">
+      <MorphologySTIEPanel />\n      <div className="mt-4 h-52">
         <EmptyState
           title="No workflow runs yet"
           body="Upload an observed dataset to configure a workflow. Run status, parameters and outputs will appear here."

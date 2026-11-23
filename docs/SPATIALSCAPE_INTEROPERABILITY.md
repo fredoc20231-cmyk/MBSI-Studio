@@ -43,6 +43,14 @@ python scripts/export_spatialscape_bundle.py SAMPLE_DATASET_ID_1 SAMPLE_DATASET_
 spatialscape serve ./private_atlas_export/bundles --open
 ```
 
+For a separately secured, HTTPS-hosted static atlas, the Lovable frontend can show
+an optional **Open high-resolution SpatialScape atlas** link. Configure its
+build-time variable `VITE_MBSI_SPATIALSCAPE_URL=https://your-private-atlas.example`
+and rebuild/republish the frontend. Local development additionally accepts
+`http://localhost:<port>` or `http://127.0.0.1:<port>`; production intentionally
+requires HTTPS. The link does not automatically grant permissions to the bundle,
+nor authenticate users to an external host.
+
 The number **0.45** above is an *illustrative placeholder only*, not a recommended
 Visium calibration. Get the actual microns-per-source-unit from the image/Space Ranger
 spatial calibration for those slides. Never mix samples with incompatible coordinate

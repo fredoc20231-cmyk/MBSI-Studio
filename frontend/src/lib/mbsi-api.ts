@@ -94,7 +94,36 @@ export type ResultsListResponse = {
   results: Record<string, unknown>[];
 };
 
+export type MorphologySTIEInput = {
+  expression: number[][];
+  signatures: number[][];
+  morphology: number[][];
+  cell_coords: number[][];
+  spot_coords: number[][];
+  penalty?: number;
+  random_state?: number;
+  max_assignment_distance?: number;
+};
+export type MorphologySTIEResult = {
+  status: string;
+  method: string;
+  validation_status: string;
+  spot_abundance: number[][];
+  cell_probabilities: number[][];
+  cell_type_index: number[];
+  cell_confidence: number[];
+  cell_to_spot: number[];
+  objective_history: number[];
+  converged: boolean;
+  warnings: string[];
+};
+
 export const mbsi = {
+  morphologySTIE: (body: MorphologySTIEInput) =>
+    req<MorphologySTIEResult>("/api/v1/reconstruction/morphology-stie", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   health: () => req<Record<string, unknown>>("/api/health"),
   technologies: () => req<unknown>("/api/technologies"),
   datasets: () => req<DatasetListResponse>("/api/v1/datasets"),

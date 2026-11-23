@@ -7,7 +7,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, Query, UploadFile
+from fastapi import FastAPI, File, Query, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from mbsi.api import handlers
@@ -23,6 +23,19 @@ from mbsi.api.contracts import (
 )
 from mbsi.api.cors import cors_allow_origins
 from mbsi.schema.technology import MILESTONE_1_PLATFORMS
+from pydantic import BaseModel, Field
+
+
+class MorphologySTIERequest(BaseModel):
+    expression: list[list[float]]
+    signatures: list[list[float]]
+    morphology: list[list[float]]
+    cell_coords: list[list[float]]
+    spot_coords: list[list[float]]
+    penalty: float = Field(default=1.0, ge=0, le=1e5)
+    random_state: int = 0
+    max_assignment_distance: float | None = Field(default=None, gt=0)
+
 
 
 @asynccontextmanager
@@ -62,6 +75,39 @@ def create_app(*, include_legacy: bool = False) -> FastAPI:
     @app.get("/api/health")
     async def health_check():
         return {"status": "healthy", "version": "0.3.0", "milestone_1_platforms": list(MILESTONE_1_PLATFORMS)}
+
+    @app.post("/api/v1/reconstruction/morphology-stie")
+    async def morphology_stie(body: MorphologySTIERequest):
+        """Small registered-data experimental inference; not ground truth."""
+        from mbsi.reconstruction.morphology_stie import fit_morphology_stie
+        if (len(body.expression) > 2000 or len(body.morphology) > 10000
+                or not body.expression or not body.morphology
+                or len(body.expression[0]) > 5000 or len(body.signatures) > 5000
+                or len(body.morphology[0]) > 128):
+            raise HTTPException(status_code=413, detail="Input exceeds synchronous inference limits")
+        try:
+            result = fit_morphology_stie(
+                body.expression, body.signatures, body.morphology,
+                body.cell_coords, body.spot_coords, penalty=body.penalty,
+                random_state=body.random_state,
+                max_assignment_distance=body.max_assignment_distance,
+            )
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {
+            "status": "completed", "method": "experimental_morphology_stie",
+            "validation_status": "not_benchmarked",
+            "spot_abundance": result.spot_abundance.tolist(),
+            "cell_probabilities": result.cell_probabilities.tolist(),
+            "cell_type_index": result.cell_type_index.tolist(),
+            "cell_confidence": result.cell_confidence.tolist(),
+            "cell_to_spot": result.cell_to_spot.tolist(),
+            "objective_history": result.objective_history,
+            "converged": result.converged,
+            "warnings": ["Inferred assignments are not observed cell identities.",
+                         "Gene order and spatial registration must be verified upstream.",
+                         "Not benchmarked against imaging-based single-cell ground truth."],
+        }
 
     @app.get("/api/technologies")
     async def api_technologies():

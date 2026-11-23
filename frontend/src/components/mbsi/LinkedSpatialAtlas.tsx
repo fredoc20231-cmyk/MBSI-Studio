@@ -52,6 +52,12 @@ export function LinkedSpatialAtlas({
   datasets: readonly DatasetSummary[];
 }) {
   const ids = selectedIds.slice(0, MAX_PANELS);
+  const configuredViewer = (import.meta.env["VITE_MBSI_SPATIALSCAPE_URL"] as string | undefined)?.trim() || "";
+  const viewerUrl = configuredViewer.startsWith("https://") ||
+    (import.meta.env.DEV && (
+      configuredViewer.startsWith("http://localhost:") ||
+      configuredViewer.startsWith("http://127.0.0.1:")
+    )) ? configuredViewer : "";
   const [mode, setMode] = useState<"gene" | "annotation">("gene");
   const [featureInput, setFeatureInput] = useState("");
   const [thresholdInput, setThresholdInput] = useState("");
@@ -138,6 +144,12 @@ export function LinkedSpatialAtlas({
   return (
     <section aria-label="Linked spatial atlas" className="mt-3 rounded-xl border border-border bg-card p-4 shadow-panel">
       <h2 className="text-sm font-semibold">Linked tissue atlas and exact region analysis</h2>
+      {viewerUrl && (
+        <a href={viewerUrl} target="_blank" rel="noopener noreferrer"
+          className="mt-2 inline-flex rounded-md border border-border px-3 py-1.5 text-xs text-primary">
+          Open separately hosted high-resolution SpatialScape atlas
+        </a>
+      )}
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
         Synchronized feature and color scales across up to four observed samples. Draw a polygon
         to obtain exact full-dataset region summaries; plots alone may be downsampled.

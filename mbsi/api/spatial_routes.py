@@ -152,3 +152,124 @@ def spatial(dataset_id: str, gene: str | None = Query(default=None, max_length=1
         }
     finally:
         a.file.close()
+
+
+# Exact observed-cell polygon selection inspired by spatialscape's linked lasso views.
+# This is independent MBSI implementation and does not alter the existing API.
+from pydantic import BaseModel, Field
+
+
+class SpatialSelectionRequest(BaseModel):
+    polygon: list[tuple[float, float]] = Field(min_length=3, max_length=128)
+    gene: str | None = Field(default=None, max_length=150)
+    annotation: str | None = Field(default=None, max_length=150)
+    threshold: float | None = None
+
+
+def _points_in_polygon(xy: np.ndarray, vertices: np.ndarray) -> np.ndarray:
+    """Vectorized even/odd polygon membership, including boundary points."""
+    if not np.isfinite(vertices).all() or vertices.shape[0] < 3:
+        raise HTTPException(422, "Polygon vertices must be finite and at least three")
+    px, py = vertices[:, 0], vertices[:, 1]
+    area2 = np.dot(px, np.roll(py, -1)) - np.dot(py, np.roll(px, -1))
+    if abs(area2) <= 1e-12:
+        raise HTTPException(422, "Polygon has zero area")
+    x, y = xy[:, 0], xy[:, 1]
+    inside = np.zeros(len(xy), dtype=bool)
+    boundary = np.zeros(len(xy), dtype=bool)
+    scale = max(1.0, float(np.ptp(vertices, axis=0).max()))
+    tolerance = 1e-10 * scale
+    for i in range(len(vertices)):
+        j = (i + 1) % len(vertices)
+        x1, y1 = vertices[i]
+        x2, y2 = vertices[j]
+        dx, dy = x2 - x1, y2 - y1
+        cross = (x - x1) * dy - (y - y1) * dx
+        boundary |= (
+            (np.abs(cross) <= tolerance * max(1.0, np.hypot(dx, dy)))
+            & (x >= min(x1, x2) - tolerance)
+            & (x <= max(x1, x2) + tolerance)
+            & (y >= min(y1, y2) - tolerance)
+            & (y <= max(y1, y2) + tolerance)
+        )
+        crossed = (y1 > y) != (y2 > y)
+        intersections = x1 + dx * (y - y1) / (dy if dy != 0 else 1.0)
+        inside ^= crossed & (x < intersections)
+    return inside | boundary
+
+
+@router.post("/datasets/{dataset_id}/selection")
+def select_spatial_region(dataset_id: str, body: SpatialSelectionRequest):
+    """Analyze an exact registered source-coordinate ROI, not displayed subsamples.
+
+    This is a descriptive operation, not inference or biological-replicate DE.
+    Large ROIs are rejected instead of silently producing approximate statistics.
+    """
+    if bool(body.gene) == bool(body.annotation):
+        raise HTTPException(422, "Specify exactly one gene or annotation")
+    if body.threshold is not None and not np.isfinite(body.threshold):
+        raise HTTPException(422, "Threshold must be finite")
+    if body.annotation and body.threshold is not None:
+        raise HTTPException(422, "Numeric threshold requires a gene")
+    polygon = np.asarray(body.polygon, dtype=np.float64)
+    if not np.isfinite(polygon).all():
+        raise HTTPException(422, "Polygon must have finite coordinates")
+    a = _open(dataset_id)
+    try:
+        coords = _coordinates(a)
+        xmin, ymin = polygon.min(axis=0)
+        xmax, ymax = polygon.max(axis=0)
+        candidates = np.flatnonzero(
+            (coords[:, 0] >= xmin) & (coords[:, 0] <= xmax)
+            & (coords[:, 1] >= ymin) & (coords[:, 1] <= ymax)
+        )
+        if len(candidates) > 500_000:
+            raise HTTPException(413, "ROI too large for synchronous exact selection; draw a smaller region")
+        mask = _points_in_polygon(coords[candidates], polygon)
+        selected = candidates[mask]
+        n = len(selected)
+        if body.gene:
+            if body.gene not in a.var_names:
+                raise HTTPException(404, "Gene not found")
+            values = a[selected, [body.gene]].X
+            values = np.asarray(values.toarray() if sparse.issparse(values) else values).reshape(-1)
+            if not np.issubdtype(values.dtype, np.number) or not np.isfinite(values).all():
+                raise HTTPException(409, "Expression contains non-finite values")
+            values = values.astype(float)
+            stats = {
+                "mean": float(np.mean(values)) if n else None,
+                "median": float(np.median(values)) if n else None,
+                "minimum": float(np.min(values)) if n else None,
+                "maximum": float(np.max(values)) if n else None,
+                "fraction_detected": float(np.mean(values > 0)) if n else None,
+                "above_threshold": int(np.sum(values >= body.threshold)) if body.threshold is not None else None,
+            }
+            categorical = False
+        else:
+            if body.annotation not in a.obs.columns:
+                raise HTTPException(404, "Annotation not found")
+            value_counts = a.obs.iloc[selected][body.annotation].astype(str).value_counts()
+            stats = {
+                "category_counts": {str(k): int(v) for k, v in value_counts.head(50).items()},
+                "categories_truncated": len(value_counts) > 50,
+            }
+            categorical = True
+        max_ids = 5000
+        barcodes = a.obs_names[selected[:max_ids]].astype(str).tolist()
+        return {
+            "dataset_id": dataset_id,
+            "feature": body.gene or body.annotation,
+            "categorical": categorical,
+            "source_layer": "obs" if categorical else "X",
+            "coordinate_system": "source_obsm_spatial",
+            "total_observations": int(a.n_obs),
+            "selected_observations": int(n),
+            "barcodes": barcodes,
+            "barcodes_truncated": n > max_ids,
+            "statistics": stats,
+            "inference": False,
+            "warnings": ["Descriptive ROI statistics; not replicate-aware differential expression.",
+                         "Source coordinates are not automatically aligned between samples."],
+        }
+    finally:
+        a.file.close()

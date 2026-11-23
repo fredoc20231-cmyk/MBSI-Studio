@@ -73,3 +73,56 @@ def test_bad_input_rejected(client_with_spatial):
     assert client.get(f"/api/v1/datasets/{ds}/spatial?gene=CD8A&annotation=cluster").status_code == 422
     assert client.get(f"/api/v1/datasets/{ds}/spatial?gene=missing").status_code == 404
     assert client.get("/api/v1/datasets/..%2F..%2Fsecrets/features").status_code in (404, 422)
+
+
+def test_exact_polygon_selection_and_statistics(client_with_spatial):
+    client, ds = client_with_spatial
+    # Rectangle includes spots 1 and 2 but excludes spot 3.
+    polygon = [[0, 10], [40, 10], [40, 50], [0, 50]]
+    response = client.post(
+        f"/api/v1/datasets/{ds}/selection",
+        json={"gene": "CD8A", "polygon": polygon, "threshold": 1.0},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["selected_observations"] == 2
+    assert payload["barcodes"] == ["spot1", "spot2"]
+    assert payload["barcodes_truncated"] is False
+    assert payload["statistics"]["mean"] == 1.0
+    assert payload["statistics"]["fraction_detected"] == 0.5
+    assert payload["statistics"]["above_threshold"] == 1
+    assert payload["inference"] is False
+
+
+def test_exact_polygon_annotation_boundary_and_empty_roi(client_with_spatial):
+    client, ds = client_with_spatial
+    polygon = [[10, 20], [30, 20], [30, 40], [10, 40]]
+    response = client.post(
+        f"/api/v1/datasets/{ds}/selection",
+        json={"annotation": "cluster", "polygon": polygon},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["statistics"]["category_counts"] == {"immune": 1, "tumor": 1}
+    empty = client.post(
+        f"/api/v1/datasets/{ds}/selection",
+        json={"gene": "TP53", "polygon": [[100, 100], [101, 100], [100, 101]]},
+    )
+    assert empty.status_code == 200
+    assert empty.json()["selected_observations"] == 0
+    assert empty.json()["statistics"]["mean"] is None
+
+
+def test_exact_polygon_rejects_invalid_input(client_with_spatial):
+    client, ds = client_with_spatial
+    zero_area = [[0, 0], [1, 1], [2, 2]]
+    response = client.post(
+        f"/api/v1/datasets/{ds}/selection", json={"gene": "CD8A", "polygon": zero_area}
+    )
+    assert response.status_code == 422
+    polygon = [[0, 0], [40, 0], [40, 50], [0, 50]]
+    assert client.post(f"/api/v1/datasets/{ds}/selection",
+                       json={"gene": "CD8A", "annotation": "cluster", "polygon": polygon}).status_code == 422
+    assert client.post(f"/api/v1/datasets/{ds}/selection",
+                       json={"gene": "MISSING", "polygon": polygon}).status_code == 404
+    assert client.post(f"/api/v1/datasets/{ds}/selection",
+                       json={"annotation": "cluster", "threshold": 1, "polygon": polygon}).status_code == 422

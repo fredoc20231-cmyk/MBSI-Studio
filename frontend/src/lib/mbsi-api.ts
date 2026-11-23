@@ -94,7 +94,43 @@ export type ResultsListResponse = {
   results: Record<string, unknown>[];
 };
 
+
+export type SpatialSelectionRequest = {
+  polygon: [number, number][];
+  gene?: string;
+  annotation?: string;
+  threshold?: number;
+};
+export type SpatialSelectionResponse = {
+  dataset_id: string;
+  feature: string;
+  categorical: boolean;
+  source_layer: string;
+  coordinate_system: string;
+  total_observations: number;
+  selected_observations: number;
+  barcodes: string[];
+  barcodes_truncated: boolean;
+  statistics: {
+    mean?: number | null;
+    median?: number | null;
+    minimum?: number | null;
+    maximum?: number | null;
+    fraction_detected?: number | null;
+    above_threshold?: number | null;
+    category_counts?: Record<string, number>;
+    categories_truncated?: boolean;
+  };
+  inference: boolean;
+  warnings: string[];
+};
+
 export const mbsi = {
+  selectRegion: (id: string, selection: SpatialSelectionRequest) =>
+    req<SpatialSelectionResponse>(
+      `/api/v1/datasets/${encodeURIComponent(id)}/selection`,
+      { method: "POST", body: JSON.stringify(selection) },
+    ),
   health: () => req<Record<string, unknown>>("/api/health"),
   technologies: () => req<unknown>("/api/technologies"),
   datasets: () => req<DatasetListResponse>("/api/v1/datasets"),

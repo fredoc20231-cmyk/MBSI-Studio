@@ -45,7 +45,7 @@ jobs:
           bun-version: "1.2.21"
       - name: Install locked Lovable dependencies
         run: bun install --frozen-lockfile
+      - name: Build Lovable application and generate TanStack route tree
+        run: bun run build
       - name: Test React application
         run: bun run test
-      - name: Build Lovable application
-        run: bun run build

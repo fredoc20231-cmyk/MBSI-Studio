@@ -36,8 +36,6 @@ def _matrix(name, value, *, nonnegative=False):
 
 def _objective(E, G, A, P, penalty):
     residual = E - A @ G.T
-    B = np.eye(A.shape[1]) - np.ones((A.shape[1], 1)) @ P[None, :]
-    # P is per spot; evaluate separately below instead.
     return 0.5 * np.sum(residual**2) + 0.5 * penalty * np.sum(
         (A - A.sum(axis=1, keepdims=True) * P)**2
     )

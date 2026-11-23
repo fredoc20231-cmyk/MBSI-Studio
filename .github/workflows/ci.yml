@@ -30,3 +30,22 @@ jobs:
         env:
           PYTHONPATH: .
         run: pytest -m "not heavy and not integration" -q --tb=short
+
+
+  lovable-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.21"
+      - name: Install locked Lovable dependencies
+        run: bun install --frozen-lockfile
+      - name: Test React application
+        run: bun run test
+      - name: Build Lovable application
+        run: bun run build
